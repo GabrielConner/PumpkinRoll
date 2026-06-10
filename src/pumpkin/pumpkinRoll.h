@@ -16,10 +16,19 @@
 namespace pumpkin {
 
 
+#ifndef PUMPKIN_ROLL_VERBOSE_PRINT
+
+#define pDebug(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::DEBUG, "", "", msg)
+#define pWarn(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::WARNING, "[WARNING] " "", "", msg)
+#define pError(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::ERROR, "[ERROR] " "", "", msg)
+
+#else
+
 #define pDebug(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::DEBUG, "", "", msg)
 #define pWarn(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::WARNING, "[WARNING] " __FILE__, __LINE__, msg)
 #define pError(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::ERROR, "[ERROR] " __FILE__, __LINE__, msg)
 
+#endif
 
 #ifdef PUMPKIN_ROLL_NO_CHECK
 

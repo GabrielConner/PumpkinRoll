@@ -11,6 +11,7 @@
 namespace pumpkin {
 
 struct Model {
+  std::string name = "";
   std::set<Object*> instances;
   std::map<std::string, VariableType> vars;
   Mesh* mesh = nullptr;

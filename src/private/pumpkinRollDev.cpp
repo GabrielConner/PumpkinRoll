@@ -3,6 +3,7 @@
 
 #include "pumpkin/types.h"
 #include "private/types.h"
+#include "private/model.h"
 #include "private/pumpkinRoll.h"
 
 #include "pPack/windowManager.h"
@@ -13,8 +14,6 @@
 #include <numeric>
 #include <assert.h>
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 #include <conio.h>
 
 using namespace ::pPack;
@@ -30,6 +29,12 @@ struct Ask {
   virtual void Question(std::string const& line) = 0;
   virtual void Set() {}
 };
+
+
+// Helper functions
+void ListObjects();
+void ListModels();
+inline bool ToNumberFromAscii(int& i) { i -= 48; return i < 0 || i > 9; }
 
 
 /*************************************************************************/
@@ -61,12 +66,19 @@ struct SelectObject : Ask {
 } selectObject;
 
 
+struct HoldObject : Ask {
+
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+} holdObject;
+
 
 
 // Data container
 struct Data {
   std::string line = "";
 
+  Object* selectedObject = nullptr;
   Pumpkin* pumpkin = nullptr;
   std::vector<std::string> messages;
   Ask* ask = nullptr;
@@ -78,6 +90,14 @@ struct Data {
     ask->Set();
     line = "";
     updateAsk = true;
+  }
+
+  void ResetAsk() {
+    if (selectedObject) {
+      SetAsk(&holdObject);
+    } else {
+      SetAsk(&mainMenu);
+    }
   }
 
 }*data = nullptr;
@@ -198,8 +218,7 @@ namespace {
 void MainMenu::Prompt(int i, std::string const& line) {
   assert(data);
 
-  i -= 48;
-  if (i < 0 || i > 9) return;
+  if (ToNumberFromAscii(i)) return;
 
   switch (i) {
     case 0:
@@ -285,11 +304,12 @@ void SelectObject::Prompt(int i, std::string const& line) {
       data->SetAsk(&mainMenu);
     }
 
-    // Specify delete that will unregister object as well
-    // Private delete is a destructor
-    if (::pumpkin::DeleteObject(line)) {
-      data->SetAsk(&mainMenu);
+
+    data->selectedObject = GetObject(line);
+    if (data->selectedObject == nullptr) {
+      pWarn("No object selected");
     }
+    data->ResetAsk();
     return;
   }
 
@@ -321,6 +341,74 @@ void SelectObject::Question(std::string const& line) {
 // **************************************************
 // SelectObject
 
+
+
+
+
+// HoldObject
+// **************************************************
+// **************************************************
+
+void HoldObject::Prompt(int i, std::string const& line) {
+  assert(data);
+  if (ToNumberFromAscii(i)) return;
+
+  switch (i) {
+    case 0:
+      ::pumpkin::DeleteObject(pObjInt(data->selectedObject)->name);
+      data->selectedObject = nullptr;
+      data->SetAsk(&mainMenu);
+    break;
+  }
+}
+
+
+void HoldObject::Question(std::string const& line) {
+  std::cout << "[OBJECT : " << pObjInt(data->selectedObject)->name << "]\n\n" << "0. Delete object\n1. Set object model\n2. Set object property";
+}
+
+// **************************************************
+// **************************************************
+// HoldObject
+
+
+
+
+
+/*************************************************************************/
+/*************************************************************************/
+/*                                                                       */
+/*                       L I S T I N G   T H I N G S                     */
+/*                                                                       */
+/*************************************************************************/
+/*************************************************************************/
+
+void ListObjects() {
+  std::vector<std::string> objList;
+  for (auto objP : data->pumpkin->registeredObjects) {
+    objList.push_back(Object_GetName(objP.second));
+  }
+  std::sort(objList.begin(), objList.end(), [](std::string const& a, std::string const& b) {
+    int sumA = std::accumulate(a.begin(), a.end(), 0);
+    int sumB = std::accumulate(b.begin(), b.end(), 0);
+    return sumA < sumB;
+  });
+  for (auto obj : objList) std::cout << obj << '\n';
+}
+
+
+void ListModels() {
+  std::vector<std::string> list;
+  for (auto t : data->pumpkin->registeredModels) {
+    list.push_back(t.second->name);
+  }
+  std::sort(list.begin(), list.end(), [](std::string const& a, std::string const& b) {
+    int sumA = std::accumulate(a.begin(), a.end(), 0);
+    int sumB = std::accumulate(b.begin(), b.end(), 0);
+    return sumA < sumB;
+  });
+  for (auto t : list) std::cout << t << '\n';
+}
 
 }; // namespace
 

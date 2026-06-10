@@ -761,6 +761,7 @@ Model* RegisterModel(std::string const& name) {
   pPumpkinCheck(nullptr);
 
   Model* model = new Model();
+  model->name = name;
   if (!pumpkinData->registeredModels.insert({_STRING_HASHER(name), model}).second) {
     pWarn("Model already exists with same name");
     delete(model);
