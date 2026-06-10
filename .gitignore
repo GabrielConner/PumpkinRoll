@@ -1,3 +1,9 @@
+src/ppm/model/
+src/ppm/modelLoading/
+src/ppm/timer/
+src/ppm/vector/
+src/ppm/windowManager
+
 srcExt/
 library/
 assimp-vc143-mt.dll
