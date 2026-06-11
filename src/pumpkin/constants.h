@@ -21,6 +21,9 @@ inline constexpr uint32_t CONTROL = 1 << 31;
 
 inline constexpr char _BACKSPACE = 0x08;
 inline constexpr char _ESCAPE = 0x1B;
+inline constexpr char _UP_ARROW = 0x48;
+inline constexpr char _LEFT_ARROW = 0x4B;
+inline constexpr char _RIGHT_ARROW = 0x4D;
 
 
 }; // namespace pumpkin

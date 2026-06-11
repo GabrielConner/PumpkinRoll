@@ -18,15 +18,18 @@ namespace pumpkin {
 
 #ifndef PUMPKIN_ROLL_VERBOSE_PRINT
 
-#define pDebug(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::DEBUG, "", "", msg)
-#define pWarn(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::WARNING, "[WARNING] " "", "", msg)
-#define pError(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::ERROR, "[ERROR] " "", "", msg)
+#define pDebug(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::DEBUG, "", msg)
+#define pWarn(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::WARNING, "[WARNING] ", msg)
+#define pError(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::ERROR, "[ERROR] ", msg)
 
 #else
 
-#define pDebug(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::DEBUG, "", "", msg)
-#define pWarn(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::WARNING, "[WARNING] " __FILE__, __LINE__, msg)
-#define pError(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::ERROR, "[ERROR] " __FILE__, __LINE__, msg)
+#define STRINGYFY(x) # x
+#define PASTE_AS_STRING(s) STRINGYFY(s)
+
+#define pDebug(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::DEBUG, "", msg)
+#define pWarn(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::WARNING, "[WARNING] " __FILE__ " -- " PASTE_AS_STRING(__LINE__), msg)
+#define pError(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::ERROR, "[ERROR] " __FILE__ " -- " PASTE_AS_STRING(__LINE__),  msg)
 
 #endif
 

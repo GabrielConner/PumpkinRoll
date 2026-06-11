@@ -350,12 +350,12 @@ RuntimeSettings* GetRuntime() {
 
 
 
-//#ifndef PUMPKIN_ROLL_DEV
-void PrintError(PrintLevel level, char const* file, int line, char const* msg) {
+#ifndef PUMPKIN_ROLL_DEV
+void PrintError(PrintLevel level, char const* file, char const* msg) {
   if (pumpkinData != nullptr && (level == PrintLevel::NOPRINT || pumpkinData->runtime.printLevel > level)) return;
-  std::cerr << msg << '\n' << file << " -- " << line << "\n\n";
+  std::cerr << msg << '\n' << file << "\n\n";
 }
-//#endif
+#endif
 
 
 

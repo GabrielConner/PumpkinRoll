@@ -23,6 +23,9 @@ using namespace ::pumpkin_private;
 
 namespace {
 
+inline constexpr int _MAX_HISTORY = 16;
+
+
 // Abstract Ask struct
 struct Ask {
   virtual void Prompt(int i, std::string const& line) = 0;
@@ -48,56 +51,147 @@ inline bool ToNumberFromAscii(int& i) { i -= 48; return i < 0 || i > 9; }
 struct MainMenu : Ask {
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
-} mainMenu;
+};
 
 
 struct CreateObject : Ask {
 
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
-} createObject;
-
-
-struct SelectObject : Ask {
-  bool display = false;
-
-  void Prompt(int i, std::string const& line) override;
-  void Question(std::string const& line) override;
-} selectObject;
+};
 
 
 struct HoldObject : Ask {
 
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
-} holdObject;
+};
+
+
+struct SelectObject : Ask {
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+};
+
+
+struct SelectModel : Ask {
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+};
+
+
+
+
+// Return data to go backs
+struct DataHistorySlice {
+  Ask* ask = nullptr;
+  Object* holdingObject = nullptr;
+  Object* selectedObject = nullptr;
+  Model* selectedModel = nullptr;
+};
 
 
 
 // Data container
 struct Data {
+  MainMenu mainMenu;
+  CreateObject createObject;
+  HoldObject holdObject;
+  SelectObject selectObject;
+  SelectModel selectModel;
+
   std::string line = "";
 
+  Object* holdingObject = nullptr;
   Object* selectedObject = nullptr;
+  Model* selectedModel = nullptr;
+
+
   Pumpkin* pumpkin = nullptr;
-  std::vector<std::string> messages;
   Ask* ask = nullptr;
 
-  bool updateAsk = true;
 
-  void SetAsk(Ask* Ask) {
+  std::vector<std::string> messages;
+  DataHistorySlice history[_MAX_HISTORY] = {0};
+
+
+  bool display = false;
+  bool updateAsk = true;
+  int currentInHistory = 0;
+  int historyLength = 0;
+
+
+
+  // Handles implicit actions based on what is selected
+  // Such as if there is a selectedObject and no holdingObject: set holdingObject to selectedObject
+  void HandleImplicit() {
+    if (holdingObject && selectedModel) {
+      Object_SetModel(holdingObject, selectedModel);
+      selectedModel = nullptr;
+    } else if (selectedObject && !holdingObject) {
+      holdingObject = selectedObject;
+      selectedObject = nullptr;
+    }
+  }
+
+
+  // Goes back in history of commands
+  void GoBack() {
+    if (historyLength == 0) {
+      ResetAsk();
+      return;
+    }
+
+    historyLength--;
+    DataHistorySlice& slice = history[currentInHistory];
+    currentInHistory = (currentInHistory - 1) % _MAX_HISTORY;
+
+    ask = slice.ask;
+    holdingObject = slice.holdingObject;
+    selectedObject = slice.selectedObject;
+    selectedModel = slice.selectedModel;
+
+    SetAsk(slice.ask, false);
+  }
+
+
+  // Sets the current ask and by default saves to history
+  void SetAsk(Ask* Ask, bool trigger=true) {
+    if (trigger) {
+      historyLength = std::min(_MAX_HISTORY, historyLength + 1);
+      currentInHistory = (currentInHistory + 1) % _MAX_HISTORY;
+      DataHistorySlice& slice = history[currentInHistory];
+
+      slice.ask = ask;
+      slice.holdingObject = holdingObject;
+      slice.selectedObject = selectedObject;
+      slice.selectedModel = selectedModel;
+    }
+
     ask = Ask;
     ask->Set();
     line = "";
+
     updateAsk = true;
   }
 
+
+  // Does an implicit SetAsk based on the after effects of HandleImplicit
   void ResetAsk() {
-    if (selectedObject) {
-      SetAsk(&holdObject);
+    HandleImplicit();
+
+    if (holdingObject) {
+      SetAsk(&holdObject, true);
     } else {
-      SetAsk(&mainMenu);
+      SetAsk(&mainMenu, true);
     }
+  }
+
+
+  void ResetHold() {
+    holdingObject = nullptr;
+    selectedObject = nullptr;
+    selectedModel = nullptr;
   }
 
 }*data = nullptr;
@@ -120,9 +214,10 @@ namespace pumpkin_private {
 void StartDevelopment() {
   assert(data == nullptr);
 
+  // Create data
   data = new Data();
   data->pumpkin = GetPumpkin();
-  data->SetAsk(&mainMenu);
+  data->ask = &data->mainMenu;
 }
 
 
@@ -172,27 +267,77 @@ void UpdateDevelopment() {
     system("clear");
     #endif
 
-    data->ask->Question(data->line);
 
+    // Default commands
+    std::cout << "[ESCAPE to display extended]\n";
+    std::cout << "[UP ARROW to clear messages]\n";
+    std::cout << "[RIGHT ARROW to go back]\n";
+    std::cout << "[LEFT ARROW to main menu]\n\n";
+
+    if (data->holdingObject) {
+      std::cout << "[OBJECT : " << pObjInt(data->holdingObject)->name << "]\n";
+    }
+    if (data->selectedModel) {
+      std::cout << "[MODEL : " << data->selectedModel->name << "]\n";
+    }
+
+
+    // Output redirected print messages
+    for (auto& msg : data->messages) {
+      std::cout << msg;
+    }
+    std::cout << "\n\n";
+
+
+    data->ask->Question(data->line);
     data->updateAsk = false;
   }
 
+
+  // For all buttons that were pressed
   while (_kbhit()) {
     int ret = _getch_nolock();
+
+    // Special key was pressed
     if (ret == 0xE0 || ret == 0x00) {
+
+      // Get special key
       ret = _getch_nolock();
+      switch (ret) {
+        case _UP_ARROW:
+          data->messages.clear();
+          data->updateAsk = true;
+          break;
+        case _RIGHT_ARROW:
+          data->GoBack();
+          break;
+        case _LEFT_ARROW:
+          data->SetAsk(&data->mainMenu);
+          data->ResetHold();
+          break;
+      }
+
+      continue;
+    }
+    // escape isn't a special key 
+    if (ret == _ESCAPE) {
+      data->display = !data->display;
+      data->updateAsk = true;
       continue;
     }
 
+    // Is graphical key, ask prompt decides to reset with new key input or not
     if (std::isgraph(ret)) data->line += (char)ret;
 
-    if (ret == _BACKSPACE && data->line.size() > 0) data->line.erase(data->line.size() - 1);
+    // Implicit capture
+    if (ret == _BACKSPACE) {
+      if (data->line.size() != 0) {
+        data->line.erase(data->line.size() - 1);
+      }
+    }
+
 
     data->ask->Prompt(ret, data->line);
-
-    if (ret == '\r' || ret == '\n') {
-      data->line = "";
-    }
   }
 }
 
@@ -203,6 +348,19 @@ void EndDevelopment() {
 }
 
 }; // namespace pumpkin_private
+
+
+
+
+namespace pumpkin {
+
+// Redirect errors to list so they can display correctly
+void PrintError(PrintLevel level, char const* file, char const* msg) {
+  if (data->pumpkin != nullptr && (level == PrintLevel::NOPRINT || data->pumpkin->runtime.printLevel > level)) return;
+  data->messages.push_back(std::string(msg) + '\n' + file + "\n\n");
+}
+
+}; // namespace pumpkin
 
 
 
@@ -221,11 +379,11 @@ void MainMenu::Prompt(int i, std::string const& line) {
   if (ToNumberFromAscii(i)) return;
 
   switch (i) {
-    case 0:
-      data->SetAsk(&createObject);
+    case 0: // Create object
+      data->SetAsk(&data->createObject);
       break;
-    case 1:
-      data->SetAsk(&selectObject);
+    case 1: // Select object
+      data->SetAsk(&data->selectObject);
       break;
   }
 }
@@ -252,21 +410,24 @@ void CreateObject::Prompt(int i, std::string const& line) {
   assert(data);
 
   if (i == '\r' || i == '\n') {
-    if (line.size() == 0) {
-      data->SetAsk(&mainMenu);
+    if (line.size() == 0) { // Go back
+      data->SetAsk(&data->mainMenu);
       return;
     }
     
+
     Object* render = RegisterObject(line);
     if (!render) {
       pWarn((std::string("Failed to create ") + line).c_str());
+      data->updateAsk = true;
       return;
     }
 
-    Object_SetModel(render, GetModel("PumpkinRoll_Default"));
+    // PRTODO remove this at some point
     render->transform.rotation.x = 90;
 
-    data->SetAsk(&mainMenu);
+    // Isn't part of the selecting cycle stuff so can be direct
+    data->SetAsk(&data->mainMenu);
     return;
   }
 
@@ -286,6 +447,40 @@ void CreateObject::Question(std::string const& line) {
 
 
 
+// HoldObject
+// **************************************************
+// **************************************************
+
+void HoldObject::Prompt(int i, std::string const& line) {
+  assert(data);
+  if (ToNumberFromAscii(i)) return;
+
+  switch (i) {
+    case 0: // Delete object
+      ::pumpkin::DeleteObject(pObjInt(data->holdingObject)->name);
+      data->holdingObject = nullptr;
+      data->SetAsk(&data->mainMenu);
+      break;
+    case 1: // Set object model
+      data->selectedModel = pObjInt(data->holdingObject)->model;
+      data->SetAsk(&data->selectModel);
+      break;
+  }
+}
+
+
+void HoldObject::Question(std::string const& line) {
+  std::cout << "0. Delete object\n1. Set object model";
+}
+
+// **************************************************
+// **************************************************
+// HoldObject
+
+
+
+
+
 // SelectObject
 // **************************************************
 // **************************************************
@@ -293,15 +488,10 @@ void CreateObject::Question(std::string const& line) {
 void SelectObject::Prompt(int i, std::string const& line) {
   assert(data);
 
-  if (i == _ESCAPE) {
-    display = !display;
-    data->updateAsk = true;
-    return;
-  }
-
   if (i == '\r' || i == '\n') {
-    if (line.size() == 0) {
-      data->SetAsk(&mainMenu);
+    if (line.size() == 0) { // Go back
+      data->ResetAsk();
+      return;
     }
 
 
@@ -320,21 +510,11 @@ void SelectObject::Prompt(int i, std::string const& line) {
 void SelectObject::Question(std::string const& line) {
   assert(data);
 
-  if (display) {
-    std::vector<std::string> objList;
-    for (auto objP : data->pumpkin->registeredObjects) {
-      objList.push_back(Object_GetName(objP.second));
-    }
-    std::sort(objList.begin(), objList.end(), [](std::string const& a, std::string const& b) {
-      int sumA = std::accumulate(a.begin(), a.end(), 0);
-      int sumB = std::accumulate(b.begin(), b.end(), 0);
-      return sumA < sumB;
-    });
-    for (auto obj : objList) std::cout << obj << '\n';
-    std::cout << "\n\n";
+  if (data->display) {
+    ListObjects();
   }
 
-  std::cout << "Enter object name to select or empty to go back\n[ESCAPE] Toggle object list\n>>" << line;
+  std::cout << "Enter object name to select or empty to go back\n>>" << line;
 }
 
 // **************************************************
@@ -345,31 +525,50 @@ void SelectObject::Question(std::string const& line) {
 
 
 
-// HoldObject
+// SelectModel
 // **************************************************
 // **************************************************
 
-void HoldObject::Prompt(int i, std::string const& line) {
+void SelectModel::Prompt(int i, std::string const& line) {
   assert(data);
-  if (ToNumberFromAscii(i)) return;
 
-  switch (i) {
-    case 0:
-      ::pumpkin::DeleteObject(pObjInt(data->selectedObject)->name);
-      data->selectedObject = nullptr;
-      data->SetAsk(&mainMenu);
-    break;
+  if (i == '\r' || i == '\n') {
+    if (line.size() == 0) { // Go back
+      data->selectedModel = nullptr;
+      data->ResetAsk();
+      return;
+    }
+
+    data->selectedModel = GetModel(line);
+    if (data->selectedModel == nullptr) {
+      pWarn("No model selected");
+    }
+    data->ResetAsk();
+    return;
   }
+
+  data->updateAsk = true;
 }
 
 
-void HoldObject::Question(std::string const& line) {
-  std::cout << "[OBJECT : " << pObjInt(data->selectedObject)->name << "]\n\n" << "0. Delete object\n1. Set object model\n2. Set object property";
+void SelectModel::Question(std::string const& line) {
+  assert(data);
+
+  if (data->display) {
+    ListModels();
+  }
+
+  std::cout << "Enter model name to select or empty to go back\n>>" << line;
 }
 
 // **************************************************
 // **************************************************
-// HoldObject
+// SelectModel
+
+
+
+
+
 
 
 
@@ -394,6 +593,7 @@ void ListObjects() {
     return sumA < sumB;
   });
   for (auto obj : objList) std::cout << obj << '\n';
+  std::cout << '\n';
 }
 
 
@@ -408,6 +608,7 @@ void ListModels() {
     return sumA < sumB;
   });
   for (auto t : list) std::cout << t << '\n';
+  std::cout << '\n';
 }
 
 }; // namespace

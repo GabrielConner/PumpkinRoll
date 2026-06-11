@@ -12,7 +12,7 @@ void End();
 
 RuntimeSettings* GetRuntime();
 
-void PrintError(PrintLevel level, char const* file, int line, char const* msg);
+void PrintError(PrintLevel level, char const* file, char const* msg);
 
 
 // Object
