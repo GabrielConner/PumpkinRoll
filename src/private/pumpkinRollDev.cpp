@@ -55,14 +55,18 @@ struct MainMenu : Ask {
 
 
 struct CreateObject : Ask {
-
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
 };
 
 
 struct HoldObject : Ask {
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+};
 
+
+struct HoldModel : Ask {
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
 };
@@ -78,6 +82,19 @@ struct SelectModel : Ask {
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
 };
+
+
+struct SelectMesh : Ask {
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+};
+
+
+struct SelectShader : Ask {
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+};
+
 
 
 
@@ -97,12 +114,16 @@ struct Data {
   MainMenu mainMenu;
   CreateObject createObject;
   HoldObject holdObject;
+  HoldModel holdModel;
   SelectObject selectObject;
   SelectModel selectModel;
+  SelectMesh selectMesh;
+  SelectShader selectShader;
 
   std::string line = "";
 
   Object* holdingObject = nullptr;
+  Model* holdingModel = nullptr;
   Object* selectedObject = nullptr;
   Model* selectedModel = nullptr;
 
@@ -131,6 +152,9 @@ struct Data {
     } else if (selectedObject && !holdingObject) {
       holdingObject = selectedObject;
       selectedObject = nullptr;
+    } else if (selectedModel && !holdingModel) {
+      holdingModel = selectedModel;
+      selectedModel = nullptr;
     }
   }
 
@@ -181,9 +205,11 @@ struct Data {
     HandleImplicit();
 
     if (holdingObject) {
-      SetAsk(&holdObject, true);
+      SetAsk(&holdObject);
+    } else if (holdingModel) {
+      SetAsk(&holdModel);
     } else {
-      SetAsk(&mainMenu, true);
+      SetAsk(&mainMenu);
     }
   }
 
@@ -379,18 +405,31 @@ void MainMenu::Prompt(int i, std::string const& line) {
   if (ToNumberFromAscii(i)) return;
 
   switch (i) {
-    case 0: // Create object
+    case 0: // Run
+      break;
+    case 1: // Primary camera view
+      break;
+    case 2: // Create object
       data->SetAsk(&data->createObject);
       break;
-    case 1: // Select object
+    case 3: // Create camera
+      break;
+    case 4: // Select object
       data->SetAsk(&data->selectObject);
+      break;
+    case 5: // Select model
+      data->SetAsk(&data->selectModel);
+      break;
+    case 6: // Select Shader
+      break;
+    case 7: // Select camera
       break;
   }
 }
 
 
 void MainMenu::Question(std::string const& line) {
-  std::cout << "0. Create object\n1. Select object\n";
+  std::cout << "0. Run\n1. Primary camera view\n2. Create object\n3. Create camera\n4. Select object\n5. Select Model\n6. Select Shader\n7. Select camera";
 }
 
 
@@ -470,7 +509,36 @@ void HoldObject::Prompt(int i, std::string const& line) {
 
 
 void HoldObject::Question(std::string const& line) {
-  std::cout << "0. Delete object\n1. Set object model";
+  std::cout << "0. Delete object\n1. Set object model\n3. Add script\n4. Select script";
+}
+
+// **************************************************
+// **************************************************
+// HoldObject
+
+
+
+
+
+// HoldObject
+// **************************************************
+// **************************************************
+
+void HoldModel::Prompt(int i, std::string const& line) {
+  assert(data);
+  if (ToNumberFromAscii(i)) return;
+
+  switch (i) {
+    case 0: // Set mesh
+      break;
+    case 1: // Set shader
+      break;
+  }
+}
+
+
+void HoldModel::Question(std::string const& line) {
+  std::cout << "0. Set mesh\n1. Set shader";
 }
 
 // **************************************************
@@ -565,6 +633,93 @@ void SelectModel::Question(std::string const& line) {
 // **************************************************
 // SelectModel
 
+
+
+
+
+// SelectMesh
+// **************************************************
+// **************************************************
+
+void SelectMesh::Prompt(int i, std::string const& line) {
+  assert(data);
+
+  if (i == '\r' || i == '\n') {
+    if (line.size() == 0) { // Go back
+      data->selectedModel = nullptr;
+      data->ResetAsk();
+      return;
+    }
+
+    data->selectedModel = GetModel(line);
+    if (data->selectedModel == nullptr) {
+      pWarn("No model selected");
+    }
+    data->ResetAsk();
+    return;
+  }
+
+  data->updateAsk = true;
+}
+
+
+void SelectMesh::Question(std::string const& line) {
+  assert(data);
+
+  if (data->display) {
+    ListModels();
+  }
+
+  std::cout << "Enter model name to select or empty to go back\n>>" << line;
+}
+
+// **************************************************
+// **************************************************
+// SelectMesh
+
+
+
+
+
+// SelectShader
+// **************************************************
+// **************************************************
+
+void SelectShader::Prompt(int i, std::string const& line) {
+  assert(data);
+
+  if (i == '\r' || i == '\n') {
+    if (line.size() == 0) { // Go back
+      data->selectedModel = nullptr;
+      data->ResetAsk();
+      return;
+    }
+
+    data->selectedModel = GetModel(line);
+    if (data->selectedModel == nullptr) {
+      pWarn("No model selected");
+    }
+    data->ResetAsk();
+    return;
+  }
+
+  data->updateAsk = true;
+}
+
+
+void SelectShader::Question(std::string const& line) {
+  assert(data);
+
+  if (data->display) {
+    ListModels();
+  }
+
+  std::cout << "Enter model name to select or empty to go back\n>>" << line;
+}
+
+// **************************************************
+// **************************************************
+// SelectShader
 
 
 
