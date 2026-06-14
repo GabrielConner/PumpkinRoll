@@ -1,8 +1,4 @@
-src/ppm/model/
-src/ppm/modelLoading/
-src/ppm/timer/
-src/ppm/vector/
-src/ppm/windowManager
+*.ppm_psave
 
 srcExt/
 library/

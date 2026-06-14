@@ -20,6 +20,7 @@ namespace pumpkin {
 enum struct PrintLevel { DEBUG = 0, WARNING, ERROR, NOPRINT };
 enum struct StartReturn { FAILURE, ERROR, SUCCESS };
 enum struct AttributeType { FLOAT, INT, LONG };
+enum struct VariableType { UNKNOWN = -1, INT, FLOAT, MAT4, VECTOR2, VECTOR3, VECTOR4 };
 
 
 
@@ -49,21 +50,18 @@ struct Vertex {
 
 
 
-struct VariableType {
-  void* variable = 0;
-  uint32_t type = 1;
-};
-
-
-
 struct MatrixWrapper {
-  float data[16] =
-  {
-  1,0,0,0,
-  0,1,0,0,
-  0,0,1,0,
-  0,0,0,1
+  union {
+    ::pPack::Vector4 cols[4];
+    struct {
+      ::pPack::Vector4 col0;
+      ::pPack::Vector4 col1;
+      ::pPack::Vector4 col2;
+      ::pPack::Vector4 col3;
+    };
   };
+
+  MatrixWrapper() : col0(1,0,0,0), col1(0,1,0,0), col2(0,0,1,0), col3(0,0,0,1) {}
 };
 
 
@@ -156,6 +154,7 @@ struct FormatStartInfo {
 struct Mesh;
 struct Model;
 struct Shader;
+struct PropertyHolder;
 
 
 }; // namespace pumpkin

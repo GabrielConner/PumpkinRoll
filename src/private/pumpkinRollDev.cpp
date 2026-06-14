@@ -38,6 +38,7 @@ struct Ask {
 void ListObjects();
 void ListModels();
 inline bool ToNumberFromAscii(int& i) { i -= 48; return i < 0 || i > 9; }
+void AddError(std::string const& msg);
 
 
 /*************************************************************************/
@@ -96,6 +97,17 @@ struct SelectShader : Ask {
 };
 
 
+struct SelectVariableType : Ask {
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+};
+
+
+struct PropertyChanger : Ask {
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+};
+
 
 
 
@@ -119,13 +131,17 @@ struct Data {
   SelectModel selectModel;
   SelectMesh selectMesh;
   SelectShader selectShader;
+  PropertyChanger propertyChanger;
 
   std::string line = "";
+  std::string newPropertyName = "";
 
   Object* holdingObject = nullptr;
   Model* holdingModel = nullptr;
   Object* selectedObject = nullptr;
   Model* selectedModel = nullptr;
+
+  PropertyHolder* holdingPropertyHolder = nullptr;
 
 
   Pumpkin* pumpkin = nullptr;
@@ -457,7 +473,7 @@ void CreateObject::Prompt(int i, std::string const& line) {
 
     Object* render = RegisterObject(line);
     if (!render) {
-      pWarn((std::string("Failed to create ") + line).c_str());
+      AddError((std::string("Failed to create ") + line).c_str());
       data->updateAsk = true;
       return;
     }
@@ -565,7 +581,7 @@ void SelectObject::Prompt(int i, std::string const& line) {
 
     data->selectedObject = GetObject(line);
     if (data->selectedObject == nullptr) {
-      pWarn("No object selected");
+      AddError("No object selected");
     }
     data->ResetAsk();
     return;
@@ -609,7 +625,7 @@ void SelectModel::Prompt(int i, std::string const& line) {
 
     data->selectedModel = GetModel(line);
     if (data->selectedModel == nullptr) {
-      pWarn("No model selected");
+      AddError("No model selected");
     }
     data->ResetAsk();
     return;
@@ -653,7 +669,7 @@ void SelectMesh::Prompt(int i, std::string const& line) {
 
     data->selectedModel = GetModel(line);
     if (data->selectedModel == nullptr) {
-      pWarn("No model selected");
+      AddError("No model selected");
     }
     data->ResetAsk();
     return;
@@ -697,7 +713,7 @@ void SelectShader::Prompt(int i, std::string const& line) {
 
     data->selectedModel = GetModel(line);
     if (data->selectedModel == nullptr) {
-      pWarn("No model selected");
+      AddError("No model selected");
     }
     data->ResetAsk();
     return;
@@ -721,6 +737,45 @@ void SelectShader::Question(std::string const& line) {
 // **************************************************
 // SelectShader
 
+
+
+// PropertyChanger
+// **************************************************
+// **************************************************
+
+void PropertyChanger::Prompt(int i, std::string const& line) {
+  assert(data);
+
+  if (i == '\r' || i == '\n') {
+    if (line.size() == 0) {
+      data->SetAsk(&data->propertyChanger, false);
+      return;
+    }
+
+    auto find = data->holdingPropertyHolder->properties.find(_STRING_HASHER(line));
+    if (find == data->holdingPropertyHolder->properties.end()) {
+      
+    }
+  }
+
+}
+
+
+void PropertyChanger::Question(std::string const& line) {
+  assert(data);
+  assert(data->holdingPropertyHolder);
+
+
+  if (data->display) {
+    data->holdingPropertyHolder->PrintAll();
+  }
+
+  std::cout << "\nEnter property name to select or name of property to create\n>>" << line;
+}
+
+// **************************************************
+// **************************************************
+// PropertyChanger
 
 
 
@@ -747,8 +802,7 @@ void ListObjects() {
     int sumB = std::accumulate(b.begin(), b.end(), 0);
     return sumA < sumB;
   });
-  for (auto obj : objList) std::cout << obj << '\n';
-  std::cout << '\n';
+  for (auto obj : objList) std::cout << obj << "\n\n";
 }
 
 
@@ -762,8 +816,14 @@ void ListModels() {
     int sumB = std::accumulate(b.begin(), b.end(), 0);
     return sumA < sumB;
   });
-  for (auto t : list) std::cout << t << '\n';
-  std::cout << '\n';
+  for (auto t : list) std::cout << t << "\n\n";
+}
+
+
+
+void AddError(std::string const& msg) {
+  assert(data);
+  data->messages.push_back(msg);
 }
 
 }; // namespace

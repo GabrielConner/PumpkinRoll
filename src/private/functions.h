@@ -89,9 +89,10 @@ void ApplyStaticBuffer();
 Model* RegisterModel(std::string const& name);
 Model* GetModel(std::string const& name);
 
-bool Model_AddVariable(Model* model, std::string const& name, VariableType var);
 bool Model_SetShader(Model* model, Shader* shader);
 bool Model_SetMesh(Model* model, Mesh* mesh);
+
+PropertyHolder* Model_GetProperties(Model* shader);
 
 // --------------------------------------------------
 // --------------------------------------------------
@@ -106,11 +107,27 @@ bool Model_SetMesh(Model* model, Mesh* mesh);
 Shader* RegisterShader(std::string const& name, GLuint shader);
 Shader* GetShader(std::string const& name);
 
-bool Shader_AddVariable(Shader* shader, std::string const& name, VariableType var);
+PropertyHolder* Shader_GetProperties(Shader* shader);
 
 // --------------------------------------------------
 // --------------------------------------------------
 // Shader
+
+
+
+// PropertyHolder
+// --------------------------------------------------
+// --------------------------------------------------
+
+bool PropertyHolder_AddProperty(PropertyHolder* holder, std::string const& name, void* value, VariableType type, bool handle);
+bool PropertyHolder_SetProperty(PropertyHolder* holder, std::string const& name, void* value);
+bool PropertyHolder_SetOrAddProperty(PropertyHolder* holder, std::string const& name, void* value);
+
+void* PropertyHolder_GetProperty(PropertyHolder* holder, std::string const& name);
+
+// --------------------------------------------------
+// --------------------------------------------------
+// PropertyHolder
 
 }; // namespace pumpkin
 

@@ -2,6 +2,7 @@
 #define PUMPKIN_ROLL_SRC_PRIVATE_MODEL_H
 
 #include "pumpkin/types.h"
+#include "private/propertyHolder.h"
 
 #include <set>
 #include <string>
@@ -13,7 +14,7 @@ namespace pumpkin {
 struct Model {
   std::string name = "";
   std::set<Object*> instances;
-  std::map<std::string, VariableType> vars;
+  PropertyHolder properties;
   Mesh* mesh = nullptr;
   Shader* shader = nullptr;
 

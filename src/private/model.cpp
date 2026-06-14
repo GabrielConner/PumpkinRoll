@@ -1,8 +1,10 @@
 #include "private/model.h"
 #include "private/shader.h"
 #include "private/mesh.h"
+#include "pumpkin/types.h"
 #include "pumpkin/pumpkinRoll.h"
 #include "private/pumpkinRoll.h"
+#include "private/propertyHolder.h"
 #include "pumpkin/constants.h"
 #include "glad/glad.h"
 
@@ -24,8 +26,8 @@ void Model::RenderAll() {
   if (!mesh) return;
 
   // Apply shader vars
-  for (auto& var : vars) {
-    ApplyShaderVariable(var.first, var.second);
+  for (auto& prop : properties) {
+    ApplyShaderVariable(prop.second);
   }
 
   mesh->Setup();
@@ -62,10 +64,7 @@ void Model::Delete() {
   mesh = nullptr;
   shader = nullptr;
 
-  for (auto& var : vars) {
-    if (var.second.type & var_type::CONTROL) delete(var.second.variable);
-  }
-  vars.clear();
+  properties.DeleteAll();
 }
 
 }; // namespace pumpkin

@@ -23,8 +23,8 @@ void Shader::RenderAll() {
   ::pPack::ShaderHandler::SetCurrentShader(shader);
 
   // Apply shader vars
-  for (auto& var : vars) {
-    ApplyShaderVariable(var.first, var.second);
+  for (auto& prop : properties) {
+    ApplyShaderVariable(prop.second);
   }
 
   // Get camera
@@ -48,11 +48,7 @@ void Shader::RenderAll() {
 void Shader::Delete() {
   assert(shader);
   glDeleteProgram(shader);
-
-  for (auto& var : vars) {
-    if (var.second.type & var_type::CONTROL) delete(var.second.variable);
-  }
-  vars.clear();
+  properties.DeleteAll();
 }
 
 

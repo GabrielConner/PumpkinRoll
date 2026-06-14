@@ -6,7 +6,9 @@
 #include "pumpkin/fileManager.h"
 #include "private/mesh.h"
 #include "private/model.h"
+#include "private/propertyHolder.h"
 #include "private/types.h"
+#include "pumpkin/types.h"
 #include "private/pumpkinRollDev.h"
 
 #include "pPack/windowManager.h"
@@ -173,7 +175,7 @@ StartReturn Init(StartSettings const& start) {
 
   ShaderCreateInfo shaderCreateInfos[] = {ShaderCreateInfo(&vertLocs, 1, GL_VERTEX_SHADER), ShaderCreateInfo(&fragLocs, 1, GL_FRAGMENT_SHADER)};
 
-  Shader* shader = RegisterShader("PumpkinRoll__Default", ShaderHandler::CreateShader(shaderCreateInfos, sizeof(shaderCreateInfos) / sizeof(ShaderCreateInfo)));
+  Shader* shader = RegisterShader("PumpkinRoll__Default", ShaderHandler::CreateShader(shaderCreateInfos, sizeof(shaderCreateInfos) / sizeof(ShaderCreateInfo), OpenFileFunc, nullptr, CloseFileFunc));
   if (!shader) {
     pError("Failed to create default shader");
     return StartReturn::ERROR;
@@ -779,14 +781,6 @@ Model* GetModel(std::string const& name) {
 }
 
 
-
-bool Model_AddVariable(Model* model, std::string const& name, VariableType var) {
-  pNullCheck(model, false);
-
-  return model->vars.insert({name, var}).second;
-}
-
-
 bool Model_SetShader(Model* model, Shader* shader) {
   pNullCheck(model, false);
   pNullCheck(shader, false);
@@ -810,6 +804,13 @@ bool Model_SetMesh(Model* model, Mesh* mesh) {
 
   model->mesh = mesh;
   return true;
+}
+
+
+PropertyHolder* Model_GetProperties(Model* model) {
+  pNullCheck(model, nullptr);
+
+  return &model->properties;
 }
 
 // --------------------------------------------------
@@ -857,10 +858,10 @@ Shader* GetShader(std::string const& name) {
 
 
 
-bool Shader_AddVariable(Shader* shader, std::string const& name, VariableType var) {
-  pNullCheck(shader, false);
+PropertyHolder* Shader_GetProperties(Shader* shader) {
+  pNullCheck(shader, nullptr);
 
-  return shader->vars.insert({name, var}).second;
+  return &shader->properties;
 }
 
 // --------------------------------------------------
@@ -901,27 +902,26 @@ Pumpkin* GetPumpkin() {
 
 
 
-void ApplyShaderVariable(std::string name, VariableType const& var) {
-  if (var.variable == nullptr) return;
-  int32_t type = var.type & ~var_type::CONTROL;
-  switch (type) {
-    case var_type::INT:
-      ShaderHandler::SetInt(name, *((int*)var.variable));
+void ApplyShaderVariable(Property const& var) {
+  if (var.prop == nullptr) return;
+  switch (var.type) {
+    case VariableType::INT:
+      ShaderHandler::SetInt(var.name, *((int*)var.prop));
       break;
-    case var_type::FLOAT:
-      ShaderHandler::SetFloat(name, *((float*)var.variable));
+    case VariableType::FLOAT:
+      ShaderHandler::SetFloat(var.name, *((float*)var.prop));
       break;
-    case var_type::MAT4:
-      ShaderHandler::SetMat4(name, (float*)var.variable);
+    case VariableType::MAT4:
+      ShaderHandler::SetMat4(var.name, (float*)var.prop);
       break;
-    case var_type::VECTOR2:
-      ShaderHandler::SetVector2(name, *((Vector2*)var.variable));
+    case VariableType::VECTOR2:
+      ShaderHandler::SetVector2(var.name, *((Vector2*)var.prop));
       break;
-    case var_type::VECTOR3:
-      ShaderHandler::SetVector3(name, *((Vector3*)var.variable));
+    case VariableType::VECTOR3:
+      ShaderHandler::SetVector3(var.name, *((Vector3*)var.prop));
       break;
-    case var_type::VECTOR4:
-      ShaderHandler::SetVector4(name, *((Vector4*)var.variable));
+    case VariableType::VECTOR4:
+      ShaderHandler::SetVector4(var.name, *((Vector4*)var.prop));
       break;
   }
 }

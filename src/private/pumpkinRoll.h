@@ -3,6 +3,7 @@
 
 #include "pumpkin/pumpkinRoll.h"
 #include "pumpkin/types.h"
+#include "private/propertyHolder.h"
 #include "pPack/windowManager.h"
 #include "pPack/vector.h"
 #include "glad/glad.h"
@@ -36,7 +37,7 @@ bool RegisterWindow(::std::string const& name, ::pPack::Window* data);
 
 ::pumpkin_private::Pumpkin* GetPumpkin();
 
-void ApplyShaderVariable(std::string name, ::pumpkin::VariableType const& var);
+void ApplyShaderVariable(::pumpkin::Property const& var);
 
 void DeleteObject(::pumpkin::Object* obj);
 

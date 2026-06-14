@@ -177,6 +177,42 @@ FileData ReadFile(std::string path, bool binary) {
 }
 
 
+
+
+
+
+bool OpenFileFunc(std::string const& location, bool relative, bool binary, ::pPack::FileHandle& handle) {
+
+  if (!files->loadedFiles.contains(_STRING_HASHER(location))) {
+    if (LoadFile(location, true, false, relative, binary)) {
+      return false;
+    }
+  }
+
+
+  FileData data = ReadFile(location, binary);
+
+  handle.location = location;
+  handle.data = (char*)data.data;
+  handle.packetSize = data.size;
+  handle.offset = 0;
+  handle.totalSize = data.size;
+  return true;
+}
+
+
+
+
+void CloseFileFunc(::pPack::FileHandle& handle) {
+  auto file = files->loadedFiles.find(_STRING_HASHER(handle.location));
+  if (file == files->loadedFiles.end()) return;
+  if (!file->second.cache) {
+    free(file->second.data.data);
+  }
+  handle = FileHandle();
+}
+
+
 }; // namespace pumpkin
 
 
