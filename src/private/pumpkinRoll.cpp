@@ -88,6 +88,10 @@ StartReturn Init(StartSettings const& start) {
   // Create program data
   pumpkinData = new Pumpkin();
 
+#ifdef PUMPKIN_ROLL_DEV
+  StartDevelopment();
+#endif
+
 
   // GLFW
   if (!glfwInit()) {
@@ -228,6 +232,7 @@ StartReturn Init(StartSettings const& start) {
     pError("Failed to set model mesh");
     return StartReturn::ERROR;
   }
+  PropertyHolder_AddProperty(Model_GetProperties(model), "color", nullptr, VariableType::VECTOR4, true);
 
 
   // Object
@@ -242,10 +247,6 @@ StartReturn Init(StartSettings const& start) {
 
   ApplyStaticBuffer();
 
-
-#ifdef PUMPKIN_ROLL_DEV
-  StartDevelopment();
-#endif
 
   return StartReturn::SUCCESS;
 }
@@ -339,7 +340,7 @@ void End() {
   _CrtMemState crtDiffState;
   _CrtMemCheckpoint(&crtEndState);
   if (_CrtMemDifference(&crtDiffState, &crtMemState, &crtEndState)) {
-    pError("\n\n\n****MEMORY LEAK****\n");
+    std::cerr << "\n\n\n****MEMORY LEAK****\n";
   }
 #endif
 }

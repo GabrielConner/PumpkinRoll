@@ -53,6 +53,10 @@ int LoadFile(std::string filePath, bool pack, bool cache, bool relative, bool bi
     return 2;
   }
 
+  #ifdef PUMPKIN_ROLL_PROD
+  relative = false;
+  #endif
+
   // Prepend exe folder location if relative
   std::string pathTo = (relative ? files->pumpkin->exePath : "") + filePath;
 
@@ -163,7 +167,7 @@ FileData ReadFile(std::string path, bool binary) {
   data.size = sizeInBytes;
 
   // Allocate
-  data.data = binary ? calloc(sizeInBytes, 1) : malloc(sizeInBytes);
+  data.data = binary ? malloc(sizeInBytes) : calloc(sizeInBytes, 1);
   if (data.data == nullptr) {
     pWarn("Failed to allocate space for file data");
     fileStream.close();
@@ -206,9 +210,7 @@ bool OpenFileFunc(std::string const& location, bool relative, bool binary, ::pPa
 void CloseFileFunc(::pPack::FileHandle& handle) {
   auto file = files->loadedFiles.find(_STRING_HASHER(handle.location));
   if (file == files->loadedFiles.end()) return;
-  if (!file->second.cache) {
-    free(file->second.data.data);
-  }
+  free(handle.data);
   handle = FileHandle();
 }
 

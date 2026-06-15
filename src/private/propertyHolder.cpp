@@ -16,11 +16,15 @@ namespace pumpkin {
 
 bool PropertyHolder_AddProperty(PropertyHolder* holder, std::string const& name, void* value, VariableType type, bool handle) {
   pNullCheck(holder, false);
-  pNullCheck(value, false);
 
   if (type == VariableType::UNKNOWN) {
     pWarn("Invalid variable type");
     return false;
+  }
+
+  if (value == nullptr) {
+    handle = true;
+    value = calloc(1, SizeOfType(type));
   }
 
   return holder->properties.insert({_STRING_HASHER(name), Property(name, value, SizeOfType(type), type, handle)}).second;
@@ -46,7 +50,6 @@ bool PropertyHolder_SetProperty(PropertyHolder* holder, std::string const& name,
 
 bool PropertyHolder_SetOrAddProperty(PropertyHolder* holder, std::string const& name, void* value, VariableType type, bool handle) {
   pNullCheck(holder, false);
-  pNullCheck(value, false);
 
 
   // Combination of both Set and Add
@@ -58,8 +61,14 @@ bool PropertyHolder_SetOrAddProperty(PropertyHolder* holder, std::string const& 
       return false;
     }
 
+    if (value == nullptr) {
+      handle = true;
+      value = calloc(1, SizeOfType(type));
+    }
+
     return holder->properties.insert({_STRING_HASHER(name), Property(name, value, SizeOfType(type), type, handle)}).second;
   }
+  pNullCheck(value, false);
 
   std::memcpy(find->second.prop, value, find->second.typeSize);
   return true;
@@ -107,13 +116,20 @@ T& PropertyHolder::GetProperty(std::string const& name) {
 
 
 void PropertyHolder::PrintAll() const {
-
+  for (auto& prop : properties) {
+/*    std::cout << prop.second.name << " : " << */
+  }
 }
 
 
 
 void PropertyHolder::DeleteAll() {
-
+  for (auto& prop : properties) {
+    if (prop.second.handle) {
+      free(prop.second.prop);
+    }
+  }
+  properties.clear();
 }
 
 }; // namespace pumpkin
