@@ -2,11 +2,17 @@
 #define PUMPKIN_ROLL_SRC_PUMPKIN_CONSTANTS_H
 
 #include <string>
+#include "pPack/vector.h"
 
 namespace pumpkin {
 
 inline constexpr std::hash<std::string> _STRING_HASHER = std::hash<std::string>();
 
+inline constexpr double _PI = 3.1415926535897932384626433832795;
+inline constexpr double _DEG_TO_RAD = _PI / 180.0;
+inline constexpr double _RAD_TO_DEG = 180.0 / _PI;
+
+inline constexpr ::pPack::Vector3 _UP = {0, 1, 0};
 
 inline constexpr char _BACKSPACE = 0x08;
 inline constexpr char _ESCAPE = 0x1B;

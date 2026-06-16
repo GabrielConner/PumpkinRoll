@@ -85,8 +85,15 @@ struct CreateObject : Ask {
 
 
 struct HoldObject : Ask {
+  bool transform = false;
+  float* elemPtr = nullptr;
+  std::string name = "";
+  std::string builtString = "";
+  int currentPos = 0;
+
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
+  void Set() override { transform = false; elemPtr = nullptr; name = ""; builtString = ""; currentPos = 0; }
 };
 
 
@@ -215,6 +222,7 @@ struct Data {
   Model* selectedModel = nullptr;
   Shader* selectedShader = nullptr;
   Mesh* selectedMesh = nullptr;
+  Transform* selectedTransform = nullptr;
 
   Property* holdingProperty = nullptr;
   PropertyHolder* holdingPropertyHolder = nullptr;
@@ -227,6 +235,7 @@ struct Data {
   std::unordered_map<size_t, Property>::iterator currentProperty;
 
 
+  Camera devCamera = Camera();
 
   Pumpkin* pumpkin = nullptr;
   Ask* ask = nullptr;
@@ -237,6 +246,7 @@ struct Data {
   std::vector<std::string> messages;
   DataHistorySlice history[_MAX_HISTORY] = {0};
 
+  bool inDevCamera = true;
 
   bool cycle = false;
   bool display = false;
@@ -252,15 +262,27 @@ struct Data {
     if (holdingObject && selectedModel) {
       Object_SetModel(holdingObject, selectedModel);
       selectedModel = nullptr;
+
     } else if (selectedObject && !holdingObject) {
       holdingObject = selectedObject;
       selectedObject = nullptr;
+
+    } else if (holdingModel && selectedShader) {
+      Model_SetShader(holdingModel, selectedShader);
+      selectedShader = nullptr;
+
+    }else if (holdingModel && selectedMesh) {
+      Model_SetMesh(holdingModel, selectedMesh);
+      selectedMesh = nullptr;
+
     } else if (selectedModel && !holdingModel) {
       holdingModel = selectedModel;
       selectedModel = nullptr;
+
     } else if (selectedShader && !holdingShader) {
       holdingShader = selectedShader;
       selectedShader = nullptr;
+
     }
   }
 
@@ -384,12 +406,33 @@ void StartDevelopment() {
   data = new Data();
   data->pumpkin = GetPumpkin();
   data->ask = &data->mainMenu;
+
+  data->devCamera.transform.position.z = 5;
+
+  SetPrimaryCamera(&data->devCamera);
 }
 
 
 void UpdateDevelopment() {
   assert(data != nullptr);
   assert(data->ask != nullptr);
+
+  data->inDevCamera = GetPrimaryCamera() == &data->devCamera;
+
+  if (data->inDevCamera) {
+    auto window = data->pumpkin->primaryWindow;
+    if (!window) goto leaveDevCameraStuff;
+    Camera_GenerateDirections(&data->devCamera);
+
+
+    if (window->GetInput(GLFW_KEY_W).pressed) {
+      data->devCamera.transform.position += data->devCamera.forward * data->pumpkin->deltaTime;
+    }
+
+  }
+  leaveDevCameraStuff:
+
+
 
   if (data->updateAsk) {
 
@@ -542,9 +585,6 @@ namespace pumpkin {
 
 // Redirect errors to list so they can display correctly
 void PrintError(PrintLevel level, char const* file, char const* msg) {
-  std::cerr << msg << '\n';
-  return;
-
   assert(data);
 
   if (data->pumpkin != nullptr && (level == PrintLevel::NOPRINT || data->pumpkin->runtime.printLevel > level)) return;
@@ -570,35 +610,36 @@ void MainMenu::Prompt(int i, std::string const& line) {
   if (ToNumberFromAscii(i)) return;
 
   switch (i) {
-    case 0: // Run //prtodo
+    case 0:  //prtodo // Run
       break;
     case 1: // Create object
       data->SetAsk(&data->createObject);
       break;
-    case 2: // Select object //prtodo
+    case 2:  //prtodo // Select object
       data->SetAsk(&data->selectObject);
       break;
     case 3: // Select model
       data->SetAsk(&data->selectModel);
       break;
-    case 4: // Select shader //prtodo
+    case 4: // Select shader
+      data->SetAsk(&data->selectShader);
       break;
-    case 5: // Select camera //prtodo
+    case 5: // Primary camera view
+      SetPrimaryCamera(&data->devCamera);
       break;
-    case 6: // Primary camera view //prtodo
+    case 6: //prtodo // Build
       break;
-    case 7: // Build //prtodo
+    case 7: //prtodo // Save
       break;
-    case 8: // Save //prtodo
-      break;
-    case 9: // Exit //prtodo
+    case 8: // Exit
+      data->pumpkin->primaryWindow->SetShouldClose(true);
       break;
   }
 }
 
 
 void MainMenu::Question(std::string const& line) {
-  std::cout << "0. Run\n1. Create object\n2. Select object\n3. Select model\n4. Select shader\n5. Select camera\n6. Primary camera view\n7. Build\n8. Save\n9. Exit";
+  std::cout << "0. Run\n1. Create object\n2. Select object\n3. Select model\n4. Select shader\n5. Primary camera view\n6. Build\n7. Save\n8. Exit";
 }
 
 
@@ -631,9 +672,6 @@ void CreateObject::Prompt(int i, std::string const& line) {
       return;
     }
 
-    // PRTODO remove this at some point
-    render->transform.rotation.x = 90;
-
     // Isn't part of the selecting cycle stuff so can be direct
     data->SetAsk(&data->mainMenu);
     return;
@@ -661,6 +699,51 @@ void CreateObject::Question(std::string const& line) {
 
 void HoldObject::Prompt(int i, std::string const& line) {
   assert(data);
+
+
+  if (transform) {
+    if (i == '\n' || i == '\r') {
+      if (builtString.size() != 0) {
+        *(elemPtr + currentPos) = std::strtof(builtString.c_str(), nullptr);
+      }
+
+      transform = false;
+      data->updateAsk = true;
+      Set();
+      return;
+    }
+
+    i = std::tolower(i);
+
+    if (i == 'w' || i == 's' || i == 'a' || i == 'd' || i == _BACKSPACE) {
+      if (i == _BACKSPACE) {
+        if (!builtString.empty()) builtString.pop_back();
+        data->updateAsk = true;
+        return;
+      }
+
+      if (builtString.size() != 0) {
+        *(elemPtr + currentPos) = std::strtof(builtString.c_str(), nullptr);
+        builtString.clear();
+      }
+
+      if (i == 'a' && currentPos > 0) currentPos--;
+      else if (i == 'd' && currentPos < 2) currentPos++;
+      else return;
+
+      data->updateAsk = true;
+      return;
+    }
+
+    if (!std::isdigit(i) && i != 'e' && i != '-' && i != '+' && i != '.' && i != 'f') return;
+
+    builtString += (char)i;
+    data->updateAsk = true;
+
+    return;
+  }
+
+
   if (ToNumberFromAscii(i)) return;
 
   switch (i) {
@@ -673,18 +756,56 @@ void HoldObject::Prompt(int i, std::string const& line) {
       data->selectedModel = pObjInt(data->holdingObject)->model;
       data->SetAsk(&data->selectModel);
       break;
-    case 2: // Add script //prtodo
+    case 2:  //prtodo // Add script
       break;
-    case 3: // Select script //prtodo
+    case 3: //prtodo // Select script 
       break;
-    case 4: // Transform //prtodo
+    case 4: // Position
+      name = "Position";
+      transform = true;
+      elemPtr = (float*)&data->holdingObject->transform.position;
+      data->updateAsk = true;
+      break;
+    case 5: // Scale
+      name = "Scale";
+      transform = true;
+      elemPtr = (float*)&data->holdingObject->transform.scale;
+      data->updateAsk = true;
+      break;
+    case 6: // Rotation
+      name = "Rotation";
+      transform = true;
+      elemPtr = (float*)&data->holdingObject->transform.rotation;
+      data->updateAsk = true;
       break;
   }
 }
 
 
 void HoldObject::Question(std::string const& line) {
-  std::cout << "0. Delete object\n1. Set object model\n2. Add script\n3. Select script\n4. Transform";
+  if (transform) {
+    std::cout << "Press ENTER to stop changing\n\n";
+
+    for (char i = 0; i < 3; i++) {
+      std::cout << "[ ";
+
+      if (i == currentPos) std::cout << "$ ";
+
+      if (i != currentPos || builtString.size() == 0) {
+        std::cout << *(elemPtr + i);
+      } else {
+        std::cout << builtString;
+      }
+
+      if (i == currentPos) std::cout << " $";
+
+      std::cout << " ]";
+    }
+
+    return;
+  }
+  
+  std::cout << "0. Delete object\n1. Set object model\n2. Add script\n3. Select script\n4. Position\n5. Scale\n6. Rotation";
 }
 
 // **************************************************
@@ -706,14 +827,16 @@ void HoldModel::Prompt(int i, std::string const& line) {
   if (ToNumberFromAscii(i)) return;
 
   switch (i) {
-    case 0: // Set mesh //prtodo
-      break;
-    case 1: // Set shader //prtodo
-      break;
+    case 0: // Set  mesh
+      data->SetAsk(&data->selectMesh);
+      return;
+    case 1: // Set shader
+      data->SetAsk(&data->selectShader);
+      return;
     case 2: // Select property
       data->holdingPropertyHolder = &data->holdingModel->properties;
       data->SetAsk(&data->propertyChanger);
-      break;
+      return;
   }
 }
 
@@ -735,12 +858,20 @@ void HoldModel::Question(std::string const& line) {
 // **************************************************
 
 void HoldShader::Prompt(int i, std::string const& line) {
-  //prtodo
+  assert(data);
+  assert(data->holdingShader);
+
+  if (ToNumberFromAscii(i)) return;
+
+  if (i == 0) {
+    data->holdingPropertyHolder = &data->holdingShader->properties;
+    data->SetAsk(&data->propertyChanger);
+  }
 }
 
 
 void HoldShader::Question(std::string const& line) {
-  std::cout << "0. Select property";//prtodo
+  std::cout << "0. Select property";
 }
 
 // **************************************************
@@ -867,17 +998,17 @@ void SelectModel::Set() {
 
 void SelectMesh::Prompt(int i, std::string const& line) {
   assert(data);
-  // prtodo Fix this
+
   if (i == '\r' || i == '\n') {
     std::string str = (data->cycle && data->currentMesh != data->pumpkin->registeredMeshes.end()) ? data->currentMesh->second->name : line;
     if (str.size() == 0) { // Go back
-      data->selectedModel = nullptr;
+      data->selectedMesh = nullptr;
       data->ResetAsk();
       return;
     }
 
-    data->selectedModel = GetModel(str);
-    if (data->selectedModel == nullptr) {
+    data->selectedMesh = GetMesh(str);
+    if (data->selectedMesh == nullptr) {
       AddError("No mesh selected");
     }
     data->ResetAsk();
@@ -922,18 +1053,18 @@ void SelectMesh::Set() {
 
 void SelectShader::Prompt(int i, std::string const& line) {
   assert(data);
-  // prtodo Fix this
+
   if (i == '\r' || i == '\n') {
     std::string str = (data->cycle && data->currentShader != data->pumpkin->registeredShaders.end()) ? data->currentShader->second->name : line;
     if (str.size() == 0) { // Go back
-      data->selectedModel = nullptr;
+      data->selectedShader = nullptr;
       data->ResetAsk();
       return;
     }
 
-    data->selectedModel = GetModel(str);
-    if (data->selectedModel == nullptr) {
-      AddError("No model selected");
+    data->selectedShader = GetShader(str);
+    if (data->selectedShader == nullptr) {
+      AddError("No shader selected");
     }
     data->ResetAsk();
     return;
@@ -951,7 +1082,7 @@ void SelectShader::Question(std::string const& line) {
   }
 
   std::string str = (data->cycle && data->currentShader != data->pumpkin->registeredShaders.end()) ? data->currentShader->second->name : line;
-  std::cout << "Enter model name to select or empty to go back\n>>" << line;
+  std::cout << "Enter shader name to select or empty to go back\n>>" << str;
 }
 
 
@@ -1278,7 +1409,8 @@ void ListObjects() {
     list.push_back(Object_GetName(objP.second));
   }
   std::sort(list.begin(), list.end(), StringSort);
-  for (auto& elem : list) std::cout << elem << "\n\n";
+  for (auto& elem : list) std::cout << elem << "\n";
+  std::cout << '\n';
 }
 
 
@@ -1288,7 +1420,8 @@ void ListMeshes() {
     list.push_back(t.second->name);
   }
   std::sort(list.begin(), list.end(), StringSort);
-  for (auto& elem : list) std::cout << elem << "\n\n";
+  for (auto& elem : list) std::cout << elem << "\n";
+  std::cout << '\n';
 }
 
 
@@ -1298,7 +1431,8 @@ void ListModels() {
     list.push_back(t.second->name);
   }
   std::sort(list.begin(), list.end(), StringSort);
-  for (auto& elem : list) std::cout << elem << "\n\n";
+  for (auto& elem : list) std::cout << elem << "\n";
+  std::cout << '\n';
 }
 
 
@@ -1308,7 +1442,8 @@ void ListShaders() {
     list.push_back(t.second->name);
   }
   std::sort(list.begin(), list.end(), StringSort);
-  for (auto& elem : list) std::cout << elem << "\n\n";
+  for (auto& elem : list) std::cout << elem << "\n";
+  std::cout << '\n';
 }
 
 

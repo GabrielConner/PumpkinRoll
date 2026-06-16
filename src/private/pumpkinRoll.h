@@ -28,6 +28,8 @@ struct Pumpkin {
   std::string exePath = "";
   GLuint globalVBO = 0;
 
+  double deltaTime = 0;
+
   ::pumpkin::RuntimeSettings runtime = ::pumpkin::RuntimeSettings();
 };
 

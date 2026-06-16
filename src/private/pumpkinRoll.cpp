@@ -13,6 +13,7 @@
 
 #include "pPack/windowManager.h"
 #include "pPack/shaderHandling.h"
+#include "pPack/timer.h"
 
 #define GLFW_INCLUDE_NONE
 #include "glad/glad.h"
@@ -161,7 +162,7 @@ StartReturn Init(StartSettings const& start) {
   // Register and create defaults
 
   // Camera
-  Camera* camera = RegisterCamera("PumpkinRoll__Default");
+  Camera* camera = RegisterCamera("PumpkinRoll__DefaultCamera");
   if (!camera) {
     pError("Failed to create default camera");
     return StartReturn::ERROR;
@@ -179,7 +180,7 @@ StartReturn Init(StartSettings const& start) {
 
   ShaderCreateInfo shaderCreateInfos[] = {ShaderCreateInfo(&vertLocs, 1, GL_VERTEX_SHADER), ShaderCreateInfo(&fragLocs, 1, GL_FRAGMENT_SHADER)};
 
-  Shader* shader = RegisterShader("PumpkinRoll__Default", ShaderHandler::CreateShader(shaderCreateInfos, sizeof(shaderCreateInfos) / sizeof(ShaderCreateInfo), OpenFileFunc, nullptr, CloseFileFunc));
+  Shader* shader = RegisterShader("PumpkinRoll__DefaultShader", ShaderHandler::CreateShader(shaderCreateInfos, sizeof(shaderCreateInfos) / sizeof(ShaderCreateInfo), OpenFileFunc, nullptr, CloseFileFunc));
   if (!shader) {
     pError("Failed to create default shader");
     return StartReturn::ERROR;
@@ -192,7 +193,7 @@ StartReturn Init(StartSettings const& start) {
     FormatStartInfo{.size = 4},
   };
 
-  GLuint format = RegisterFormat("PumpkinRoll__Default", formatCreateInfos, 2, true);
+  GLuint format = RegisterFormat("PumpkinRoll__DefaultFormat", formatCreateInfos, 2, true);
   if (!format) {
     pError("Failed to create default format");
     return StartReturn::ERROR;
@@ -211,15 +212,33 @@ StartReturn Init(StartSettings const& start) {
     1.0f, 0.0f, -1.0f,        1.0f, 0.0f, 1.0f, 1.0f
   };
 
-  Mesh* mesh = RegisterMesh("PumpkinRoll__Default", planeVerts, 7 * sizeof(float), 6, false, format);
+  Mesh* mesh = RegisterMesh("PumpkinRoll__PlaneMesh", planeVerts, 7 * sizeof(float), 6, false, format);
   if (!mesh) {
     pError("Failed to create default mesh");
     return StartReturn::ERROR;
   }
 
 
+
+  // Triangle
+  float triVerts[] = {
+    // Position               // Color
+    -1.0f, 0.0f, 1.0f,        1.0f, 0.0f, 0.0f, 1.0f,
+    1.0f, 0.0f, 1.0f,         0.0f, 1.0f, 0.0f, 1.0f,
+    0.f, 0.0f, -1.0f,         0.0f, 0.0f, 1.0f, 1.0f,
+  };
+
+  if (!RegisterMesh("PumpkinRoll__TriangleMesh", triVerts, 7 * sizeof(float), 3, false, format)) {
+    pError("Failed to create triangle mesh");
+    return StartReturn::ERROR;
+  }
+
+
+
+
+
   // Model
-  Model* model = RegisterModel("PumpkinRoll_Default");
+  Model* model = RegisterModel("PumpkinRoll_PlaneModel");
   if (!model) {
     pError("Failed to create default model");
     return StartReturn::ERROR;
@@ -235,7 +254,7 @@ StartReturn Init(StartSettings const& start) {
   PropertyHolder_AddProperty(Model_GetProperties(model), "color", nullptr, VariableType::VECTOR4, true);
 
   MatrixWrapper identy = MatrixWrapper();
-  PropertyHolder_AddProperty(Model_GetProperties(model), "adjust", &identy, VariableType::MAT4, true);
+  PropertyHolder_AddProperty(Shader_GetProperties(shader), "adjust", &identy, VariableType::MAT4, true);
 
 
   // Object
@@ -263,8 +282,12 @@ void Update() {
 
   auto& runtime = pumpkinData->runtime;
 
+  Timer& singleton = Timer::GetSingleton();
+
   // Loop until the main window is closed
   while (!pumpkinData->primaryWindow->ShouldClose()) {
+    pumpkinData->deltaTime = singleton.GetDeltaTime();
+
     glfwPollEvents();
 
     glClearColor(runtime.backgroundColor.x, runtime.backgroundColor.y, runtime.backgroundColor.z, runtime.backgroundColor.w);
@@ -284,6 +307,8 @@ void Update() {
 #endif
 
     pumpkinData->primaryWindow->Swap();
+
+    singleton.Advance();
   }
 }
 
@@ -314,12 +339,10 @@ void End() {
     mesh.second->Delete();
     delete(mesh.second);
   }
-  for (auto& cam : pumpkinData->registeredCameras) {
-    ::pumpkin_private::DeleteObject(cam.second);
-  }
   for (auto& format : pumpkinData->registeredFormats) {
     glDeleteVertexArrays(1, &format.second);
   }
+
   glDeleteBuffers(1, &pumpkinData->globalVBO);
 
 #ifdef PUMPKIN_ROLL_DEV
@@ -362,6 +385,12 @@ void PrintError(PrintLevel level, char const* file, char const* msg) {
   std::cerr << msg << '\n' << file << "\n\n";
 }
 #endif
+
+
+double DeltaTime() {
+  pPumpkinCheck(0);
+  return pumpkinData->deltaTime;
+}
 
 
 
@@ -459,9 +488,9 @@ void Transform_GenerateModel(Transform transform, MatrixWrapper& store) {
   glm::highp_mat4* data = (glm::highp_mat4*)&store;
   *data = glm::translate(*data, glm::vec3(transform.position.x, transform.position.y, transform.position.z));
   *data = glm::scale(*data, glm::vec3(transform.scale.x, transform.scale.y, transform.scale.z));
-  *data = glm::rotate(*data, transform.rotation.z, glm::vec3(0, 0, 1));
-  *data = glm::rotate(*data, transform.rotation.y, glm::vec3(0, 1, 0));
-  *data = glm::rotate(*data, transform.rotation.x, glm::vec3(1, 0, 0));
+  *data = glm::rotate(*data, glm::radians(transform.rotation.z), glm::vec3(0, 0, 1));
+  *data = glm::rotate(*data, glm::radians(transform.rotation.y), glm::vec3(0, 1, 0));
+  *data = glm::rotate(*data, glm::radians(transform.rotation.x), glm::vec3(1, 0, 0));
 }
 
 // --------------------------------------------------
@@ -476,7 +505,6 @@ void Transform_GenerateModel(Transform transform, MatrixWrapper& store) {
 // --------------------------------------------------
 // --------------------------------------------------
 
-
 Camera* RegisterCamera(std::string const& name) {
   pPumpkinCheck(nullptr);
 
@@ -485,8 +513,15 @@ Camera* RegisterCamera(std::string const& name) {
     pWarn("Camera already exists with same name");
     return nullptr;
   };
+  auto objRet = pumpkinData->registeredObjects.insert({_STRING_HASHER(name), nullptr});
+  if (!objRet.second) {
+    pWarn("Object already exists with same name");
+    return nullptr;
+  };
+
   Camera* cam = new Camera();
   ret.first->second = cam;
+  objRet.first->second = cam;
 
   pObjDefInt(ret.first->second, i);
 
@@ -532,9 +567,9 @@ void Camera_GenerateView(Camera* camera) {
     camera->view = MatrixWrapper();
   glm::highp_mat4* data = (glm::highp_mat4*)&camera->view;
 
-  *data = glm::rotate(*data, -camera->transform.rotation.z, glm::vec3(0, 0, 1));
-  *data = glm::rotate(*data, -camera->transform.rotation.y, glm::vec3(0, 1, 0));
-  *data = glm::rotate(*data, -camera->transform.rotation.x, glm::vec3(1, 0, 0));
+  *data = glm::rotate(*data, glm::radians(-camera->transform.rotation.z), glm::vec3(0, 0, 1));
+  *data = glm::rotate(*data, glm::radians(-camera->transform.rotation.y), glm::vec3(0, 1, 0));
+  *data = glm::rotate(*data, glm::radians(-camera->transform.rotation.x), glm::vec3(1, 0, 0));
   *data = glm::translate(*data, glm::vec3(-camera->transform.position.x, -camera->transform.position.y, -camera->transform.position.z));
 }
 
@@ -547,6 +582,20 @@ void Camera_GenerateProjection(Camera* camera) {
   glm::highp_mat4* data = (glm::highp_mat4*)&camera->proj;
 
   *data = glm::perspective(camera->fov, camera->aspect, camera->near, camera->far);
+}
+
+
+
+void Camera_GenerateDirections(Camera* camera) {
+  pNullCheck(camera);
+
+  Vector3 r = camera->transform.rotation * _DEG_TO_RAD;
+
+  camera->forward.x = cos(r.x) * sin(r.y);
+  camera->forward.y = sin(r.x);
+  camera->forward.z = -cos(r.x) * cos(r.y);
+
+  camera->right = Vector3::Cross(_UP, camera->forward);
 }
 
 // --------------------------------------------------

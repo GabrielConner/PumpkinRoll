@@ -14,6 +14,8 @@ RuntimeSettings* GetRuntime();
 
 void PrintError(PrintLevel level, char const* file, char const* msg);
 
+double DeltaTime();
+
 
 // Object
 // --------------------------------------------------
@@ -56,6 +58,7 @@ Camera* GetPrimaryCamera();
 
 void Camera_GenerateView(Camera* camera);
 void Camera_GenerateProjection(Camera* camera);
+void Camera_GenerateDirections(Camera* camera);
 
 // --------------------------------------------------
 // --------------------------------------------------
