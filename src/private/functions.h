@@ -58,7 +58,15 @@ Camera* GetPrimaryCamera();
 
 void Camera_GenerateView(Camera* camera);
 void Camera_GenerateProjection(Camera* camera);
-void Camera_GenerateDirections(Camera* camera);
+
+::pPack::Vector3* Camera_Forward(Camera* camera);
+::pPack::Vector3* Camera_Right(Camera* camera);
+
+bool Camera_GetAngleBased(Camera* camera);
+void Camera_AngleBased(Camera* camera, bool b);
+
+void Camera_LookAtTarget(Camera* camera, ::pPack::Vector3* target);
+::pPack::Vector3* Camera_GetLookAtTarget(Camera* camera);
 
 // --------------------------------------------------
 // --------------------------------------------------

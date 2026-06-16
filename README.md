@@ -33,6 +33,7 @@ Handles the placing of objects as well in an admin scene.
 * timer
 * vector
 * windowManager
+* timer
 
 
 Prone to change as I adjust the packages to fit better for when I turn the project into a DLL

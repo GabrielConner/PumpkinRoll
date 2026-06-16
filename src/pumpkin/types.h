@@ -112,8 +112,7 @@ struct Object {
 
 
 struct Camera : public Object {
-  ::pPack::Vector3 forward;
-  ::pPack::Vector3 right;
+  Line camInternal[10] = {0};
 
   MatrixWrapper view;
   MatrixWrapper proj;

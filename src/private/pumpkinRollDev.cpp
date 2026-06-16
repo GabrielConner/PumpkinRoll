@@ -7,6 +7,7 @@
 #include "private/model.h"
 #include "private/shader.h"
 #include "private/pumpkinRoll.h"
+#include "private/camera.h"
 
 #include "pPack/windowManager.h"
 
@@ -255,6 +256,10 @@ struct Data {
   int historyLength = 0;
 
 
+  float jumpDistance = 3.0f;
+  float moveSpeed = 1.5f;
+  float cameraSpeed = 60.0f;
+
 
   // Handles implicit actions based on what is selected
   // Such as if there is a selectedObject and no holdingObject: set holdingObject to selectedObject
@@ -407,6 +412,8 @@ void StartDevelopment() {
   data->pumpkin = GetPumpkin();
   data->ask = &data->mainMenu;
 
+  StartCamera(&data->devCamera);
+
   data->devCamera.transform.position.z = 5;
 
   SetPrimaryCamera(&data->devCamera);
@@ -418,19 +425,54 @@ void UpdateDevelopment() {
   assert(data->ask != nullptr);
 
   data->inDevCamera = GetPrimaryCamera() == &data->devCamera;
+  UpdateCamera(&data->devCamera);
 
+  // Development camera moving
   if (data->inDevCamera) {
     auto window = data->pumpkin->primaryWindow;
     if (!window) goto leaveDevCameraStuff;
-    Camera_GenerateDirections(&data->devCamera);
 
-
-    if (window->GetInput(GLFW_KEY_W).pressed) {
-      data->devCamera.transform.position += data->devCamera.forward * data->pumpkin->deltaTime;
+    if (window->GetInput(GLFW_KEY_F).pressed) {
+      if (data->holdingObject) {
+        pCamInt((&data->devCamera))->lookAt = &data->holdingObject->transform.position;
+        data->devCamera.transform.position = (data->devCamera.transform.position - data->holdingObject->transform.position).Normal() * 5 + data->holdingObject->transform.position;
+      } else {
+        pCamInt((&data->devCamera))->lookAt = nullptr;
+      }
     }
 
+    auto camForward = *Camera_Forward(&data->devCamera);
+    auto camRight = *Camera_Right(&data->devCamera);
+
+    if (window->GetInput(GLFW_MOUSE_BUTTON_2).pressed) window->SetCursorInputMode(GLFW_CURSOR_DISABLED);
+
+    if (window->GetInput(GLFW_MOUSE_BUTTON_2).held) {
+      if (window->GetInput(GLFW_KEY_W).held) {
+        data->devCamera.transform.position += camForward * data->pumpkin->deltaTime * data->moveSpeed;
+      }
+      if (window->GetInput(GLFW_KEY_S).held) {
+        data->devCamera.transform.position -= camForward * data->pumpkin->deltaTime * data->moveSpeed;
+      }
+      if (window->GetInput(GLFW_KEY_A).held) {
+        data->devCamera.transform.position -= camRight * data->pumpkin->deltaTime * data->moveSpeed;
+      }
+      if (window->GetInput(GLFW_KEY_D).held) {
+        data->devCamera.transform.position += camRight * data->pumpkin->deltaTime * data->moveSpeed;
+      }
+
+      data->devCamera.transform.position += camForward * window->GetMouseScrollY() * data->jumpDistance;
+
+
+      auto dM = window->GetDeltaMousePosition().ConvertTo<float>() * window->GetAspectRatio();
+
+      data->devCamera.transform.rotation += Vector3(dM.y, -dM.x, 0) * data->cameraSpeed;
+      data->devCamera.transform.rotation.x = std::clamp(data->devCamera.transform.rotation.x, -89.9f, 89.9f);
+    }
+
+    if (window->GetInput(GLFW_MOUSE_BUTTON_2).released) window->SetCursorInputMode(GLFW_CURSOR_NORMAL);
+
   }
-  leaveDevCameraStuff:
+leaveDevCameraStuff:
 
 
 
@@ -634,12 +676,14 @@ void MainMenu::Prompt(int i, std::string const& line) {
     case 8: // Exit
       data->pumpkin->primaryWindow->SetShouldClose(true);
       break;
+    case 9: //prtodo // Development settings
+      break;
   }
 }
 
 
 void MainMenu::Question(std::string const& line) {
-  std::cout << "0. Run\n1. Create object\n2. Select object\n3. Select model\n4. Select shader\n5. Primary camera view\n6. Build\n7. Save\n8. Exit";
+  std::cout << "0. Run\n1. Create object\n2. Select object\n3. Select model\n4. Select shader\n5. Primary camera view\n6. Build\n7. Save\n8. Exit\n9. Deelopment settings";
 }
 
 

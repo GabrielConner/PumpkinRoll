@@ -3,6 +3,7 @@
 #include "private/pumpkinRoll.h"
 #include "private/fileManager.h"
 #include "private/shader.h"
+#include "private/camera.h"
 #include "pumpkin/fileManager.h"
 #include "private/mesh.h"
 #include "private/model.h"
@@ -117,6 +118,7 @@ StartReturn Init(StartSettings const& start) {
     return StartReturn::FAILURE;
   }
   mainWindow->SetAsContext();
+  mainWindow->SetSwapInterval(1);
 
   // Register window
   if (!pumpkin_private::RegisterWindow("pumpkin_roll__primary_window", mainWindow)) {
@@ -292,6 +294,11 @@ void Update() {
 
     glClearColor(runtime.backgroundColor.x, runtime.backgroundColor.y, runtime.backgroundColor.z, runtime.backgroundColor.w);
     glClear(GL_COLOR_BUFFER_BIT);
+    glFinish();
+
+    for (auto& cam : pumpkinData->registeredCameras) {
+      UpdateCamera(cam.second);
+    }
 
     if (pumpkinData->primaryCamera) {
       Camera_GenerateProjection(pumpkinData->primaryCamera);
@@ -307,6 +314,7 @@ void Update() {
 #endif
 
     pumpkinData->primaryWindow->Swap();
+    pumpkinData->primaryWindow->ResetKeys();
 
     singleton.Advance();
   }
@@ -523,6 +531,8 @@ Camera* RegisterCamera(std::string const& name) {
   ret.first->second = cam;
   objRet.first->second = cam;
 
+  StartCamera(cam);
+
   pObjDefInt(ret.first->second, i);
 
   i->name = new char[name.size() + 1];
@@ -562,15 +572,20 @@ Camera* GetPrimaryCamera() {
 
 
 void Camera_GenerateView(Camera* camera) {
-  pNullCheck(camera)
+  pNullCheck(camera);
 
-    camera->view = MatrixWrapper();
+  pCamDefInt(camera, i);
+  Vector3 lookAt = i->lookAt ? *i->lookAt : camera->transform.position + i->forward;
+
+  camera->view = MatrixWrapper();
   glm::highp_mat4* data = (glm::highp_mat4*)&camera->view;
 
+  *data = glm::lookAt(glm::vec3(camera->transform.position.x, camera->transform.position.y, camera->transform.position.z), glm::vec3(lookAt.x, lookAt.y, lookAt.z), glm::vec3(_UP.x, _UP.y, _UP.z));
+/*
   *data = glm::rotate(*data, glm::radians(-camera->transform.rotation.z), glm::vec3(0, 0, 1));
   *data = glm::rotate(*data, glm::radians(-camera->transform.rotation.y), glm::vec3(0, 1, 0));
   *data = glm::rotate(*data, glm::radians(-camera->transform.rotation.x), glm::vec3(1, 0, 0));
-  *data = glm::translate(*data, glm::vec3(-camera->transform.position.x, -camera->transform.position.y, -camera->transform.position.z));
+  *data = glm::translate(*data, glm::vec3(-camera->transform.position.x, -camera->transform.position.y, -camera->transform.position.z));*/
 }
 
 
@@ -586,16 +601,43 @@ void Camera_GenerateProjection(Camera* camera) {
 
 
 
-void Camera_GenerateDirections(Camera* camera) {
+Vector3* Camera_Forward(Camera* camera) {
+  pNullCheck(camera, nullptr);
+  return &pCamInt(camera)->forward;
+}
+
+
+
+Vector3* Camera_Right(Camera* camera) {
+  pNullCheck(camera, nullptr);
+  return &pCamInt(camera)->right;
+}
+
+
+bool Camera_GetAngleBased(Camera* camera) {
+  pNullCheck(camera, false);
+  return pCamInt(camera)->angleBased;
+}
+
+
+
+void Camera_AngleBased(Camera* camera, bool b) {
   pNullCheck(camera);
+  pCamInt(camera)->angleBased = b;
+}
 
-  Vector3 r = camera->transform.rotation * _DEG_TO_RAD;
 
-  camera->forward.x = cos(r.x) * sin(r.y);
-  camera->forward.y = sin(r.x);
-  camera->forward.z = -cos(r.x) * cos(r.y);
 
-  camera->right = Vector3::Cross(_UP, camera->forward);
+void Camera_LookAtTarget(Camera* camera, ::pPack::Vector3* target) {
+  pNullCheck(camera);
+  pCamInt(camera)->lookAt = target;
+}
+
+
+
+::pPack::Vector3* Camera_GetLookAtTarget(Camera* camera) {
+  pNullCheck(camera, nullptr);
+  return pCamInt(camera)->lookAt;
 }
 
 // --------------------------------------------------

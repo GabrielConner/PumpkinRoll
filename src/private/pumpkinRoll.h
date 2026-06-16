@@ -43,6 +43,10 @@ void ApplyShaderVariable(::pumpkin::Property const& var);
 
 void DeleteObject(::pumpkin::Object* obj);
 
+template <typename T> int Signum(T val) {
+  return (T(0) < val) - (val < T(0));
+}
+
 }; // namespace pumpkin_private
 
 #endif
