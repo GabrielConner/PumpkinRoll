@@ -16,6 +16,8 @@ struct Mesh {
   size_t offset = 0;
   bool dynamic = false;
 
+  std::string name = "";
+
   void Setup();
 
   GLuint GetVBO() const { assert(!dynamic || pVBO); return dynamic ? VBO : *pVBO ; }

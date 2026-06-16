@@ -1,10 +1,10 @@
 #include "private/propertyHolder.h"
 #include "pumpkin/constants.h"
 #include "pumpkin/pumpkinRoll.h"
-#include "private/constants.h"
 
 #include "pPack/vector.h"
 
+#include <new>
 #include <ranges>
 #include <assert.h>
 
@@ -22,9 +22,19 @@ bool PropertyHolder_AddProperty(PropertyHolder* holder, std::string const& name,
     return false;
   }
 
-  if (value == nullptr) {
+  size_t typeSize = SizeOfType(type);
+
+  if (value == nullptr || handle) {
+    void* tmpValue = calloc(1, typeSize);
+    if (tmpValue == nullptr) {
+      throw std::bad_alloc();
+    }
+
+    if (value) {
+      memcpy(tmpValue, value, typeSize);
+    }
+    value = tmpValue;
     handle = true;
-    value = calloc(1, SizeOfType(type));
   }
 
   return holder->properties.insert({_STRING_HASHER(name), Property(name, value, SizeOfType(type), type, handle)}).second;
@@ -116,18 +126,52 @@ T& PropertyHolder::GetProperty(std::string const& name) {
 
 
 void PropertyHolder::PrintAll() const {
+  size_t numElements = 0;
+  size_t i = 0;
+  bool intType = false;
   for (auto& prop : properties) {
-/*    std::cout << prop.second.name << " : " << */
+    std::cout << prop.second.name << " : \n";
+    numElements = prop.second.typeSize / sizeof(float);
+    intType = prop.second.type == VariableType::INT;
+
+    if (prop.second.type == VariableType::MAT4) {
+      MatrixWrapper* wrap = (MatrixWrapper*)prop.second.prop;
+      for (int j = 0; j < 4; j++) {
+        std::cout << "[ ";
+        for (int i = 0; i < 4; i++) {
+          std::cout << *((float*)&wrap->cols[i] + j);
+          if (i != 3) {
+            std::cout << ", ";
+          }
+        }
+        std::cout << " ]";
+        if (j != 3) std::cout << "\n";
+      }
+    } else {
+      std::cout << "[ ";
+      for (i = 0; i < numElements; i++) {
+        if (intType) std::cout << *((int32_t*)prop.second.prop + i);
+        else  std::cout << *((float*)prop.second.prop + i);
+        if (i != numElements - 1) std::cout << ", ";
+      }
+      std::cout << " ]";
+    }
+    std::cout << "\n\n\n";
   }
 }
 
 
+void PropertyHolder::DeleteProperty(std::string const& name) {
+  auto find = properties.find(_STRING_HASHER(name));
+  if (find == properties.end()) return;
+  find->second.Delete();
+  properties.erase(find);
+}
+
 
 void PropertyHolder::DeleteAll() {
   for (auto& prop : properties) {
-    if (prop.second.handle) {
-      free(prop.second.prop);
-    }
+    prop.second.Delete();
   }
   properties.clear();
 }

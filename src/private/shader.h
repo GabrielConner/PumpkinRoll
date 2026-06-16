@@ -14,6 +14,7 @@ struct Shader {
   unsigned int shader = 0;
   PropertyHolder properties;
   std::set<Model*> models = std::set<Model*>();
+  std::string name = "";
 
   void RenderAll();  
   bool AddModel(Model* model);

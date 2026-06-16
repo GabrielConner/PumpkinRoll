@@ -20,6 +20,8 @@ struct Property {
   ::pumpkin::VariableType type = VariableType::UNKNOWN;
   bool handle = false;
 
+  void Delete() { if (handle) free(prop); }
+
   Property(std::string Name, void* Prop, size_t TypeSize, ::pumpkin::VariableType Type, bool Handle) : name(Name), prop(Prop), typeSize(TypeSize), type(Type), handle(Handle) {}
 };
 
@@ -38,6 +40,7 @@ struct PropertyHolder {
 
   void PrintAll() const;
 
+  void DeleteProperty(std::string const& name);
   void DeleteAll();
 
 

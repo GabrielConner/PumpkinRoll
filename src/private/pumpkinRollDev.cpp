@@ -3,7 +3,9 @@
 
 #include "pumpkin/types.h"
 #include "private/types.h"
+#include "private/mesh.h"
 #include "private/model.h"
+#include "private/shader.h"
 #include "private/pumpkinRoll.h"
 
 #include "pPack/windowManager.h"
@@ -35,10 +37,31 @@ struct Ask {
 
 
 // Helper functions
+
+bool StringSort(std::string const& a, std::string const& b);
+
 void ListObjects();
+void ListMeshes();
 void ListModels();
+void ListShaders();
 inline bool ToNumberFromAscii(int& i) { i -= 48; return i < 0 || i > 9; }
 void AddError(std::string const& msg);
+
+
+void ModelForward();
+void ModelBack();
+
+void MeshForward();
+void MeshBack();
+
+void ShaderForward();
+void ShaderBack();
+
+void ObjectForward();
+void ObjectBack();
+
+void PropertyForward();
+void PropertyBack();
 
 
 /*************************************************************************/
@@ -73,27 +96,37 @@ struct HoldModel : Ask {
 };
 
 
+struct HoldShader : Ask {
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+};
+
+
 struct SelectObject : Ask {
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
+  void Set() override;
 };
 
 
 struct SelectModel : Ask {
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
+  void Set() override;
 };
 
 
 struct SelectMesh : Ask {
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
+  void Set() override;
 };
 
 
 struct SelectShader : Ask {
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
+  void Set() override;
 };
 
 
@@ -102,7 +135,6 @@ struct HoldProperty : Ask {
   bool changing = false;
   int maxPos = 0;
   int currentPos = 0;
-  bool typed = false;
   bool intType = false;
   std::string builtString = "";
 
@@ -113,7 +145,6 @@ struct HoldProperty : Ask {
     changing = false;
     maxPos = 0;
     currentPos = 0;
-    typed = false;
     intType = false;
     builtString = "";
   }
@@ -123,6 +154,7 @@ struct HoldProperty : Ask {
 struct SelectProperty : Ask {
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
+  void Set() override;
 };
 
 
@@ -145,8 +177,11 @@ struct DataHistorySlice {
   Ask* ask = nullptr;
   Object* holdingObject = nullptr;
   Model* holdingModel = nullptr;
+  Shader* holdingShader = nullptr;
   Object* selectedObject = nullptr;
   Model* selectedModel = nullptr;
+  Shader* selectedShader = nullptr;
+  Mesh* selectedMesh = nullptr;
 
   Property* holdingProperty = nullptr;
   PropertyHolder* holdingPropertyHolder = nullptr;
@@ -160,6 +195,7 @@ struct Data {
   CreateObject createObject;
   HoldObject holdObject;
   HoldModel holdModel;
+  HoldShader holdShader;
   SelectObject selectObject;
   SelectModel selectModel;
   SelectMesh selectMesh;
@@ -174,21 +210,35 @@ struct Data {
 
   Object* holdingObject = nullptr;
   Model* holdingModel = nullptr;
+  Shader* holdingShader = nullptr;
   Object* selectedObject = nullptr;
   Model* selectedModel = nullptr;
+  Shader* selectedShader = nullptr;
+  Mesh* selectedMesh = nullptr;
 
   Property* holdingProperty = nullptr;
   PropertyHolder* holdingPropertyHolder = nullptr;
 
 
+  std::unordered_map<size_t, Model*>::iterator currentModel;
+  std::unordered_map<size_t, Mesh*>::iterator currentMesh;
+  std::unordered_map<size_t, Shader*>::iterator currentShader;
+  std::unordered_map<size_t, Object*>::iterator currentObject;
+  std::unordered_map<size_t, Property>::iterator currentProperty;
+
+
+
   Pumpkin* pumpkin = nullptr;
   Ask* ask = nullptr;
 
+  void (*forward)() = nullptr;
+  void (*back)() = nullptr;
 
   std::vector<std::string> messages;
   DataHistorySlice history[_MAX_HISTORY] = {0};
 
 
+  bool cycle = false;
   bool display = false;
   bool updateAsk = true;
   int currentInHistory = 0;
@@ -208,6 +258,9 @@ struct Data {
     } else if (selectedModel && !holdingModel) {
       holdingModel = selectedModel;
       selectedModel = nullptr;
+    } else if (selectedShader && !holdingShader) {
+      holdingShader = selectedShader;
+      selectedShader = nullptr;
     }
   }
 
@@ -236,8 +289,13 @@ struct Data {
     ask = slice.ask;
     holdingObject = slice.holdingObject;
     holdingModel = slice.holdingModel;
+    holdingShader = slice.holdingShader;
     selectedObject = slice.selectedObject;
     selectedModel = slice.selectedModel;
+    selectedShader = slice.selectedShader;
+    selectedMesh = slice.selectedMesh;
+
+
     holdingProperty = slice.holdingProperty;
     holdingPropertyHolder = slice.holdingPropertyHolder;
 
@@ -253,12 +311,21 @@ struct Data {
       DataHistorySlice& slice = history[currentInHistory];
 
       slice.ask = ask;
+      slice.holdingObject = holdingObject;
       slice.holdingModel = holdingModel;
+      slice.holdingShader = holdingShader;
       slice.selectedObject = selectedObject;
       slice.selectedModel = selectedModel;
+      slice.selectedShader = selectedShader;
+      slice.selectedMesh = selectedMesh;
+
       slice.holdingProperty = holdingProperty;
       slice.holdingPropertyHolder = holdingPropertyHolder;
+
     }
+
+    forward = nullptr;
+    back = nullptr;
 
     ask = Ask;
     ask->Set();
@@ -276,6 +343,8 @@ struct Data {
       SetAsk(&holdObject);
     } else if (holdingModel) {
       SetAsk(&holdModel);
+    } else if (holdingShader) {
+      SetAsk(&holdShader);
     } else {
       SetAsk(&mainMenu);
     }
@@ -366,16 +435,24 @@ void UpdateDevelopment() {
 
 
     // Default commands
-    std::cout << "[ESCAPE to display extended]\n";
+    std::cout << "[ESCAPE to display extended (" << std::boolalpha << data->display << std::boolalpha << ")]\n";
     std::cout << "[UP ARROW to clear messages]\n";
     std::cout << "[RIGHT ARROW to go back]\n";
-    std::cout << "[LEFT ARROW to main menu]\n\n";
+    std::cout << "[LEFT ARROW to main menu]\n";
+    std::cout << "[HOME to use cycling (" << std::boolalpha << data->cycle << std::boolalpha << ")]\n";
+    std::cout << "[PAGE UP and DOWN to cycle options when applicable]\n\n";
 
     if (data->holdingObject) {
       std::cout << "[OBJECT : " << pObjInt(data->holdingObject)->name << "]\n";
     }
-    if (data->selectedModel) {
-      std::cout << "[MODEL : " << data->selectedModel->name << "]\n";
+    if (data->holdingModel) {
+      std::cout << "[MODEL : " << data->holdingModel->name << "]\n";
+    }
+    if (data->holdingShader) {
+      std::cout << "[SHADER : " << data->holdingShader->name << "]\n";
+    }
+    if (data->holdingProperty) {
+      std::cout << "[PROPERTY : " << data->holdingProperty->name << "]\n";
     }
 
 
@@ -412,9 +489,21 @@ void UpdateDevelopment() {
           data->SetAsk(&data->mainMenu);
           data->ResetHold();
           break;
+        case _PAGE_UP:
+          if (data->forward) data->forward();
+          data->updateAsk = true;
+          break;
+        case _PAGE_DOWN:
+          if (data->back) data->back();
+          data->updateAsk = true;
+          break;
+        case _HOME:
+          data->cycle = !data->cycle;
+          data->updateAsk = true;
+          break;
       }
 
-      continue;
+      return;
     }
     // escape isn't a special key 
     if (ret == _ESCAPE) {
@@ -481,31 +570,35 @@ void MainMenu::Prompt(int i, std::string const& line) {
   if (ToNumberFromAscii(i)) return;
 
   switch (i) {
-    case 0: // Run
+    case 0: // Run //prtodo
       break;
-    case 1: // Primary camera view
-      break;
-    case 2: // Create object
+    case 1: // Create object
       data->SetAsk(&data->createObject);
       break;
-    case 3: // Create camera
-      break;
-    case 4: // Select object
+    case 2: // Select object //prtodo
       data->SetAsk(&data->selectObject);
       break;
-    case 5: // Select model
+    case 3: // Select model
       data->SetAsk(&data->selectModel);
       break;
-    case 6: // Select Shader
+    case 4: // Select shader //prtodo
       break;
-    case 7: // Select camera
+    case 5: // Select camera //prtodo
+      break;
+    case 6: // Primary camera view //prtodo
+      break;
+    case 7: // Build //prtodo
+      break;
+    case 8: // Save //prtodo
+      break;
+    case 9: // Exit //prtodo
       break;
   }
 }
 
 
 void MainMenu::Question(std::string const& line) {
-  std::cout << "0. Run\n1. Primary camera view\n2. Create object\n3. Create camera\n4. Select object\n5. Select Model\n6. Select Shader\n7. Select camera";
+  std::cout << "0. Run\n1. Create object\n2. Select object\n3. Select model\n4. Select shader\n5. Select camera\n6. Primary camera view\n7. Build\n8. Save\n9. Exit";
 }
 
 
@@ -580,12 +673,18 @@ void HoldObject::Prompt(int i, std::string const& line) {
       data->selectedModel = pObjInt(data->holdingObject)->model;
       data->SetAsk(&data->selectModel);
       break;
+    case 2: // Add script //prtodo
+      break;
+    case 3: // Select script //prtodo
+      break;
+    case 4: // Transform //prtodo
+      break;
   }
 }
 
 
 void HoldObject::Question(std::string const& line) {
-  std::cout << "0. Delete object\n1. Set object model\n3. Add script\n4. Select script";
+  std::cout << "0. Delete object\n1. Set object model\n2. Add script\n3. Select script\n4. Transform";
 }
 
 // **************************************************
@@ -607,9 +706,9 @@ void HoldModel::Prompt(int i, std::string const& line) {
   if (ToNumberFromAscii(i)) return;
 
   switch (i) {
-    case 0: // Set mesh
+    case 0: // Set mesh //prtodo
       break;
-    case 1: // Set shader
+    case 1: // Set shader //prtodo
       break;
     case 2: // Select property
       data->holdingPropertyHolder = &data->holdingModel->properties;
@@ -631,6 +730,27 @@ void HoldModel::Question(std::string const& line) {
 
 
 
+// HoldShader
+// **************************************************
+// **************************************************
+
+void HoldShader::Prompt(int i, std::string const& line) {
+  //prtodo
+}
+
+
+void HoldShader::Question(std::string const& line) {
+  std::cout << "0. Select property";//prtodo
+}
+
+// **************************************************
+// **************************************************
+// HoldShader
+
+
+
+
+
 // SelectObject
 // **************************************************
 // **************************************************
@@ -639,13 +759,14 @@ void SelectObject::Prompt(int i, std::string const& line) {
   assert(data);
 
   if (i == '\r' || i == '\n') {
-    if (line.size() == 0) { // Go back
+    std::string str = (data->cycle && data->currentObject != data->pumpkin->registeredObjects.end()) ? pObjInt(data->currentObject->second)->name : line;
+    if (str.size() == 0) { // Go back
       data->ResetAsk();
       return;
     }
 
 
-    data->selectedObject = GetObject(line);
+    data->selectedObject = GetObject(str);
     if (data->selectedObject == nullptr) {
       AddError("No object selected");
     }
@@ -664,7 +785,17 @@ void SelectObject::Question(std::string const& line) {
     ListObjects();
   }
 
-  std::cout << "Enter object name to select or empty to go back\n>>" << line;
+  std::string str = (data->cycle && data->currentObject != data->pumpkin->registeredObjects.end()) ? pObjInt(data->currentObject->second)->name : line;
+  std::cout << "Enter object name to select or empty to go back\n>>" << str;
+}
+
+
+void SelectObject::Set() {
+  assert(data);
+
+  data->currentObject = data->pumpkin->registeredObjects.begin();
+  data->forward = ObjectForward;
+  data->back = ObjectBack;
 }
 
 // **************************************************
@@ -683,13 +814,14 @@ void SelectModel::Prompt(int i, std::string const& line) {
   assert(data);
 
   if (i == '\r' || i == '\n') {
-    if (line.size() == 0) { // Go back
+    std::string str = (data->cycle && data->currentModel != data->pumpkin->registeredModels.end()) ? data->currentModel->second->name : line;
+    if (str.size() == 0) { // Go back
       data->selectedModel = nullptr;
       data->ResetAsk();
       return;
     }
 
-    data->selectedModel = GetModel(line);
+    data->selectedModel = GetModel(str);
     if (data->selectedModel == nullptr) {
       AddError("No model selected");
     }
@@ -708,7 +840,17 @@ void SelectModel::Question(std::string const& line) {
     ListModels();
   }
 
-  std::cout << "Enter model name to select or empty to go back\n>>" << line;
+  std::string str = (data->cycle && data->currentModel != data->pumpkin->registeredModels.end()) ? data->currentModel->second->name : line;
+  std::cout << "Enter model name to select or empty to go back\n>>" << str;
+}
+
+
+void SelectModel::Set() {
+  assert(data);
+
+  data->currentModel = data->pumpkin->registeredModels.begin();
+  data->forward = ModelForward;
+  data->back = ModelBack;
 }
 
 // **************************************************
@@ -725,17 +867,18 @@ void SelectModel::Question(std::string const& line) {
 
 void SelectMesh::Prompt(int i, std::string const& line) {
   assert(data);
-
+  // prtodo Fix this
   if (i == '\r' || i == '\n') {
-    if (line.size() == 0) { // Go back
+    std::string str = (data->cycle && data->currentMesh != data->pumpkin->registeredMeshes.end()) ? data->currentMesh->second->name : line;
+    if (str.size() == 0) { // Go back
       data->selectedModel = nullptr;
       data->ResetAsk();
       return;
     }
 
-    data->selectedModel = GetModel(line);
+    data->selectedModel = GetModel(str);
     if (data->selectedModel == nullptr) {
-      AddError("No model selected");
+      AddError("No mesh selected");
     }
     data->ResetAsk();
     return;
@@ -749,10 +892,20 @@ void SelectMesh::Question(std::string const& line) {
   assert(data);
 
   if (data->display) {
-    ListModels();
+    ListMeshes();
   }
 
-  std::cout << "Enter model name to select or empty to go back\n>>" << line;
+  std::string str = (data->cycle && data->currentMesh != data->pumpkin->registeredMeshes.end()) ? data->currentMesh->second->name : line;
+  std::cout << "Enter mesh name to select or empty to go back\n>>" << str;
+}
+
+
+void SelectMesh::Set() {
+  assert(data);
+
+  data->currentMesh = data->pumpkin->registeredMeshes.begin();
+  data->forward = MeshForward;
+  data->back = MeshBack;
 }
 
 // **************************************************
@@ -769,15 +922,16 @@ void SelectMesh::Question(std::string const& line) {
 
 void SelectShader::Prompt(int i, std::string const& line) {
   assert(data);
-
+  // prtodo Fix this
   if (i == '\r' || i == '\n') {
-    if (line.size() == 0) { // Go back
+    std::string str = (data->cycle && data->currentShader != data->pumpkin->registeredShaders.end()) ? data->currentShader->second->name : line;
+    if (str.size() == 0) { // Go back
       data->selectedModel = nullptr;
       data->ResetAsk();
       return;
     }
 
-    data->selectedModel = GetModel(line);
+    data->selectedModel = GetModel(str);
     if (data->selectedModel == nullptr) {
       AddError("No model selected");
     }
@@ -793,10 +947,20 @@ void SelectShader::Question(std::string const& line) {
   assert(data);
 
   if (data->display) {
-    ListModels();
+    ListShaders();
   }
 
+  std::string str = (data->cycle && data->currentShader != data->pumpkin->registeredShaders.end()) ? data->currentShader->second->name : line;
   std::cout << "Enter model name to select or empty to go back\n>>" << line;
+}
+
+
+void SelectShader::Set() {
+  assert(data);
+
+  data->currentShader = data->pumpkin->registeredShaders.begin();
+  data->forward = ShaderForward;
+  data->back = ShaderBack;
 }
 
 // **************************************************
@@ -817,7 +981,7 @@ void HoldProperty::Prompt(int i, std::string const& line) {
 
   if (changing) {
     if (i == '\n' || i == '\r') {
-      if (typed) {
+      if (builtString.size() != 0) {
         if (intType) *((int32_t*)data->holdingProperty->prop + currentPos) = std::strtol(builtString.c_str(), nullptr, 10);
         else *((float*)data->holdingProperty->prop + currentPos) = std::strtof(builtString.c_str(), nullptr);
       }
@@ -830,14 +994,19 @@ void HoldProperty::Prompt(int i, std::string const& line) {
     }
 
     i = std::tolower(i);
-    
+
     if (i == 'w' || i == 's' || i == 'a' || i == 'd' || i == _BACKSPACE) {
       if (i == _BACKSPACE) {
-          builtString.pop_back();
+        if (!builtString.empty()) builtString.pop_back();
+        data->updateAsk = true;
+        return;
       }
 
-      if (typed) {
-        if (intType) *((int32_t*)data->holdingProperty->prop + currentPos) = (int32_t)std::strtol(builtString.c_str(), nullptr, 10);
+      if (builtString.size() != 0) {
+        if (data->holdingProperty->type == VariableType::MAT4) {
+          *((float*)data->holdingProperty->prop + (currentPos % 4) * 4 + (currentPos / 4)) = std::strtof(builtString.c_str(), nullptr);
+        }
+        else if (intType) *((int32_t*)data->holdingProperty->prop + currentPos) = (int32_t)std::strtol(builtString.c_str(), nullptr, 10);
         else *((float*)data->holdingProperty->prop + currentPos) = std::strtof(builtString.c_str(), nullptr);
         builtString.clear();
       }
@@ -848,7 +1017,6 @@ void HoldProperty::Prompt(int i, std::string const& line) {
       else if (i == 'd' && currentPos < maxPos - 1) currentPos++;
       else return;
 
-      typed = false;
       data->updateAsk = true;
       return;
     }
@@ -858,7 +1026,6 @@ void HoldProperty::Prompt(int i, std::string const& line) {
       if (!std::isdigit(i) && i != '-' && i != '+') return;
     } else if (!std::isdigit(i) && i != 'e' && i != '-' && i != '+' && i != '.' && i != 'f') return;
 
-    typed = true;
     builtString += (char)i;
     data->updateAsk = true;
     
@@ -880,9 +1047,9 @@ void HoldProperty::Prompt(int i, std::string const& line) {
       break;
     case 1: // Delete
 
-      data->holdingPropertyHolder->properties.erase(_STRING_HASHER(data->holdingProperty->name));
-      data->DeleteBack();
-      data->SetAsk(&data->propertyChanger);
+      data->holdingPropertyHolder->DeleteProperty(data->holdingProperty->name);
+      //data->DeleteBack();
+      data->SetAsk(&data->propertyChanger, false);
       data->holdingProperty = nullptr;
 
       break;
@@ -899,31 +1066,48 @@ void HoldProperty::Question(std::string const& line) {
     float* fl = (float*)data->holdingProperty->prop;
     int32_t* in = (int32_t*)data->holdingProperty->prop;
 
-    for (char i = 0; i < maxPos; i++) {
-      std::cout << '[';
+    if (data->holdingProperty->type == VariableType::MAT4) {
+      MatrixWrapper* wrap = (MatrixWrapper*)data->holdingProperty->prop;
+      for (int j = 0; j < 4; j++) {
+        for (int i = 0; i < 4; i++) {
+          std::cout << "[ ";
+          if (j * 4 + i == currentPos) {
+            std::cout << "$ ";
+            if (builtString.size() != 0) std::cout << builtString;
+            else std::cout << *((float*)&wrap->cols[i] + j);
+            std::cout << " $";
+          } else {
+            std::cout << *((float*)&wrap->cols[i] + j);
+          }
 
-      if (i == currentPos) std::cout << "*";
-
-      if (i != currentPos || !typed) {
-        if (intType) std::cout << *(in + i);
-        else std::cout << *(fl + i);
-      } else {
-        std::cout << builtString;
+          std::cout << " ]";
+        }
+        if (j != 3) std::cout << "\n";
       }
 
-      if (i == currentPos) std::cout << "*";
 
+    } else {
+      for (char i = 0; i < maxPos; i++) {
+        std::cout << "[ ";
 
-      std::cout << ']';
+        if (i == currentPos) std::cout << "$ ";
 
-      if ((i + 1) % 4 == 0) {
-        std::cout << '\n';
+        if (i != currentPos || builtString.size() == 0) {
+          if (intType) std::cout << *(in + i);
+          else std::cout << *(fl + i);
+        } else {
+          std::cout << builtString;
+        }
+
+        if (i == currentPos) std::cout << " $";
+
+        std::cout << " ]";
       }
     }
     return;
   }
 
-  std::cout << "0. Change\n1. Delete\n";
+  std::cout << "0. Change\n1. Delete";
 }
 
 // **************************************************
@@ -943,12 +1127,13 @@ void SelectProperty::Prompt(int i, std::string const& line) {
   assert(data->holdingPropertyHolder);
 
   if (i == '\n' || i == '\r') {
-    if (line.size() == 0) {
+    std::string str = (data->cycle && data->currentProperty != data->holdingPropertyHolder->properties.end()) ? data->currentProperty->second.name : line;
+    if (str.size() == 0) { // Go back
       data->SetAsk(&data->propertyChanger, false);
       return;
     }
 
-    auto find = data->holdingPropertyHolder->properties.find(_STRING_HASHER(line));
+    auto find = data->holdingPropertyHolder->properties.find(_STRING_HASHER(str));
     if (find == data->holdingPropertyHolder->properties.end()) {
       AddError("Failed to find property");
       data->SetAsk(&data->selectProperty, false);
@@ -971,7 +1156,17 @@ void SelectProperty::Question(std::string const& line) {
     data->holdingPropertyHolder->PrintAll();
   }
 
-  std::cout << "Enter name of property to select or empty to go back\n>>" << line;
+  std::string str = (data->cycle && data->currentProperty != data->holdingPropertyHolder->properties.end()) ? data->currentProperty->second.name : line;
+  std::cout << "Enter name of property to select or empty to go back\n>>" << str;
+}
+
+
+void SelectProperty::Set() {
+  assert(data);
+
+  data->currentProperty = data->holdingPropertyHolder->properties.begin();
+  data->forward = PropertyForward;
+  data->back = PropertyBack;
 }
 
 // **************************************************
@@ -987,12 +1182,12 @@ void SelectProperty::Question(std::string const& line) {
 // **************************************************
 
 void CreateProperty::Prompt(int i, std::string const& line) {
-
+  //prtodo
 }
 
 
 void CreateProperty::Question(std::string const& line) {
-
+  //prtodo
 }
 
 // **************************************************
@@ -1026,7 +1221,7 @@ void PropertyChanger::Prompt(int i, std::string const& line) {
 void PropertyChanger::Question(std::string const& line) {
   assert(data);
 
-  std::cout << "0. Select property\n1. Create property\n";
+  std::cout << "0. Select property\n1. Create property";
 }
 
 // **************************************************
@@ -1048,17 +1243,52 @@ void PropertyChanger::Question(std::string const& line) {
 /*************************************************************************/
 /*************************************************************************/
 
-void ListObjects() {
-  std::vector<std::string> objList;
-  for (auto objP : data->pumpkin->registeredObjects) {
-    objList.push_back(Object_GetName(objP.second));
+bool StringSort(std::string const& a, std::string const& b) {
+  int sumA = 0;
+  int sumB = 0;
+  int low = a.size() < b.size() ? a.size() : b.size();
+  bool alphabet = false;
+  for (int i = 0; i < low; i++) {
+    if (std::isalpha(a[i]) || std::isalpha(b[i])) alphabet = true;
+
+    if (alphabet) {
+      if (a[i] > b[i]) {
+        sumA++;
+        break;
+      }
+
+      if (b[i] > a[i]) {
+        sumB++;
+        break;
+      }
+    } else {
+      sumA += a[i];
+      sumB += b[i];
+    }
   }
-  std::sort(objList.begin(), objList.end(), [](std::string const& a, std::string const& b) {
-    int sumA = std::accumulate(a.begin(), a.end(), 0);
-    int sumB = std::accumulate(b.begin(), b.end(), 0);
-    return sumA < sumB;
-  });
-  for (auto obj : objList) std::cout << obj << "\n\n";
+
+  return sumB > sumA;
+}
+
+
+
+void ListObjects() {
+  std::vector<std::string> list;
+  for (auto objP : data->pumpkin->registeredObjects) {
+    list.push_back(Object_GetName(objP.second));
+  }
+  std::sort(list.begin(), list.end(), StringSort);
+  for (auto& elem : list) std::cout << elem << "\n\n";
+}
+
+
+void ListMeshes() {
+  std::vector<std::string> list;
+  for (auto t : data->pumpkin->registeredMeshes) {
+    list.push_back(t.second->name);
+  }
+  std::sort(list.begin(), list.end(), StringSort);
+  for (auto& elem : list) std::cout << elem << "\n\n";
 }
 
 
@@ -1067,20 +1297,120 @@ void ListModels() {
   for (auto t : data->pumpkin->registeredModels) {
     list.push_back(t.second->name);
   }
-  std::sort(list.begin(), list.end(), [](std::string const& a, std::string const& b) {
-    int sumA = std::accumulate(a.begin(), a.end(), 0);
-    int sumB = std::accumulate(b.begin(), b.end(), 0);
-    return sumA < sumB;
-  });
-  for (auto t : list) std::cout << t << "\n\n";
+  std::sort(list.begin(), list.end(), StringSort);
+  for (auto& elem : list) std::cout << elem << "\n\n";
+}
+
+
+void ListShaders() {
+  std::vector<std::string> list;
+  for (auto t : data->pumpkin->registeredShaders) {
+    list.push_back(t.second->name);
+  }
+  std::sort(list.begin(), list.end(), StringSort);
+  for (auto& elem : list) std::cout << elem << "\n\n";
 }
 
 
 
 void AddError(std::string const& msg) {
   assert(data);
-  data->messages.push_back(msg);
+  data->messages.push_back(msg + "\n\n");
 }
+
+
+
+
+
+/*************************************************************************/
+/*************************************************************************/
+/*                                                                       */
+/*                    S E L E C T I N G   T H I N G S                    */
+/*                                                                       */
+/*************************************************************************/
+/*************************************************************************/
+
+
+
+void ModelForward() {
+  assert(data);
+
+  if (data->currentModel != --data->pumpkin->registeredModels.end()) data->currentModel++;
+  else data->currentModel = data->pumpkin->registeredModels.begin();
+}
+
+void ModelBack() {
+  assert(data);
+
+  if (data->currentModel != data->pumpkin->registeredModels.begin()) data->currentModel--;
+  else data->currentModel = --data->pumpkin->registeredModels.end();
+}
+
+
+
+void MeshForward() {
+  assert(data);
+
+  if (data->currentMesh != --data->pumpkin->registeredMeshes.end()) data->currentMesh++;
+  else data->currentMesh = data->pumpkin->registeredMeshes.begin();
+}
+
+void MeshBack() {
+  assert(data);
+
+  if (data->currentMesh != data->pumpkin->registeredMeshes.begin()) data->currentMesh--;
+  else data->currentMesh = --data->pumpkin->registeredMeshes.end();
+}
+
+
+
+void ShaderForward() {
+  assert(data);
+
+  if (data->currentShader != --data->pumpkin->registeredShaders.end()) data->currentShader++;
+  else data->currentShader = data->pumpkin->registeredShaders.begin();
+}
+
+void ShaderBack() {
+  assert(data);
+
+  if (data->currentShader != data->pumpkin->registeredShaders.begin()) data->currentShader--;
+  else data->currentShader = --data->pumpkin->registeredShaders.end();
+}
+
+
+
+void ObjectForward() {
+  assert(data);
+
+  if (data->currentObject != --data->pumpkin->registeredObjects.end()) data->currentObject++;
+  else data->currentObject = data->pumpkin->registeredObjects.begin();
+}
+
+void ObjectBack() {
+  assert(data);
+
+  if (data->currentObject != data->pumpkin->registeredObjects.begin()) data->currentObject--;
+  else data->currentObject = --data->pumpkin->registeredObjects.end();
+}
+
+
+
+void PropertyForward() {
+  assert(data);
+
+  if (data->currentProperty != --data->holdingPropertyHolder->properties.end()) data->currentProperty++;
+  else data->currentProperty = data->holdingPropertyHolder->properties.begin();
+}
+
+void PropertyBack() {
+  assert(data);
+
+  if (data->currentProperty != data->holdingPropertyHolder->properties.begin()) data->currentProperty--;
+  else data->currentProperty = --data->holdingPropertyHolder->properties.end();
+}
+
+
 
 }; // namespace
 

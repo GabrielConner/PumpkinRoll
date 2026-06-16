@@ -234,6 +234,9 @@ StartReturn Init(StartSettings const& start) {
   }
   PropertyHolder_AddProperty(Model_GetProperties(model), "color", nullptr, VariableType::VECTOR4, true);
 
+  MatrixWrapper identy = MatrixWrapper();
+  PropertyHolder_AddProperty(Model_GetProperties(model), "adjust", &identy, VariableType::MAT4, true);
+
 
   // Object
   Object* render = RegisterObject("TestObj");
@@ -312,7 +315,7 @@ void End() {
     delete(mesh.second);
   }
   for (auto& cam : pumpkinData->registeredCameras) {
-    delete(cam.second);
+    ::pumpkin_private::DeleteObject(cam.second);
   }
   for (auto& format : pumpkinData->registeredFormats) {
     glDeleteVertexArrays(1, &format.second);
@@ -477,12 +480,21 @@ void Transform_GenerateModel(Transform transform, MatrixWrapper& store) {
 Camera* RegisterCamera(std::string const& name) {
   pPumpkinCheck(nullptr);
 
-  Camera* cam = new Camera();
-  if (!pumpkinData->registeredCameras.insert({_STRING_HASHER(name), cam}).second) {
+  auto ret = pumpkinData->registeredCameras.insert({_STRING_HASHER(name), nullptr});
+  if (!ret.second) {
     pWarn("Camera already exists with same name");
-    delete(cam);
     return nullptr;
-  } return cam;
+  };
+  Camera* cam = new Camera();
+  ret.first->second = cam;
+
+  pObjDefInt(ret.first->second, i);
+
+  i->name = new char[name.size() + 1];
+  i->name[name.size()] = 0;
+  std::memcpy(i->name, name.c_str(), name.size());
+
+  return cam;
 }
 
 
@@ -596,12 +608,15 @@ Mesh* RegisterMesh(std::string const& name, void* vertices, size_t size, size_t 
   }
 
 
-  Mesh* mesh = new Mesh();
-  if (!pumpkinData->registeredMeshes.insert({_STRING_HASHER(name), mesh}).second) {
+  auto ret = pumpkinData->registeredMeshes.insert({_STRING_HASHER(name), nullptr});
+  if (!ret.second) {
     pWarn("Mesh already exists with same name");
-    delete(mesh);
     return nullptr;
   }
+  Mesh* mesh = new Mesh();
+  ret.first->second = mesh;
+
+  mesh->name = name;
 
   // Set stuff
   mesh->format = format;
@@ -763,13 +778,17 @@ void ApplyStaticBuffer() {
 Model* RegisterModel(std::string const& name) {
   pPumpkinCheck(nullptr);
 
-  Model* model = new Model();
-  model->name = name;
-  if (!pumpkinData->registeredModels.insert({_STRING_HASHER(name), model}).second) {
+  auto ret = pumpkinData->registeredModels.insert({_STRING_HASHER(name), 0});
+  if (!ret.second) {
     pWarn("Model already exists with same name");
-    delete(model);
     return nullptr;
-  } return model;
+  };
+  Model* model = new Model();
+
+  ret.first->second = model;
+  model->name = name;
+
+  return model;
 }
 
 
@@ -835,14 +854,17 @@ Shader* RegisterShader(std::string const& name, GLuint shader) {
   }
 
   // Create shader data
-  Shader* tShader = new Shader(shader);
 
   // Attempt insertion
-  if (!pumpkinData->registeredShaders.insert({_STRING_HASHER(name), tShader}).second) {
+  auto ret = pumpkinData->registeredShaders.insert({_STRING_HASHER(name), nullptr});
+  if (!ret.second) {
     pWarn("Shader already exists with same name");
-    delete(tShader);
     return nullptr;
-  } return tShader;
+  } 
+  Shader* tShader = new Shader(shader);
+  ret.first->second = tShader;
+  tShader->name = name;
+  return tShader;
 }
 
 
