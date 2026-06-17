@@ -27,6 +27,12 @@ bool DeleteObject(std::string const& name);
 
 char const* Object_GetName(Object const* object);
 bool Object_SetModel(Object* object, Model* model);
+bool Object_AddScript(Object* object, std::string const& name);
+Script* Object_GetScript(Object* object, std::string const& name);
+bool Object_RemoveScript(Object* object, std::string const& name);
+
+void Object_AddDeleteCallback(Object* object, ObjectDeleteCallback ptrFunc, int id);
+void Object_RemoveDeleteCallback(Object* object, ObjectDeleteCallback ptrFunc, int id);
 
 // --------------------------------------------------
 // --------------------------------------------------
@@ -139,6 +145,21 @@ void* PropertyHolder_GetProperty(PropertyHolder* holder, std::string const& name
 // --------------------------------------------------
 // --------------------------------------------------
 // PropertyHolder
+
+
+
+// Script
+// --------------------------------------------------
+// --------------------------------------------------
+
+bool RegisterScript(Script* script);
+Script* CreateScript(std::string const& name);
+
+//prtodo get script name
+
+// --------------------------------------------------
+// --------------------------------------------------
+// Script
 
 }; // namespace pumpkin
 

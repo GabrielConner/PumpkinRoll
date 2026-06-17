@@ -45,6 +45,9 @@ void ListObjects();
 void ListMeshes();
 void ListModels();
 void ListShaders();
+void ListScripts();
+void ListOwnedScripts();
+
 inline bool ToNumberFromAscii(int& i) { i -= 48; return i < 0 || i > 9; }
 void AddError(std::string const& msg);
 
@@ -64,6 +67,14 @@ void ObjectBack();
 void PropertyForward();
 void PropertyBack();
 
+void ScriptForward();
+void ScriptBack();
+
+void ScriptOwnedForward();
+void ScriptOwnedBack();
+
+void LookAtObjectDelete(Object* obj, int id);
+
 
 /*************************************************************************/
 /*************************************************************************/
@@ -76,6 +87,20 @@ void PropertyBack();
 struct MainMenu : Ask {
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
+};
+
+
+struct AddScript : Ask {
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+  void Set() override;
+};
+
+
+struct RemoveScript : Ask {
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+  void Set() override;
 };
 
 
@@ -200,6 +225,8 @@ struct DataHistorySlice {
 // Data container
 struct Data {
   MainMenu mainMenu;
+  AddScript addScript;
+  RemoveScript removeScript;
   CreateObject createObject;
   HoldObject holdObject;
   HoldModel holdModel;
@@ -228,12 +255,16 @@ struct Data {
   Property* holdingProperty = nullptr;
   PropertyHolder* holdingPropertyHolder = nullptr;
 
+  Object* lookAtObject = nullptr;
+
 
   std::unordered_map<size_t, Model*>::iterator currentModel;
   std::unordered_map<size_t, Mesh*>::iterator currentMesh;
   std::unordered_map<size_t, Shader*>::iterator currentShader;
   std::unordered_map<size_t, Object*>::iterator currentObject;
   std::unordered_map<size_t, Property>::iterator currentProperty;
+  std::unordered_map<size_t, Script*>::iterator currentScript;
+
 
 
   Camera devCamera = Camera();
@@ -258,7 +289,7 @@ struct Data {
 
   float jumpDistance = 3.0f;
   float moveSpeed = 1.5f;
-  float cameraSpeed = 60.0f;
+  float cameraSpeed = 70.0f;
 
 
   // Handles implicit actions based on what is selected
@@ -432,8 +463,16 @@ void UpdateDevelopment() {
     auto window = data->pumpkin->primaryWindow;
     if (!window) goto leaveDevCameraStuff;
 
+    //prtodo allow moving up and down
+
     if (window->GetInput(GLFW_KEY_F).pressed) {
       if (data->holdingObject) {
+        if (data->lookAtObject) {
+          Object_RemoveDeleteCallback(data->lookAtObject, LookAtObjectDelete, 0);
+        }
+
+        data->lookAtObject = data->holdingObject;
+        Object_AddDeleteCallback(data->lookAtObject, LookAtObjectDelete, 0);
         pCamInt((&data->devCamera))->lookAt = &data->holdingObject->transform.position;
         data->devCamera.transform.position = (data->devCamera.transform.position - data->holdingObject->transform.position).Normal() * 5 + data->holdingObject->transform.position;
       } else {
@@ -445,6 +484,11 @@ void UpdateDevelopment() {
     auto camRight = *Camera_Right(&data->devCamera);
 
     if (window->GetInput(GLFW_MOUSE_BUTTON_2).pressed) window->SetCursorInputMode(GLFW_CURSOR_DISABLED);
+
+    if (window->GetInput(GLFW_KEY_LEFT_SHIFT).held) {
+      camForward *= 2;
+      camRight *= 2;
+    }
 
     if (window->GetInput(GLFW_MOUSE_BUTTON_2).held) {
       if (window->GetInput(GLFW_KEY_W).held) {
@@ -463,9 +507,9 @@ void UpdateDevelopment() {
       data->devCamera.transform.position += camForward * window->GetMouseScrollY() * data->jumpDistance;
 
 
-      auto dM = window->GetDeltaMousePosition().ConvertTo<float>() * window->GetAspectRatio();
+      auto dM = window->GetDeltaMousePosition().ConvertTo<float>();
 
-      data->devCamera.transform.rotation += Vector3(dM.y, -dM.x, 0) * data->cameraSpeed;
+      data->devCamera.transform.rotation += Vector3(dM.y, -dM.x * window->GetAspectRatio(), 0) * data->cameraSpeed;
       data->devCamera.transform.rotation.x = std::clamp(data->devCamera.transform.rotation.x, -89.9f, 89.9f);
     }
 
@@ -657,7 +701,7 @@ void MainMenu::Prompt(int i, std::string const& line) {
     case 1: // Create object
       data->SetAsk(&data->createObject);
       break;
-    case 2:  //prtodo // Select object
+    case 2:  // Select object
       data->SetAsk(&data->selectObject);
       break;
     case 3: // Select model
@@ -673,23 +717,132 @@ void MainMenu::Prompt(int i, std::string const& line) {
       break;
     case 7: //prtodo // Save
       break;
-    case 8: // Exit
-      data->pumpkin->primaryWindow->SetShouldClose(true);
+    case 8: //prtodo // Development settings
       break;
-    case 9: //prtodo // Development settings
+    case 9: // prtodo // Reload shaders
       break;
   }
 }
 
 
 void MainMenu::Question(std::string const& line) {
-  std::cout << "0. Run\n1. Create object\n2. Select object\n3. Select model\n4. Select shader\n5. Primary camera view\n6. Build\n7. Save\n8. Exit\n9. Deelopment settings";
+  std::cout << "0. Run\n1. Create object\n2. Select object\n3. Select model\n4. Select shader\n5. Primary camera view\n6. Build\n7. Save\n8. Development settings\n9. Reload shaders";
 }
 
 
 // **************************************************
 // **************************************************
 // MainMenu
+
+
+
+
+
+// AddScript
+// **************************************************
+// **************************************************
+
+void AddScript::Prompt(int i, std::string const& line) {
+  assert(data);
+  assert(data->holdingObject);
+
+  if (i == '\r' || i == '\n') {
+    std::string str = (data->cycle && data->currentScript != data->pumpkin->registeredScripts.end()) ? typeid(*data->currentScript->second).name() : line;
+    if (str.size() == 0) { // back
+      data->SetAsk(&data->holdObject, false);
+      return;
+    }
+
+    if (!Object_AddScript(data->holdingObject, str)) {
+      AddError("Failed to add script to object");
+    }
+
+    data->ResetAsk();
+  }
+
+  data->updateAsk = true;
+}
+
+
+void AddScript::Question(std::string const& line) {
+  assert(data);
+  if (data->display) {
+    ListScripts();
+  }
+
+  std::string str = (data->cycle && data->currentScript != data->pumpkin->registeredScripts.end()) ? typeid(*data->currentScript->second).name() : line;
+  std::cout << "Enter name of script to add or empty to return\n>>" << str;
+}
+
+
+void AddScript::Set() {
+  assert(data);
+  assert(data->pumpkin);
+
+  data->currentScript = data->pumpkin->registeredScripts.begin();
+
+  data->forward = ScriptForward;
+  data->back = ScriptBack;
+}
+
+// **************************************************
+// **************************************************
+// AddScript
+
+
+
+
+
+// RemoveScript
+// **************************************************
+// **************************************************
+
+void RemoveScript::Prompt(int i, std::string const& line) {
+  assert(data);
+  assert(data->holdingObject);
+
+  if (i == '\r' || i == '\n') {
+    std::string str = (data->cycle && data->currentScript != data->holdingObject->scripts.end()) ? typeid(*data->currentScript->second).name() : line;
+    if (str.size() == 0) { // back
+      data->SetAsk(&data->holdObject, false);
+      return;
+    }
+
+    if (!Object_RemoveScript(data->holdingObject, str)) {
+      AddError("Failed to remove script from object");
+    }
+
+    data->ResetAsk();
+  }
+
+  data->updateAsk = true;
+}
+
+
+void RemoveScript::Question(std::string const& line) {
+  assert(data);
+  if (data->display) {
+    ListOwnedScripts();
+  }
+
+  std::string str = (data->cycle && data->currentScript != data->holdingObject->scripts.end()) ? typeid(*data->currentScript->second).name() : line;
+  std::cout << "Enter name of script to remove or empty to return\n>>" << str;
+}
+
+
+void RemoveScript::Set() {
+  assert(data);
+  assert(data->holdingObject);
+
+  data->currentScript = data->holdingObject->scripts.begin();
+
+  data->forward = ScriptOwnedForward;
+  data->back = ScriptOwnedBack;
+}
+
+// **************************************************
+// **************************************************
+// RemoveScript
 
 
 
@@ -800,9 +953,11 @@ void HoldObject::Prompt(int i, std::string const& line) {
       data->selectedModel = pObjInt(data->holdingObject)->model;
       data->SetAsk(&data->selectModel);
       break;
-    case 2:  //prtodo // Add script
+    case 2:  // Add script
+      data->SetAsk(&data->addScript);
       break;
-    case 3: //prtodo // Select script 
+    case 3: // Remove script 
+      data->SetAsk(&data->removeScript);
       break;
     case 4: // Position
       name = "Position";
@@ -849,7 +1004,7 @@ void HoldObject::Question(std::string const& line) {
     return;
   }
   
-  std::cout << "0. Delete object\n1. Set object model\n2. Add script\n3. Select script\n4. Position\n5. Scale\n6. Rotation";
+  std::cout << "0. Delete object\n1. Set object model\n2. Add script\n3. Remove script\n4. Position\n5. Scale\n6. Rotation";
 }
 
 // **************************************************
@@ -1448,6 +1603,8 @@ bool StringSort(std::string const& a, std::string const& b) {
 
 
 void ListObjects() {
+  assert(data);
+
   std::vector<std::string> list;
   for (auto objP : data->pumpkin->registeredObjects) {
     list.push_back(Object_GetName(objP.second));
@@ -1459,6 +1616,8 @@ void ListObjects() {
 
 
 void ListMeshes() {
+  assert(data);
+
   std::vector<std::string> list;
   for (auto t : data->pumpkin->registeredMeshes) {
     list.push_back(t.second->name);
@@ -1470,6 +1629,8 @@ void ListMeshes() {
 
 
 void ListModels() {
+  assert(data);
+
   std::vector<std::string> list;
   for (auto t : data->pumpkin->registeredModels) {
     list.push_back(t.second->name);
@@ -1481,6 +1642,8 @@ void ListModels() {
 
 
 void ListShaders() {
+  assert(data);
+
   std::vector<std::string> list;
   for (auto t : data->pumpkin->registeredShaders) {
     list.push_back(t.second->name);
@@ -1491,10 +1654,58 @@ void ListShaders() {
 }
 
 
+void ListScripts() {
+  assert(data);
+
+  std::vector<std::string> list;
+  for (auto t : data->pumpkin->registeredScripts) {
+    list.push_back(typeid(*(t.second)).name());
+  }
+  std::sort(list.begin(), list.end(), StringSort);
+  for (auto& elem : list) std::cout << elem << "\n";
+  std::cout << '\n';
+}
+
+
+
+void ListOwnedScripts() {
+  assert(data);
+  assert(data->holdingObject);
+
+  std::vector<std::string> list;
+  for (auto t : data->holdingObject->scripts) {
+    list.push_back(typeid(*(t.second)).name());
+  }
+  std::sort(list.begin(), list.end(), StringSort);
+  for (auto& elem : list) std::cout << elem << "\n";
+  std::cout << '\n';
+}
+
+
+
+
+/*************************************************************************/
+/*************************************************************************/
+/*                                                                       */
+/*                       H E L P E R     T H I N G S                     */
+/*                                                                       */
+/*************************************************************************/
+/*************************************************************************/
+
+
 
 void AddError(std::string const& msg) {
   assert(data);
   data->messages.push_back(msg + "\n\n");
+}
+
+
+
+void LookAtObjectDelete(Object* obj, int id) {
+  assert(data);
+
+  data->lookAtObject = nullptr;
+  pCamInt((&data->devCamera))->lookAt = nullptr;
 }
 
 
@@ -1590,6 +1801,37 @@ void PropertyBack() {
 }
 
 
+
+void ScriptForward() {
+  assert(data);
+
+  if (data->currentScript != --data->pumpkin->registeredScripts.end()) data->currentScript++;
+  else data->currentScript = data->pumpkin->registeredScripts.begin();
+}
+
+void ScriptBack() {
+  assert(data);
+
+  if (data->currentScript != data->pumpkin->registeredScripts.begin()) data->currentScript--;
+  else data->currentScript = --data->pumpkin->registeredScripts.end();
+}
+
+
+
+void ScriptOwnedForward() {
+  assert(data);
+  assert(data->holdingObject);
+
+  if (data->currentScript != --data->holdingObject->scripts.end()) data->currentScript++;
+  else data->currentScript = data->holdingObject->scripts.begin();
+}
+
+void ScriptOwnedBack() {
+  assert(data);
+
+  if (data->currentScript != data->holdingObject->scripts.begin()) data->currentScript--;
+  else data->currentScript = --data->holdingObject->scripts.end();
+}
 
 }; // namespace
 

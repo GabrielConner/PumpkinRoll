@@ -67,6 +67,17 @@ _CrtMemState crtMemState;
 
 namespace pumpkin {
 
+struct TempScript : Script {
+  double totalTime = 0;
+
+  void Update(Object* obj, double deltaTime) override {
+    totalTime += deltaTime;
+    obj->transform.position.y = sin(totalTime);
+  }
+
+  Script* Allocate() override { return new TempScript(); }
+};
+
 
 StartReturn Init(StartSettings const& start) {
 
@@ -272,6 +283,9 @@ StartReturn Init(StartSettings const& start) {
   ApplyStaticBuffer();
 
 
+
+  RegisterScript(new TempScript());
+
   return StartReturn::SUCCESS;
 }
 
@@ -298,6 +312,12 @@ void Update() {
 
     for (auto& cam : pumpkinData->registeredCameras) {
       UpdateCamera(cam.second);
+    }
+
+    for (auto& obj : pumpkinData->registeredObjects) {
+      for (auto& script : obj.second->scripts) {
+        script.second->Update(obj.second, pumpkinData->deltaTime);
+      }
     }
 
     if (pumpkinData->primaryCamera) {
@@ -349,6 +369,9 @@ void End() {
   }
   for (auto& format : pumpkinData->registeredFormats) {
     glDeleteVertexArrays(1, &format.second);
+  }
+  for (auto& script : pumpkinData->registeredScripts) {
+    delete(script.second);
   }
 
   glDeleteBuffers(1, &pumpkinData->globalVBO);
@@ -420,6 +443,8 @@ Object* RegisterObject(std::string const& name) {
 
   pObjDefInt(ret.first->second, i);
 
+  i->model = nullptr;
+
   i->name = new char[name.size() + 1];
   i->name[name.size()] = 0;
   std::memcpy(i->name, name.c_str(), name.size());
@@ -445,6 +470,10 @@ bool DeleteObject(std::string const& name) {
   if (ret == pumpkinData->registeredObjects.end()) {
     pWarn("Object does not exist with name");
     return false;
+  }
+
+  for (auto& callbacks : ret->second->deleteCallbacks) {
+    callbacks.first(ret->second, callbacks.second);
   }
 
   ::pumpkin_private::DeleteObject(ret->second);
@@ -477,6 +506,71 @@ bool Object_SetModel(Object* object, Model* model) {
   i->model = model;
 
   return true;
+}
+
+
+
+bool Object_AddScript(Object* object, std::string const& name) {
+  pNullCheck(object, false);
+
+  Script* script = CreateScript(name);
+  if (script == nullptr) {
+    pWarn("Failed to add script with name to object");
+    return false;
+  }
+
+  auto ret = object->scripts.insert({_STRING_HASHER(name), script});
+  if (!ret.second) {
+    delete(script);
+    pWarn("Script already exists on object");
+    return false;
+  }
+
+  return true;
+}
+
+
+
+Script* Object_GetScript(Object* object, std::string const& name) {
+  pNullCheck(object, nullptr);
+  
+  auto find = object->scripts.find(_STRING_HASHER(name));
+  if (find != object->scripts.end()) { 
+    pWarn("Script does not exist with name on object");
+    return nullptr;
+  }
+
+  return find->second;
+}
+
+
+
+bool Object_RemoveScript(Object* object, std::string const& name) {
+  pNullCheck(object, false);
+
+  auto find = object->scripts.find(_STRING_HASHER(name));
+  if (find == object->scripts.end()) {
+    pWarn("Script does not exist with name on object");
+    return false;
+  }
+  delete(find->second);
+  object->scripts.erase(find);
+
+  return true;
+}
+
+
+
+void Object_AddDeleteCallback(Object* object, ObjectDeleteCallback ptrFunc, int id) {
+  pNullCheck(object);
+  object->deleteCallbacks.insert({ptrFunc, id});
+}
+
+
+
+void Object_RemoveDeleteCallback(Object* object, ObjectDeleteCallback ptrFunc, int id) {
+  pNullCheck(object);
+  object->deleteCallbacks.erase({ptrFunc, id});
 }
 
 // --------------------------------------------------
@@ -932,7 +1026,6 @@ PropertyHolder* Model_GetProperties(Model* model) {
 
 
 
-
 // Shader
 // --------------------------------------------------
 // --------------------------------------------------
@@ -981,6 +1074,39 @@ PropertyHolder* Shader_GetProperties(Shader* shader) {
 // --------------------------------------------------
 // --------------------------------------------------
 // Shader
+
+
+
+
+
+// Script
+// --------------------------------------------------
+// --------------------------------------------------
+
+bool RegisterScript(Script* script) {
+  pPumpkinCheck(false);
+  pNullCheck(script, false);
+
+  return pumpkinData->registeredScripts.insert({_STRING_HASHER(typeid(*script).name()), script}).second;
+}
+
+
+
+Script* CreateScript(std::string const& name) {
+  pPumpkinCheck(nullptr);
+  
+  auto find = pumpkinData->registeredScripts.find(_STRING_HASHER(name));
+  if (find == pumpkinData->registeredScripts.end()) {
+    pWarn("Script with name not found");
+    return nullptr;
+  }
+
+  return find->second->Allocate();
+}
+
+// --------------------------------------------------
+// --------------------------------------------------
+// Script
 
 
 
@@ -1047,6 +1173,11 @@ void DeleteObject(Object* obj) {
   pObjDefInt(obj, i);
   delete(i->name);
   if (i->model) i->model->RemoveObject(obj);
+
+  for (auto& script : obj->scripts) {
+    delete(script.second);
+  }
+
   delete(obj);
 }
 

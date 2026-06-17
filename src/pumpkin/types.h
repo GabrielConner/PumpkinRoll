@@ -4,6 +4,9 @@
 #include "pPack/vector.h"
 #include "glad/glad.h"
 
+#include <unordered_map>
+#include <set>
+
 namespace pumpkin {
 
 
@@ -38,7 +41,8 @@ enum struct VariableType { UNKNOWN = -1, INT, FLOAT, MAT4, VECTOR2, VECTOR3, VEC
 
 struct alignas(sizeof(uint8_t) * 4) Line { uint8_t data[4]; };
 
-
+struct Object;
+typedef void (*ObjectDeleteCallback)(Object*, int id);
 
 struct Vertex {
   ::pPack::Vector3 position;
@@ -103,9 +107,13 @@ struct RuntimeSettings {
 /*************************************************************************/
 
 
-
+struct Script;
 struct Object {
   Line internal[4] = {0};
+
+  std::unordered_map<size_t, ::pumpkin::Script*> scripts = std::unordered_map<size_t, ::pumpkin::Script*>();
+  std::set<std::pair<::pumpkin::ObjectDeleteCallback, int>> deleteCallbacks = std::set<std::pair<::pumpkin::ObjectDeleteCallback, int>>();
+
   Transform transform = Transform();
 };
 
@@ -141,6 +149,20 @@ struct FormatStartInfo {
   AttributeType attribType = AttributeType::FLOAT;
 };
 
+
+
+struct Script {
+#ifdef PUMPKIN_ROLL_DEV
+  virtual void Prebuild(Object* obj) {}
+#endif
+
+  virtual void Start(Object* obj) {}
+  virtual void Update(Object* obj, double deltaTime) {}
+  virtual void End(Object* obj) {}
+
+
+  virtual Script* Allocate() = 0;
+};
 
 
 

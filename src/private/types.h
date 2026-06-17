@@ -1,8 +1,11 @@
 #ifndef PUMPKIN_ROLL_SRC_PRIVATE_TYPES_H
 #define PUMPKIN_ROLL_SRC_PRIVATE_TYPES_H
 
+#include "private/propertyHolder.h"
 #include "pumpkin/types.h"
 #include "pPack/vector.h"
+#include <unordered_map>
+#include <set>
 
 namespace pumpkin_private {
 

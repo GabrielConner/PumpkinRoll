@@ -22,6 +22,7 @@ struct Pumpkin {
   std::unordered_map<size_t, ::pumpkin::Camera*> registeredCameras = std::unordered_map<size_t, ::pumpkin::Camera*>();
   std::unordered_map<size_t, ::pumpkin::Object*> registeredObjects = std::unordered_map<size_t, ::pumpkin::Object*>();
   std::unordered_map<size_t, GLuint> registeredFormats = std::unordered_map<size_t, GLuint>();
+  std::unordered_map<size_t, ::pumpkin::Script*> registeredScripts = std::unordered_map<size_t, ::pumpkin::Script*>();
 
   ::pPack::Window* primaryWindow = nullptr;
   ::pumpkin::Camera* primaryCamera = nullptr;
