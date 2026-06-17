@@ -121,7 +121,7 @@ PropertyHolder* Model_GetProperties(Model* shader);
 // --------------------------------------------------
 // --------------------------------------------------
 
-Shader* RegisterShader(std::string const& name, GLuint shader);
+Shader* RegisterShader(std::string const& name, ShaderInfo* startInfos, int count);
 Shader* GetShader(std::string const& name);
 
 PropertyHolder* Shader_GetProperties(Shader* shader);
@@ -154,8 +154,7 @@ void* PropertyHolder_GetProperty(PropertyHolder* holder, std::string const& name
 
 bool RegisterScript(Script* script);
 Script* CreateScript(std::string const& name);
-
-//prtodo get script name
+char const* GetScriptName(Script* script);
 
 // --------------------------------------------------
 // --------------------------------------------------

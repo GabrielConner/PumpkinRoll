@@ -37,7 +37,16 @@ bool PropertyHolder_AddProperty(PropertyHolder* holder, std::string const& name,
     handle = true;
   }
 
-  return holder->properties.insert({_STRING_HASHER(name), Property(name, value, SizeOfType(type), type, handle)}).second;
+  auto ret = holder->properties.insert({_STRING_HASHER(name), Property(name, value, SizeOfType(type), type, handle)});
+  if (!ret.second) {
+    if (handle) {
+      free(value);
+    }
+
+    return false;
+  }
+
+  return true;
 }
 
 

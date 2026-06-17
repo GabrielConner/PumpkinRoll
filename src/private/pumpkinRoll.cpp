@@ -191,9 +191,9 @@ StartReturn Init(StartSettings const& start) {
   char const* vertLocs = "shaders/test.vert";
   char const* fragLocs = "shaders/test.frag";
 
-  ShaderCreateInfo shaderCreateInfos[] = {ShaderCreateInfo(&vertLocs, 1, GL_VERTEX_SHADER), ShaderCreateInfo(&fragLocs, 1, GL_FRAGMENT_SHADER)};
+  ShaderInfo shaderCreateInfos[] = {ShaderInfo({vertLocs}, 1, GL_VERTEX_SHADER), ShaderInfo({fragLocs}, 1, GL_FRAGMENT_SHADER)};
 
-  Shader* shader = RegisterShader("PumpkinRoll__DefaultShader", ShaderHandler::CreateShader(shaderCreateInfos, sizeof(shaderCreateInfos) / sizeof(ShaderCreateInfo), OpenFileFunc, nullptr, CloseFileFunc));
+  Shader* shader = RegisterShader("PumpkinRoll__DefaultShader", shaderCreateInfos, sizeof(shaderCreateInfos) / sizeof(ShaderInfo));
   if (!shader) {
     pError("Failed to create default shader");
     return StartReturn::ERROR;
@@ -266,8 +266,9 @@ StartReturn Init(StartSettings const& start) {
   }
   PropertyHolder_AddProperty(Model_GetProperties(model), "color", nullptr, VariableType::VECTOR4, true);
 
-  MatrixWrapper identy = MatrixWrapper();
-  PropertyHolder_AddProperty(Shader_GetProperties(shader), "adjust", &identy, VariableType::MAT4, true);
+  MatrixWrapper identity = MatrixWrapper();
+  PropertyHolder_AddProperty(Shader_GetProperties(shader), "adjust", &identity, VariableType::MAT4, true);
+
 
 
   // Object
@@ -1030,14 +1031,13 @@ PropertyHolder* Model_GetProperties(Model* model) {
 // --------------------------------------------------
 // --------------------------------------------------
 
-Shader* RegisterShader(std::string const& name, GLuint shader) {
+Shader* RegisterShader(std::string const& name, ShaderInfo* startInfos, int count) {
   pPumpkinCheck(nullptr);
-  if (!shader) {
-    pWarn("Invalid shader");
+  pNullCheck(startInfos, nullptr);
+  if (count <= 0) {
+    pWarn("Count must be positive number");
     return nullptr;
   }
-
-  // Create shader data
 
   // Attempt insertion
   auto ret = pumpkinData->registeredShaders.insert({_STRING_HASHER(name), nullptr});
@@ -1045,9 +1045,15 @@ Shader* RegisterShader(std::string const& name, GLuint shader) {
     pWarn("Shader already exists with same name");
     return nullptr;
   } 
-  Shader* tShader = new Shader(shader);
+
+  Shader* tShader = new Shader();
+  for (int i = 0; i < count; i++) {
+    tShader->startInfos.push_back(startInfos[i]);
+  }
   ret.first->second = tShader;
   tShader->name = name;
+  tShader->Reload();
+
   return tShader;
 }
 
@@ -1087,7 +1093,7 @@ bool RegisterScript(Script* script) {
   pPumpkinCheck(false);
   pNullCheck(script, false);
 
-  return pumpkinData->registeredScripts.insert({_STRING_HASHER(typeid(*script).name()), script}).second;
+  return pumpkinData->registeredScripts.insert({_STRING_HASHER(GetScriptName(script)), script}).second;
 }
 
 
@@ -1102,6 +1108,13 @@ Script* CreateScript(std::string const& name) {
   }
 
   return find->second->Allocate();
+}
+
+
+
+char const* GetScriptName(Script* script) {
+  pNullCheck(script, nullptr);
+  return typeid(*script).name();
 }
 
 // --------------------------------------------------

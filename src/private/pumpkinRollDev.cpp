@@ -192,14 +192,27 @@ struct SelectProperty : Ask {
 
 
 struct CreateProperty : Ask {
+  bool gotName = false;
+  std::string name;
+  
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
+  void Set() override;
 };
 
 
 struct PropertyChanger : Ask {
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
+};
+
+
+struct ReloadShaders : Ask {
+  bool option = false;
+
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+  void Set() override;
 };
 
 
@@ -239,6 +252,7 @@ struct Data {
   SelectProperty selectProperty;
   CreateProperty createProperty;
   PropertyChanger propertyChanger;
+  ReloadShaders reloadShaders;
 
   std::string line = "";
   std::string newPropertyName = "";
@@ -320,6 +334,11 @@ struct Data {
       selectedShader = nullptr;
 
     }
+  }
+
+
+  void LineClear() {
+    line.clear();
   }
 
 
@@ -463,8 +482,6 @@ void UpdateDevelopment() {
     auto window = data->pumpkin->primaryWindow;
     if (!window) goto leaveDevCameraStuff;
 
-    //prtodo allow moving up and down
-
     if (window->GetInput(GLFW_KEY_F).pressed) {
       if (data->holdingObject) {
         if (data->lookAtObject) {
@@ -482,6 +499,7 @@ void UpdateDevelopment() {
 
     auto camForward = *Camera_Forward(&data->devCamera);
     auto camRight = *Camera_Right(&data->devCamera);
+    auto camUp = Vector3::Cross(camRight, camForward);
 
     if (window->GetInput(GLFW_MOUSE_BUTTON_2).pressed) window->SetCursorInputMode(GLFW_CURSOR_DISABLED);
 
@@ -502,6 +520,12 @@ void UpdateDevelopment() {
       }
       if (window->GetInput(GLFW_KEY_D).held) {
         data->devCamera.transform.position += camRight * data->pumpkin->deltaTime * data->moveSpeed;
+      }
+      if (window->GetInput(GLFW_KEY_Q).held) {
+        data->devCamera.transform.position -= camUp * data->pumpkin->deltaTime * data->moveSpeed;
+      }
+      if (window->GetInput(GLFW_KEY_E).held) {
+        data->devCamera.transform.position += camUp * data->pumpkin->deltaTime * data->moveSpeed;
       }
 
       data->devCamera.transform.position += camForward * window->GetMouseScrollY() * data->jumpDistance;
@@ -719,7 +743,8 @@ void MainMenu::Prompt(int i, std::string const& line) {
       break;
     case 8: //prtodo // Development settings
       break;
-    case 9: // prtodo // Reload shaders
+    case 9: // Reload shaders
+      data->SetAsk(&data->reloadShaders);
       break;
   }
 }
@@ -747,7 +772,7 @@ void AddScript::Prompt(int i, std::string const& line) {
   assert(data->holdingObject);
 
   if (i == '\r' || i == '\n') {
-    std::string str = (data->cycle && data->currentScript != data->pumpkin->registeredScripts.end()) ? typeid(*data->currentScript->second).name() : line;
+    std::string str = (data->cycle && data->currentScript != data->pumpkin->registeredScripts.end()) ? GetScriptName(data->currentScript->second) : line;
     if (str.size() == 0) { // back
       data->SetAsk(&data->holdObject, false);
       return;
@@ -770,7 +795,7 @@ void AddScript::Question(std::string const& line) {
     ListScripts();
   }
 
-  std::string str = (data->cycle && data->currentScript != data->pumpkin->registeredScripts.end()) ? typeid(*data->currentScript->second).name() : line;
+  std::string str = (data->cycle && data->currentScript != data->pumpkin->registeredScripts.end()) ? GetScriptName(data->currentScript->second) : line;
   std::cout << "Enter name of script to add or empty to return\n>>" << str;
 }
 
@@ -802,7 +827,7 @@ void RemoveScript::Prompt(int i, std::string const& line) {
   assert(data->holdingObject);
 
   if (i == '\r' || i == '\n') {
-    std::string str = (data->cycle && data->currentScript != data->holdingObject->scripts.end()) ? typeid(*data->currentScript->second).name() : line;
+    std::string str = (data->cycle && data->currentScript != data->holdingObject->scripts.end()) ? GetScriptName(data->currentScript->second) : line;
     if (str.size() == 0) { // back
       data->SetAsk(&data->holdObject, false);
       return;
@@ -825,7 +850,7 @@ void RemoveScript::Question(std::string const& line) {
     ListOwnedScripts();
   }
 
-  std::string str = (data->cycle && data->currentScript != data->holdingObject->scripts.end()) ? typeid(*data->currentScript->second).name() : line;
+  std::string str = (data->cycle && data->currentScript != data->holdingObject->scripts.end()) ? GetScriptName(data->currentScript->second) : line;
   std::cout << "Enter name of script to remove or empty to return\n>>" << str;
 }
 
@@ -1512,12 +1537,47 @@ void SelectProperty::Set() {
 // **************************************************
 
 void CreateProperty::Prompt(int i, std::string const& line) {
-  //prtodo
+  assert(data);
+  assert(data->holdingPropertyHolder);
+
+  if (!gotName) {
+    if (i == '\n' || i == '\r') {
+      if (line.size() == 0) {
+        data->SetAsk(&data->propertyChanger);
+        return;
+      }
+
+      name = line;
+      gotName = true;
+      data->updateAsk = true;
+      return;
+    }
+
+    data->updateAsk = true;
+    return;
+  }
+
+  if (ToNumberFromAscii(i) || i > 5) return;
+  
+  if (!PropertyHolder_AddProperty(data->holdingPropertyHolder, name, nullptr, (VariableType)i, true)) {
+    AddError("Failed to add property");
+  }
+  data->SetAsk(&data->propertyChanger);
 }
 
 
 void CreateProperty::Question(std::string const& line) {
-  //prtodo
+  if (!gotName) {
+    std::cout << "Enter name of property to add or empty to cancel\n>>" << line;
+  } else {
+    std::cout << "Type of property\n\n0. Int\n1. Float\n2. Mat4\n3. Vector3\n4. Vector3\n5. Vector4\n";
+  }
+}
+
+
+void CreateProperty::Set() {
+  gotName = false;
+  name = "";
 }
 
 // **************************************************
@@ -1557,6 +1617,88 @@ void PropertyChanger::Question(std::string const& line) {
 // **************************************************
 // **************************************************
 // PropertyChanger
+
+
+
+
+
+// ReloadShaders
+// **************************************************
+// **************************************************
+
+void ReloadShaders::Prompt(int i, std::string const& line) {
+  assert(data);
+
+  if (!option) {
+    if (ToNumberFromAscii(i)) return;
+    switch (i) {
+      case 0: // Reload all
+        for (auto& shader : data->pumpkin->registeredShaders) {
+          shader.second->Reload();
+        }
+        data->SetAsk(&data->mainMenu);
+
+        return;
+      case 1: // Reload specific
+        option = true;
+        data->updateAsk = true;
+        data->LineClear();
+        return;
+    }
+
+    return;
+  }
+
+  if (i == '\n' || i == '\r') {
+    std::string str = (data->cycle && data->currentShader != data->pumpkin->registeredShaders.end()) ? data->currentShader->second->name : line;
+    if (str.size() == 0) {
+      return;
+    }
+
+    Shader* shader = GetShader(str);
+    if (!shader) {
+      AddError("Not a valid shader");
+      return;
+    }
+    shader->Reload();
+
+    data->SetAsk(&data->mainMenu);
+  }
+
+  data->updateAsk = true;
+
+}
+
+
+void ReloadShaders::Question(std::string const& line) {
+  assert(data);
+  if (!option) {
+    std::cout << "0. Reload all\n1. Reload specific\n";
+  } else {
+    if (data->display) {
+      ListShaders();
+    }
+
+    std::string str = (data->cycle && data->currentShader != data->pumpkin->registeredShaders.end()) ? data->currentShader->second->name : line;
+    std::cout << "Enter name of shader to reload\n>>" << str;
+  }
+}
+
+
+void ReloadShaders::Set() {
+  assert(data);
+  option = false;
+
+  data->currentShader = data->pumpkin->registeredShaders.begin();
+
+  data->forward = ShaderForward;
+  data->back = ShaderBack;
+}
+
+
+// **************************************************
+// **************************************************
+// ReloadShaders
 
 
 
@@ -1659,7 +1801,7 @@ void ListScripts() {
 
   std::vector<std::string> list;
   for (auto t : data->pumpkin->registeredScripts) {
-    list.push_back(typeid(*(t.second)).name());
+    list.push_back(GetScriptName(t.second));
   }
   std::sort(list.begin(), list.end(), StringSort);
   for (auto& elem : list) std::cout << elem << "\n";
@@ -1674,7 +1816,7 @@ void ListOwnedScripts() {
 
   std::vector<std::string> list;
   for (auto t : data->holdingObject->scripts) {
-    list.push_back(typeid(*(t.second)).name());
+    list.push_back(GetScriptName(t.second));
   }
   std::sort(list.begin(), list.end(), StringSort);
   for (auto& elem : list) std::cout << elem << "\n";

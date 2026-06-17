@@ -1,6 +1,7 @@
 #include "private/shader.h"
 #include "private/model.h"
 #include "pumpkin/pumpkinRoll.h"
+#include "pumpkin/fileManager.h"
 #include "private/pumpkinRoll.h"
 
 #include "pPack/shaderHandling.h"
@@ -63,6 +64,29 @@ bool Shader::AddModel(Model* model) {
 void Shader::RemoveModel(Model* model) {
   assert(model);
   models.erase(model);
+}
+
+
+
+void Shader::Reload() {
+  glDeleteProgram(shader);
+
+  ShaderCreateInfo* infos = new ShaderCreateInfo[startInfos.size()];
+  for (int i = 0; i < startInfos.size(); i++) {
+    infos[i].shaders = new char const*[startInfos[i].shaderCount];
+    for (int j = 0; j < startInfos[i].shaderCount; j++) {
+      infos[i].shaders[j] = startInfos[i].shaders[j].data();
+    }
+    infos[i].shaderCount = startInfos[i].shaderCount;
+    infos[i].type = startInfos[i].type;
+  }
+
+  shader = ShaderHandler::CreateShader(infos, startInfos.size(), OpenFileFunc, nullptr, CloseFileFunc);
+
+  for (int i = 0; i < startInfos.size(); i++) {
+    delete[](infos[i].shaders);
+  }
+  delete[](infos);
 }
 
 

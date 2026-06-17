@@ -107,6 +107,14 @@ struct RuntimeSettings {
 /*************************************************************************/
 
 
+struct ShaderInfo {
+  std::vector<std::string> shaders = std::vector<std::string>();
+  unsigned int shaderCount = 0;
+  unsigned int type = 0;
+};
+
+
+
 struct Script;
 struct Object {
   Line internal[4] = {0};
