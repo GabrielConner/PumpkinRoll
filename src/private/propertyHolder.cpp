@@ -106,27 +106,6 @@ void* PropertyHolder_GetProperty(PropertyHolder* holder, std::string const& name
 
 
 
-
-
-
-
-/*bool PropertyHolder::AddProperty(std::string const& name, std::string const& prop, VariableType type) {
-  
-}
-
-
-bool PropertyHolder::SetProperty(std::string const& name, std::string const& value) {
-
-}
-
-
-
-bool PropertyHolder::SetOrAddProperty(std::string const& name, std::string const& value) {
-
-}*/
-
-
-
 template<typename T>
 T& PropertyHolder::GetProperty(std::string const& name) {
 
@@ -143,7 +122,7 @@ void PropertyHolder::PrintAll() const {
     numElements = prop.second.typeSize / sizeof(float);
     intType = prop.second.type == VariableType::INT;
 
-    if (prop.second.type == VariableType::MAT4) {
+    if (prop.second.type == VariableType::MAT4) { // Had to be different to display as column-major (i think)
       MatrixWrapper* wrap = (MatrixWrapper*)prop.second.prop;
       for (int j = 0; j < 4; j++) {
         std::cout << "[ ";
@@ -212,59 +191,6 @@ size_t SizeOfType(VariableType const& type) {
       return sizeof(::pPack::Vector4);
   }
 }
-
-
-
-/*void ParseVariable(void* output, std::string const& string, ::pumpkin::VariableType const& type) {
-  switch (type) {
-    case VariableType::UNKNOWN:
-      return;
-
-    case VariableType::INT:
-      *(int*)output = std::stoi(string);
-      break;
-
-    case VariableType::FLOAT:
-      *(int*)output = std::stof(string);
-      break;
-
-    case VariableType::MAT4:
-    {
-      // Split string by special delimiter for strings
-      auto split = std::views::split(string, _DELIMITER);
-      MatrixWrapper* matrix = (MatrixWrapper*)output;
-
-      int i = 0;
-      for (auto it : split) {
-
-        // Goes through max 4 split strings
-        if (i >= 4) break;
-
-        std::string_view v = std::string_view(it);
-
-        // Parse string into corresponding matrix column
-        matrix->cols[i] = ::pPack::stov4(std::string(std::string_view(it)));
-        i++;
-      }
-    }
-
-
-    break;
-
-    case VariableType::VECTOR2:
-
-      break;
-
-    case VariableType::VECTOR3:
-
-      break;
-
-    case VariableType::VECTOR4:
-
-      break;
-  }
-}*/
-
 
 
 }; // namespace pumpkin_private

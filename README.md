@@ -13,13 +13,9 @@ Handles the placing of objects as well in an admin scene.
 
 ### External Packages :
 
-* assimp
-* freetype
 * glad
 * glfw
 * glm
-* stb\_image
-* stb-master
 
 
 
@@ -29,11 +25,10 @@ Handles the placing of objects as well in an admin scene.
 
 ### Personal Packages :
 
-* modelLoading
 * timer
 * vector
 * windowManager
-* timer
+* fileInterface
 
 
 Prone to change as I adjust the packages to fit better for when I turn the project into a DLL

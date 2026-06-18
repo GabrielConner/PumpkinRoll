@@ -71,6 +71,7 @@ void Shader::RemoveModel(Model* model) {
 void Shader::Reload() {
   glDeleteProgram(shader);
 
+  // Ignore the warnings, it works
   ShaderCreateInfo* infos = new ShaderCreateInfo[startInfos.size()];
   for (int i = 0; i < startInfos.size(); i++) {
     infos[i].shaders = new char const*[startInfos[i].shaderCount];

@@ -675,6 +675,8 @@ void Camera_GenerateView(Camera* camera) {
   camera->view = MatrixWrapper();
   glm::highp_mat4* data = (glm::highp_mat4*)&camera->view;
 
+
+  // Easier than trying to fix 'rotate'
   *data = glm::lookAt(glm::vec3(camera->transform.position.x, camera->transform.position.y, camera->transform.position.z), glm::vec3(lookAt.x, lookAt.y, lookAt.z), glm::vec3(_UP.x, _UP.y, _UP.z));
 /*
   *data = glm::rotate(*data, glm::radians(-camera->transform.rotation.z), glm::vec3(0, 0, 1));
@@ -859,6 +861,7 @@ GLuint RegisterFormat(std::string const& name, FormatStartInfo const* const form
   glBindVertexArray(vao);
   glVertexBindingDivisor(0, 0);
 
+  // Auto offset keeping counter
   GLuint rollingOffset = 0;
   for (GLuint i = 0; i < count; i++) {
     glEnableVertexAttribArray(i);
@@ -924,7 +927,7 @@ void ApplyStaticBuffer() {
   size_t temp = 0;
   for (Mesh* m : staticMeshes) {
     temp = totalSize + m->bufferSize;
-    if (temp < totalSize) {
+    if (temp < totalSize) { // My own janky overflow detection.
       pWarn("Size overflowed, too large or too many static meshes");
       return;
     }

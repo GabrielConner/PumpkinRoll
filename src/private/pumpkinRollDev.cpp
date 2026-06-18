@@ -489,14 +489,19 @@ void UpdateDevelopment() {
         }
 
         data->lookAtObject = data->holdingObject;
+
+        // So no referencing a deleted object stuff happens
         Object_AddDeleteCallback(data->lookAtObject, LookAtObjectDelete, 0);
         pCamInt((&data->devCamera))->lookAt = &data->holdingObject->transform.position;
+
+        // Move to object
         data->devCamera.transform.position = (data->devCamera.transform.position - data->holdingObject->transform.position).Normal() * 5 + data->holdingObject->transform.position;
       } else {
         pCamInt((&data->devCamera))->lookAt = nullptr;
       }
     }
 
+    // Get camera basis[esis?]
     auto camForward = *Camera_Forward(&data->devCamera);
     auto camRight = *Camera_Right(&data->devCamera);
     auto camUp = Vector3::Cross(camRight, camForward);
@@ -504,8 +509,19 @@ void UpdateDevelopment() {
     if (window->GetInput(GLFW_MOUSE_BUTTON_2).pressed) window->SetCursorInputMode(GLFW_CURSOR_DISABLED);
 
     if (window->GetInput(GLFW_KEY_LEFT_SHIFT).held) {
-      camForward *= 2;
-      camRight *= 2;
+      
+      // Easy enough
+      camForward *= 3;
+      camRight *= 3;
+      camUp *= 3;
+    }
+
+    // Acceleration
+    if (window->GetInput(GLFW_KEY_M).held) {
+      data->moveSpeed += 2 * data->pumpkin->deltaTime;
+    }
+    if (window->GetInput(GLFW_KEY_N).held) {
+      data->moveSpeed -= 2 * data->pumpkin->deltaTime;
     }
 
     if (window->GetInput(GLFW_MOUSE_BUTTON_2).held) {
@@ -528,12 +544,17 @@ void UpdateDevelopment() {
         data->devCamera.transform.position += camUp * data->pumpkin->deltaTime * data->moveSpeed;
       }
 
+
+      // Snappy movement
       data->devCamera.transform.position += camForward * window->GetMouseScrollY() * data->jumpDistance;
 
 
+      // Discord mod
       auto dM = window->GetDeltaMousePosition().ConvertTo<float>();
 
       data->devCamera.transform.rotation += Vector3(dM.y, -dM.x * window->GetAspectRatio(), 0) * data->cameraSpeed;
+
+      // Weird stuff happens when crossing the -90 or 90 boundry
       data->devCamera.transform.rotation.x = std::clamp(data->devCamera.transform.rotation.x, -89.9f, 89.9f);
     }
 
@@ -587,7 +608,7 @@ leaveDevCameraStuff:
     #endif
 
 
-    // Default commands
+    // Some keybinds, not all just the ones for console
     std::cout << "[ESCAPE to display extended (" << std::boolalpha << data->display << std::boolalpha << ")]\n";
     std::cout << "[UP ARROW to clear messages]\n";
     std::cout << "[RIGHT ARROW to go back]\n";
@@ -595,6 +616,8 @@ leaveDevCameraStuff:
     std::cout << "[HOME to use cycling (" << std::boolalpha << data->cycle << std::boolalpha << ")]\n";
     std::cout << "[PAGE UP and DOWN to cycle options when applicable]\n\n";
 
+
+    // Display holding objects
     if (data->holdingObject) {
       std::cout << "[OBJECT : " << pObjInt(data->holdingObject)->name << "]\n";
     }
@@ -615,7 +638,7 @@ leaveDevCameraStuff:
     }
     std::cout << "\n\n";
 
-
+    // Don't question
     data->ask->Question(data->line);
     data->updateAsk = false;
   }
@@ -628,7 +651,7 @@ leaveDevCameraStuff:
     // Special key was pressed
     if (ret == 0xE0 || ret == 0x00) {
 
-      // Get special key
+      // Get special keys
       ret = _getch_nolock();
       switch (ret) {
         case _UP_ARROW:
@@ -668,14 +691,14 @@ leaveDevCameraStuff:
     // Is graphical key, ask prompt decides to reset with new key input or not
     if (std::isgraph(ret)) data->line += (char)ret;
 
-    // Implicit capture
+    // Implicit capture for creating a line
     if (ret == _BACKSPACE) {
       if (data->line.size() != 0) {
         data->line.erase(data->line.size() - 1);
       }
     }
 
-
+    // Give to prompt function
     data->ask->Prompt(ret, data->line);
   }
 }
@@ -697,6 +720,7 @@ namespace pumpkin {
 void PrintError(PrintLevel level, char const* file, char const* msg) {
   assert(data);
 
+  // Exact same as normal except messages are shoved in a list instead of console
   if (data->pumpkin != nullptr && (level == PrintLevel::NOPRINT || data->pumpkin->runtime.printLevel > level)) return;
   data->messages.push_back(std::string(msg) + '\n' + file + "\n\n");
 }
@@ -741,9 +765,7 @@ void MainMenu::Prompt(int i, std::string const& line) {
       break;
     case 7: //prtodo // Save
       break;
-    case 8: //prtodo // Development settings
-      break;
-    case 9: // Reload shaders
+    case 8: // Reload shaders
       data->SetAsk(&data->reloadShaders);
       break;
   }
@@ -751,7 +773,7 @@ void MainMenu::Prompt(int i, std::string const& line) {
 
 
 void MainMenu::Question(std::string const& line) {
-  std::cout << "0. Run\n1. Create object\n2. Select object\n3. Select model\n4. Select shader\n5. Primary camera view\n6. Build\n7. Save\n8. Development settings\n9. Reload shaders";
+  std::cout << "0. Run\n1. Create object\n2. Select object\n3. Select model\n4. Select shader\n5. Primary camera view\n6. Build\n7. Save\n8. Reload shaders";
 }
 
 
@@ -957,6 +979,8 @@ void HoldObject::Prompt(int i, std::string const& line) {
       return;
     }
 
+    // Chars need for a float
+    // 'f' is for convienacnec
     if (!std::isdigit(i) && i != 'e' && i != '-' && i != '+' && i != '.' && i != 'f') return;
 
     builtString += (char)i;
@@ -1013,6 +1037,8 @@ void HoldObject::Question(std::string const& line) {
     for (char i = 0; i < 3; i++) {
       std::cout << "[ ";
 
+
+      // Current cell is like $ c $ to make it easy to see
       if (i == currentPos) std::cout << "$ ";
 
       if (i != currentPos || builtString.size() == 0) {
@@ -1087,6 +1113,8 @@ void HoldShader::Prompt(int i, std::string const& line) {
 
   if (ToNumberFromAscii(i)) return;
 
+
+  // I couldn't think of anything else to put in here
   if (i == 0) {
     data->holdingPropertyHolder = &data->holdingShader->properties;
     data->SetAsk(&data->propertyChanger);
@@ -1337,6 +1365,8 @@ void HoldProperty::Prompt(int i, std::string const& line) {
   if (changing) {
     if (i == '\n' || i == '\r') {
       if (builtString.size() != 0) {
+
+        // Parse block
         if (intType) *((int32_t*)data->holdingProperty->prop + currentPos) = std::strtol(builtString.c_str(), nullptr, 10);
         else *((float*)data->holdingProperty->prop + currentPos) = std::strtof(builtString.c_str(), nullptr);
       }
@@ -1349,6 +1379,7 @@ void HoldProperty::Prompt(int i, std::string const& line) {
     }
 
     i = std::tolower(i);
+
 
     if (i == 'w' || i == 's' || i == 'a' || i == 'd' || i == _BACKSPACE) {
       if (i == _BACKSPACE) {
@@ -1403,7 +1434,7 @@ void HoldProperty::Prompt(int i, std::string const& line) {
     case 1: // Delete
 
       data->holdingPropertyHolder->DeleteProperty(data->holdingProperty->name);
-      //data->DeleteBack();
+      //data->DeleteBack(); // IDK
       data->SetAsk(&data->propertyChanger, false);
       data->holdingProperty = nullptr;
 
@@ -1715,6 +1746,8 @@ void ReloadShaders::Set() {
 /*************************************************************************/
 /*************************************************************************/
 
+
+// Gives better sorting with mixed numbers and alphabetical than default std::sort
 bool StringSort(std::string const& a, std::string const& b) {
   int sumA = 0;
   int sumB = 0;
