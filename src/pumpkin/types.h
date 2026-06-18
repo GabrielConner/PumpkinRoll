@@ -43,6 +43,8 @@ struct alignas(sizeof(uint8_t) * 4) Line { uint8_t data[4]; };
 
 struct Object;
 typedef void (*ObjectDeleteCallback)(Object*, int id);
+struct Script;
+typedef Script* (*ScriptAllocateFunction)();
 
 struct Vertex {
   ::pPack::Vector3 position;
@@ -117,10 +119,7 @@ struct ShaderInfo {
 
 struct Script;
 struct Object {
-  Line internal[4] = {0};
-
-  std::unordered_map<size_t, ::pumpkin::Script*> scripts = std::unordered_map<size_t, ::pumpkin::Script*>();
-  std::set<std::pair<::pumpkin::ObjectDeleteCallback, int>> deleteCallbacks = std::set<std::pair<::pumpkin::ObjectDeleteCallback, int>>();
+  Line internal[6] = {0};
 
   Transform transform = Transform();
 };
@@ -167,9 +166,6 @@ struct Script {
   virtual void Start(Object* obj) {}
   virtual void Update(Object* obj, double deltaTime) {}
   virtual void End(Object* obj) {}
-
-
-  virtual Script* Allocate() = 0;
 };
 
 

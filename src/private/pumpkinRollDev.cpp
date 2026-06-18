@@ -277,7 +277,8 @@ struct Data {
   std::unordered_map<size_t, Shader*>::iterator currentShader;
   std::unordered_map<size_t, Object*>::iterator currentObject;
   std::unordered_map<size_t, Property>::iterator currentProperty;
-  std::unordered_map<size_t, Script*>::iterator currentScript;
+  std::unordered_map<size_t, ScriptInfoPair>::iterator currentProgramScript;
+  std::unordered_map<size_t, ScriptAddPair>::iterator currentObjectScript;
 
 
 
@@ -794,7 +795,7 @@ void AddScript::Prompt(int i, std::string const& line) {
   assert(data->holdingObject);
 
   if (i == '\r' || i == '\n') {
-    std::string str = (data->cycle && data->currentScript != data->pumpkin->registeredScripts.end()) ? GetScriptName(data->currentScript->second) : line;
+    std::string str = (data->cycle && data->currentProgramScript != data->pumpkin->registeredScripts.end()) ? data->currentProgramScript->second.name : line;
     if (str.size() == 0) { // back
       data->SetAsk(&data->holdObject, false);
       return;
@@ -817,7 +818,7 @@ void AddScript::Question(std::string const& line) {
     ListScripts();
   }
 
-  std::string str = (data->cycle && data->currentScript != data->pumpkin->registeredScripts.end()) ? GetScriptName(data->currentScript->second) : line;
+  std::string str = (data->cycle && data->currentProgramScript != data->pumpkin->registeredScripts.end()) ? data->currentProgramScript->second.name : line;
   std::cout << "Enter name of script to add or empty to return\n>>" << str;
 }
 
@@ -826,7 +827,7 @@ void AddScript::Set() {
   assert(data);
   assert(data->pumpkin);
 
-  data->currentScript = data->pumpkin->registeredScripts.begin();
+  data->currentProgramScript = data->pumpkin->registeredScripts.begin();
 
   data->forward = ScriptForward;
   data->back = ScriptBack;
@@ -849,7 +850,7 @@ void RemoveScript::Prompt(int i, std::string const& line) {
   assert(data->holdingObject);
 
   if (i == '\r' || i == '\n') {
-    std::string str = (data->cycle && data->currentScript != data->holdingObject->scripts.end()) ? GetScriptName(data->currentScript->second) : line;
+    std::string str = (data->cycle && data->currentObjectScript != pObjExt(data->holdingObject)->scripts.end()) ? data->currentObjectScript->second.name : line;
     if (str.size() == 0) { // back
       data->SetAsk(&data->holdObject, false);
       return;
@@ -872,7 +873,7 @@ void RemoveScript::Question(std::string const& line) {
     ListOwnedScripts();
   }
 
-  std::string str = (data->cycle && data->currentScript != data->holdingObject->scripts.end()) ? GetScriptName(data->currentScript->second) : line;
+  std::string str = (data->cycle && data->currentObjectScript != pObjExt(data->holdingObject)->scripts.end()) ? data->currentObjectScript->second.name : line;
   std::cout << "Enter name of script to remove or empty to return\n>>" << str;
 }
 
@@ -881,7 +882,7 @@ void RemoveScript::Set() {
   assert(data);
   assert(data->holdingObject);
 
-  data->currentScript = data->holdingObject->scripts.begin();
+  data->currentObjectScript = pObjExt(data->holdingObject)->scripts.begin();
 
   data->forward = ScriptOwnedForward;
   data->back = ScriptOwnedBack;
@@ -1834,7 +1835,7 @@ void ListScripts() {
 
   std::vector<std::string> list;
   for (auto t : data->pumpkin->registeredScripts) {
-    list.push_back(GetScriptName(t.second));
+    list.push_back(t.second.name);
   }
   std::sort(list.begin(), list.end(), StringSort);
   for (auto& elem : list) std::cout << elem << "\n";
@@ -1848,8 +1849,8 @@ void ListOwnedScripts() {
   assert(data->holdingObject);
 
   std::vector<std::string> list;
-  for (auto t : data->holdingObject->scripts) {
-    list.push_back(GetScriptName(t.second));
+  for (auto t : pObjInt(data->holdingObject)->external->scripts) {
+    list.push_back(t.second.name);
   }
   std::sort(list.begin(), list.end(), StringSort);
   for (auto& elem : list) std::cout << elem << "\n";
@@ -1980,15 +1981,15 @@ void PropertyBack() {
 void ScriptForward() {
   assert(data);
 
-  if (data->currentScript != --data->pumpkin->registeredScripts.end()) data->currentScript++;
-  else data->currentScript = data->pumpkin->registeredScripts.begin();
+  if (data->currentProgramScript != --data->pumpkin->registeredScripts.end()) data->currentProgramScript++;
+  else data->currentProgramScript = data->pumpkin->registeredScripts.begin();
 }
 
 void ScriptBack() {
   assert(data);
 
-  if (data->currentScript != data->pumpkin->registeredScripts.begin()) data->currentScript--;
-  else data->currentScript = --data->pumpkin->registeredScripts.end();
+  if (data->currentProgramScript != data->pumpkin->registeredScripts.begin()) data->currentProgramScript--;
+  else data->currentProgramScript = --data->pumpkin->registeredScripts.end();
 }
 
 
@@ -1997,15 +1998,15 @@ void ScriptOwnedForward() {
   assert(data);
   assert(data->holdingObject);
 
-  if (data->currentScript != --data->holdingObject->scripts.end()) data->currentScript++;
-  else data->currentScript = data->holdingObject->scripts.begin();
+  if (data->currentObjectScript != --pObjExt(data->holdingObject)->scripts.end()) data->currentObjectScript++;
+  else data->currentObjectScript = pObjExt(data->holdingObject)->scripts.begin();
 }
 
 void ScriptOwnedBack() {
   assert(data);
 
-  if (data->currentScript != data->holdingObject->scripts.begin()) data->currentScript--;
-  else data->currentScript = --data->holdingObject->scripts.end();
+  if (data->currentObjectScript != pObjExt(data->holdingObject)->scripts.begin()) data->currentObjectScript--;
+  else data->currentObjectScript = --pObjExt(data->holdingObject)->scripts.end();
 }
 
 }; // namespace

@@ -152,9 +152,14 @@ void* PropertyHolder_GetProperty(PropertyHolder* holder, std::string const& name
 // --------------------------------------------------
 // --------------------------------------------------
 
-bool RegisterScript(Script* script);
+bool RegisterScriptRaw(ScriptAllocateFunction scriptAllocate, char const* name, size_t size);
 Script* CreateScript(std::string const& name);
 char const* GetScriptName(Script* script);
+
+#define RegisterScript(scriptAllocate, script) RegisterScriptRaw(scriptAllocate, typeid(script).name(), sizeof(script))
+#define ScriptAllocateFunction(script) Script* Allocate ## script () { return new script ## (); }
+
+#define ScriptName(script) typeid(script).name()
 
 // --------------------------------------------------
 // --------------------------------------------------

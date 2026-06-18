@@ -3,6 +3,7 @@
 
 #include "pumpkin/pumpkinRoll.h"
 #include "pumpkin/types.h"
+#include "private/types.h"
 #include "private/propertyHolder.h"
 #include "pPack/windowManager.h"
 #include "pPack/vector.h"
@@ -22,7 +23,7 @@ struct Pumpkin {
   std::unordered_map<size_t, ::pumpkin::Camera*> registeredCameras = std::unordered_map<size_t, ::pumpkin::Camera*>();
   std::unordered_map<size_t, ::pumpkin::Object*> registeredObjects = std::unordered_map<size_t, ::pumpkin::Object*>();
   std::unordered_map<size_t, GLuint> registeredFormats = std::unordered_map<size_t, GLuint>();
-  std::unordered_map<size_t, ::pumpkin::Script*> registeredScripts = std::unordered_map<size_t, ::pumpkin::Script*>();
+  std::unordered_map<size_t, ScriptInfoPair> registeredScripts = std::unordered_map<size_t, ScriptInfoPair>();
 
   ::pPack::Window* primaryWindow = nullptr;
   ::pumpkin::Camera* primaryCamera = nullptr;
