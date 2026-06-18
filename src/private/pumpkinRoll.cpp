@@ -264,10 +264,10 @@ StartReturn Init(StartSettings const& start) {
     pError("Failed to set model mesh");
     return StartReturn::ERROR;
   }
-  PropertyHolder_AddProperty(Model_GetProperties(model), "color", nullptr, VariableType::VECTOR4, true);
+  PropertyHolder_AddProperty(Model_GetProperties(model), "color", nullptr, VariableType::VECTOR4);
 
   MatrixWrapper identity = MatrixWrapper();
-  PropertyHolder_AddProperty(Shader_GetProperties(shader), "adjust", &identity, VariableType::MAT4, true);
+  PropertyHolder_AddProperty(Shader_GetProperties(shader), "adjust", &identity, VariableType::MAT4);
 
 
 
@@ -401,6 +401,7 @@ void End() {
 }
 
 
+
 RuntimeSettings* GetRuntime() {
   pPumpkinCheck(nullptr);
   return &pumpkinData->runtime;
@@ -431,6 +432,11 @@ double DeltaTime() {
 
 Object* RegisterObject(std::string const& name) {
   pPumpkinCheck(nullptr);
+
+  if (name.size() == 0) {
+    pWarn("Invalid object name");
+    return nullptr;
+  }
 
   auto ret = pumpkinData->registeredObjects.insert({_STRING_HASHER(name), nullptr});
   if (!ret.second) {
@@ -614,6 +620,11 @@ void Transform_GenerateModel(Transform transform, MatrixWrapper& store) {
 Camera* RegisterCamera(std::string const& name) {
   pPumpkinCheck(nullptr);
 
+  if (name.size() == 0) {
+    pWarn("Invalid camera name");
+    return nullptr;
+  }
+
   auto ret = pumpkinData->registeredCameras.insert({_STRING_HASHER(name), nullptr});
   if (!ret.second) {
     pWarn("Camera already exists with same name");
@@ -775,12 +786,17 @@ void Mesh::Setup() {
 
 
 Mesh* RegisterMesh(std::string const& name, void* vertices, size_t size, size_t count, bool dynamic, GLuint format) {
-  pPumpkinCheck(nullptr)
+  pPumpkinCheck(nullptr);
 
-    if (!vertices) {
-      pWarn("vertices is nullptr");
-      return nullptr;
-    }
+  if (name.size() == 0) {
+    pWarn("Invalid mesh name");
+    return nullptr;
+  }
+
+  if (!vertices) {
+    pWarn("vertices is nullptr");
+    return nullptr;
+  }
   if (size == 0) {
     pWarn("size is invalid");
     return nullptr;
@@ -972,6 +988,11 @@ void ApplyStaticBuffer() {
 Model* RegisterModel(std::string const& name) {
   pPumpkinCheck(nullptr);
 
+  if (name.size() == 0) {
+    pWarn("Invalid model name");
+    return nullptr;
+  }
+
   auto ret = pumpkinData->registeredModels.insert({_STRING_HASHER(name), 0});
   if (!ret.second) {
     pWarn("Model already exists with same name");
@@ -1047,6 +1068,12 @@ Shader* RegisterShader(std::string const& name, ShaderInfo* startInfos, int coun
     return nullptr;
   }
 
+  if (name.size() == 0) {
+    pWarn("Invalid shader name");
+    return nullptr;
+  }
+
+
   // Attempt insertion
   auto ret = pumpkinData->registeredShaders.insert({_STRING_HASHER(name), nullptr});
   if (!ret.second) {
@@ -1068,10 +1095,7 @@ Shader* RegisterShader(std::string const& name, ShaderInfo* startInfos, int coun
 
 
 Shader* GetShader(std::string const& name) {
-  if (pumpkinData == nullptr) {
-    pWarn("PumpkinRoll has not been started");
-    return nullptr;
-  }
+  pPumpkinCheck(nullptr);
 
   auto ret = pumpkinData->registeredShaders.find(_STRING_HASHER(name));
   return ret == pumpkinData->registeredShaders.end() ? nullptr : ret->second;
@@ -1097,11 +1121,16 @@ PropertyHolder* Shader_GetProperties(Shader* shader) {
 // --------------------------------------------------
 // --------------------------------------------------
 
-bool RegisterScriptRaw(ScriptAllocateFunction scriptAllocate, char const* name, size_t size) {
+bool RegisterScriptRaw(ScriptAllocateFunction scriptAllocate, std::string const& name, size_t size) {
   pPumpkinCheck(false);
   pNullCheck(scriptAllocate, false);
   if (size == 0) {
     pWarn("Invalid size");
+    return false;
+  }
+
+  if (name.size() == 0) {
+    pWarn("Invalid script name");
     return false;
   }
 
@@ -1143,6 +1172,22 @@ char const* GetScriptName(Script* script) {
 
 
 namespace pumpkin_private {
+
+
+void DeleteObjects() {
+  pPumpkinCheck();
+
+  // Delete all objects
+  // Since can be created by dev console
+
+  for (auto& obj : pumpkinData->registeredObjects) {
+    ::pumpkin_private::DeleteObject(obj.second);
+  }
+
+  pumpkinData->registeredObjects.clear();
+  pumpkinData->registeredCameras.clear();
+}
+
 
 
 bool RegisterWindow(std::string const& name, ::pPack::Window* data) {

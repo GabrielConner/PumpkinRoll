@@ -18,11 +18,12 @@ struct Property {
   void* prop = 0;
   size_t typeSize = 0;
   ::pumpkin::VariableType type = VariableType::UNKNOWN;
-  bool handle = false;
 
-  void Delete() { if (handle) free(prop); }
+  void Delete() { free(prop); }
 
-  Property(std::string Name, void* Prop, size_t TypeSize, ::pumpkin::VariableType Type, bool Handle) : name(Name), prop(Prop), typeSize(TypeSize), type(Type), handle(Handle) {}
+  Property(std::string Name, void* Prop, ::pumpkin::VariableType Type) : name(Name), prop(Prop), type(Type) {
+    typeSize = ::pumpkin_private::SizeOfType(Type);
+  }
 };
 
 

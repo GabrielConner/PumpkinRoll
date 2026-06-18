@@ -47,7 +47,7 @@ struct ScriptInfoPair {
   ScriptInfoPair(::pumpkin::ScriptAllocateFunction const& Allocate, std::string const& Name, size_t const& Size) : allocate(Allocate), name(Name), size(Size) {}
 };
 
-#define pObjInt(obj) ((ObjectInternal*)obj)
+#define pObjInt(obj) ((ObjectInternal*)obj->internal)
 #define pObjDefInt(obj, name) ObjectInternal* name = (ObjectInternal*)obj->internal
 #define pObjExt(obj) (pObjInt(obj)->external)
 #define pObjDefExt(obj, name) ObjectExternal* name = (pObjInt(obj)->external)

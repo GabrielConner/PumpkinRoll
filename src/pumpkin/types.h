@@ -122,6 +122,8 @@ struct Object {
   Line internal[6] = {0};
 
   Transform transform = Transform();
+
+  virtual ~Object() {}
 };
 
 

@@ -14,7 +14,7 @@ using namespace ::pumpkin_private;
 
 namespace pumpkin {
 
-bool PropertyHolder_AddProperty(PropertyHolder* holder, std::string const& name, void* value, VariableType type, bool handle) {
+bool PropertyHolder_AddProperty(PropertyHolder* holder, std::string const& name, void* value, VariableType type) {
   pNullCheck(holder, false);
 
   if (type == VariableType::UNKNOWN) {
@@ -24,26 +24,15 @@ bool PropertyHolder_AddProperty(PropertyHolder* holder, std::string const& name,
 
   size_t typeSize = SizeOfType(type);
 
-  if (value == nullptr || handle) {
-    void* tmpValue = calloc(1, typeSize);
-    if (tmpValue == nullptr) {
-      throw std::bad_alloc();
-    }
+  auto ret = holder->properties.insert({_STRING_HASHER(name), Property(name, nullptr, type)});
+  if (!ret.second) return false;
 
-    if (value) {
-      memcpy(tmpValue, value, typeSize);
-    }
-    value = tmpValue;
-    handle = true;
+  ret.first->second.prop = calloc(1, typeSize);
+  if (ret.first->second.prop == nullptr) {
+    throw std::bad_alloc();
   }
-
-  auto ret = holder->properties.insert({_STRING_HASHER(name), Property(name, value, SizeOfType(type), type, handle)});
-  if (!ret.second) {
-    if (handle) {
-      free(value);
-    }
-
-    return false;
+  if (value) {
+    memcpy(ret.first->second.prop, value, typeSize);
   }
 
   return true;
@@ -67,7 +56,7 @@ bool PropertyHolder_SetProperty(PropertyHolder* holder, std::string const& name,
 
 
 
-bool PropertyHolder_SetOrAddProperty(PropertyHolder* holder, std::string const& name, void* value, VariableType type, bool handle) {
+bool PropertyHolder_SetOrAddProperty(PropertyHolder* holder, std::string const& name, void* value, VariableType type) {
   pNullCheck(holder, false);
 
 
@@ -80,12 +69,20 @@ bool PropertyHolder_SetOrAddProperty(PropertyHolder* holder, std::string const& 
       return false;
     }
 
-    if (value == nullptr) {
-      handle = true;
-      value = calloc(1, SizeOfType(type));
+    size_t typeSize = SizeOfType(type);
+
+    auto ret = holder->properties.insert({_STRING_HASHER(name), Property(name, nullptr, type)});
+    if (!ret.second) return false;
+
+    ret.first->second.prop = calloc(1, typeSize);
+    if (ret.first->second.prop == nullptr) {
+      throw std::bad_alloc();
+    }
+    if (value) {
+      memcpy(ret.first->second.prop, value, typeSize);
     }
 
-    return holder->properties.insert({_STRING_HASHER(name), Property(name, value, SizeOfType(type), type, handle)}).second;
+    return true;
   }
   pNullCheck(value, false);
 

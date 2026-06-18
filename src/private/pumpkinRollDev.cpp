@@ -8,6 +8,7 @@
 #include "private/shader.h"
 #include "private/pumpkinRoll.h"
 #include "private/camera.h"
+#include "private/devSaveData.h"
 
 #include "pPack/windowManager.h"
 
@@ -270,6 +271,8 @@ struct Data {
   PropertyHolder* holdingPropertyHolder = nullptr;
 
   Object* lookAtObject = nullptr;
+
+  SaveData saveData;
 
 
   std::unordered_map<size_t, Model*>::iterator currentModel;
@@ -707,6 +710,7 @@ leaveDevCameraStuff:
 
 void EndDevelopment() {
   assert(data != nullptr);
+  data->saveData.Delete();
   delete(data);
 }
 
@@ -763,8 +767,10 @@ void MainMenu::Prompt(int i, std::string const& line) {
       SetPrimaryCamera(&data->devCamera);
       break;
     case 6: //prtodo // Build
+      data->saveData.Pull(data->pumpkin);
       break;
     case 7: //prtodo // Save
+      data->saveData.Push(data->pumpkin);
       break;
     case 8: // Reload shaders
       data->SetAsk(&data->reloadShaders);
@@ -1591,7 +1597,7 @@ void CreateProperty::Prompt(int i, std::string const& line) {
 
   if (ToNumberFromAscii(i) || i > 5) return;
   
-  if (!PropertyHolder_AddProperty(data->holdingPropertyHolder, name, nullptr, (VariableType)i, true)) {
+  if (!PropertyHolder_AddProperty(data->holdingPropertyHolder, name, nullptr, (VariableType)i)) {
     AddError("Failed to add property");
   }
   data->SetAsk(&data->propertyChanger);
@@ -1849,7 +1855,7 @@ void ListOwnedScripts() {
   assert(data->holdingObject);
 
   std::vector<std::string> list;
-  for (auto t : pObjInt(data->holdingObject)->external->scripts) {
+  for (auto t : pObjExt(data->holdingObject)->scripts) {
     list.push_back(t.second.name);
   }
   std::sort(list.begin(), list.end(), StringSort);
