@@ -52,12 +52,15 @@ struct SaveData {
   std::unordered_map<size_t, CameraSaveData> cameraSaves = std::unordered_map<size_t, CameraSaveData>();
   std::unordered_map<size_t, ObjectSaveData> objectSaves = std::unordered_map<size_t, ObjectSaveData>();
 
+  std::string primaryCamera;
+
 
   void Pull(Pumpkin* pumpkin);
   void Push(Pumpkin* pumpkin);
 
-  void Save(SaveData& diff);
-  void Load();
+  // Saves the current pulled data, make sure to pull right before save to get latest
+  void Save(std::string const& defaultPrimaryCamera);
+  bool Load();
 
   void Delete();
 };

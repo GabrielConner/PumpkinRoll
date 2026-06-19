@@ -12,6 +12,8 @@ void End();
 
 RuntimeSettings* GetRuntime();
 
+std::string ExecutableLocation();
+
 void PrintError(PrintLevel level, char const* file, char const* msg);
 
 double DeltaTime();

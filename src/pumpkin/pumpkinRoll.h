@@ -12,6 +12,7 @@
 #include "pumpkin/functions.h"
 #endif
 #include "pumpkin/constants.h"
+#include "pumpkin/types.h"
 
 namespace pumpkin {
 

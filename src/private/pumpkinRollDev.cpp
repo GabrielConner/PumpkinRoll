@@ -273,6 +273,7 @@ struct Data {
   Object* lookAtObject = nullptr;
 
   SaveData saveData;
+  std::string defaultPrimaryCamera;
 
 
   std::unordered_map<size_t, Model*>::iterator currentModel;
@@ -469,8 +470,19 @@ void StartDevelopment() {
   StartCamera(&data->devCamera);
 
   data->devCamera.transform.position.z = 5;
+}
 
-  SetPrimaryCamera(&data->devCamera);
+
+void DevelopmentLogAfterStart() {
+  assert(data);
+  assert(data->pumpkin);
+
+  Camera* cam = GetPrimaryCamera();
+  if (cam) {
+    data->defaultPrimaryCamera = pObjInt(cam)->name;
+  } else {
+    data->defaultPrimaryCamera.clear();
+  }
 }
 
 
@@ -764,16 +776,18 @@ void MainMenu::Prompt(int i, std::string const& line) {
       data->SetAsk(&data->selectShader);
       break;
     case 5: // Primary camera view
-      SetPrimaryCamera(&data->devCamera);
-      break;
-    case 6: //prtodo // Build
+      //SetPrimaryCamera(&data->devCamera);
       data->saveData.Pull(data->pumpkin);
       break;
-    case 7: //prtodo // Save
+    case 6: //prtodo // Build
       data->saveData.Push(data->pumpkin);
       break;
+    case 7: //prtodo // Save
+      data->saveData.Save(data->defaultPrimaryCamera);
+      break;
     case 8: // Reload shaders
-      data->SetAsk(&data->reloadShaders);
+      //data->SetAsk(&data->reloadShaders);
+      data->saveData.Load();
       break;
   }
 }

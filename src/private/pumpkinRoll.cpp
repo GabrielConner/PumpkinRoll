@@ -48,7 +48,7 @@ Pumpkin* pumpkinData = nullptr;
 
 #ifdef PUMPKIN_ROLL_NO_CHECK
 
-#define CHECK(...) (void)0;
+#define pPumpkinCheck(...) (void)0;
 
 #else
 
@@ -301,6 +301,8 @@ void Update() {
 
   Timer& singleton = Timer::GetSingleton();
 
+  DevelopmentLogAfterStart();
+
   // Loop until the main window is closed
   while (!pumpkinData->primaryWindow->ShouldClose()) {
     pumpkinData->deltaTime = singleton.GetDeltaTime();
@@ -405,6 +407,13 @@ void End() {
 RuntimeSettings* GetRuntime() {
   pPumpkinCheck(nullptr);
   return &pumpkinData->runtime;
+}
+
+
+
+std::string ExecutableLocation() {
+  pPumpkinCheck("");
+  return pumpkinData->exePath;
 }
 
 
@@ -1179,6 +1188,8 @@ void DeleteObjects() {
 
   // Delete all objects
   // Since can be created by dev console
+  // I'm not gonna put the work into stuff like 'what if the mesh gets updated'
+  // I won't do that at runtime and this isn't exactly going to be shared
 
   for (auto& obj : pumpkinData->registeredObjects) {
     ::pumpkin_private::DeleteObject(obj.second);

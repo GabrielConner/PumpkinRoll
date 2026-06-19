@@ -182,6 +182,13 @@ FileData ReadFile(std::string path, bool binary) {
 
 
 
+std::string ToRelativePath(std::string const& path) {
+#ifdef PUMPKIN_ROLL_PROD
+  return path;
+#else
+  return files->pumpkin->exePath + path;
+#endif
+}
 
 
 

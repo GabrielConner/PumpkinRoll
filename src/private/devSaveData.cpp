@@ -3,7 +3,10 @@
 #include "private/model.h"
 #include "private/shader.h"
 #include "private/mesh.h"
+#include "pumpkin/fileManager.h"
 
+#include <filesystem>
+#include <fstream>
 #include <assert.h>
 
 
@@ -15,6 +18,76 @@ namespace {
 
 void CopyObject(Object* obj, ObjectSaveData& data);
 void CopyPropertyHolder(PropertyHolder& from, PropertyHolder& to);
+
+std::string ReadString(std::ifstream& stream);
+
+
+
+#define WriteProperties \
+variableHolder = static_cast<uint32_t>(save.properties.properties.size()); \
+stream.write((char*)&variableHolder, 4); \
+for (auto& propP : save.properties) { \
+  auto& prop = propP.second; \
+  \
+  stream.write(prop.name.c_str(), prop.name.size() + 1); \
+  variableHolder = static_cast<uint32_t>(prop.type); \
+  stream.write((char*)&variableHolder, 4); \
+  stream.write((char*)prop.prop, prop.typeSize); \
+}
+
+
+#define WriteObject \
+stream.write((char*)&object.transform, sizeof(Transform)); \
+stream.write(object.model.c_str(), object.model.size() + 1); \
+variableHolder = static_cast<uint32_t>(object.scripts.size()); \
+stream.write((char*)&variableHolder, 4); \
+for (std::string const& script : object.scripts) { \
+  stream.write(script.c_str(), script.size() + 1); \
+}
+
+
+
+#define ReadStream(output, size)  \
+stream.read((char*)output, size); \
+if (!stream.good() || stream.gcount() < size) { stream.close(); Delete(); return false; }
+
+
+
+
+#define ReadProperties \
+uint32_t propertyCount; \
+ReadStream(&propertyCount, 4); \
+for (int propertyIndex = 0; propertyIndex < propertyCount; propertyIndex++) { \
+  Property property; \
+  property.name = ReadString(stream); \
+  ReadStream(&variableHolder, 4); \
+  property.type = static_cast<VariableType>(variableHolder); \
+  size_t size = SizeOfType(property.type); \
+  if (size == 0) { \
+    stream.close(); \
+    Delete(); \
+    return false; \
+  } \
+  property.prop = malloc(size); \
+  property.typeSize = size; \
+  ReadStream(property.prop, size); \
+  save.properties.properties.insert({_STRING_HASHER(property.name), property}); \
+}
+
+
+
+#define ReadObject \
+ReadStream(&object.transform, sizeof(Transform)); \
+object.model = ReadString(stream); \
+uint32_t scriptCount; \
+ReadStream(&scriptCount, 4); \
+for (uint32_t scriptIndex = 0; scriptIndex < scriptCount; scriptIndex++) { \
+  object.scripts.push_back(ReadString(stream)); \
+}
+
+
+
+inline constexpr char const* _DEV_SAVE_PATH = "./pmpknrl";
 
 }; // namespace
 
@@ -66,6 +139,12 @@ void SaveData::Pull(Pumpkin* pumpkin) {
 
     cameraSaves.insert({_STRING_HASHER(save.objectInfo.name), save});
   }
+  Camera* pCam = GetPrimaryCamera();
+  if (pCam) {
+    primaryCamera = pObjInt(pCam)->name;
+  } else {
+    primaryCamera = "";
+  }
 
 
   for (auto& objectP : pumpkin->registeredObjects) {
@@ -96,7 +175,7 @@ void SaveData::Push(Pumpkin* pumpkin) {
     if (!shader) {
       continue;
     }
-    
+
     CopyPropertyHolder(save.properties, shader->properties);
     shader->startInfos = save.startInfos;
     shader->Reload();
@@ -105,7 +184,7 @@ void SaveData::Push(Pumpkin* pumpkin) {
 
   for (auto& saveP : modelSaves) {
     auto& save = saveP.second;
-    
+
     Model* model = GetModel(save.name);
     if (!model) {
       continue;
@@ -117,10 +196,9 @@ void SaveData::Push(Pumpkin* pumpkin) {
   }
 
 
-  bool firstCamera = true;
   for (auto& saveP : cameraSaves) {
     auto& save = saveP.second;
-    
+
     auto camera = RegisterCamera(save.objectInfo.name);
     if (!camera) {
       continue;
@@ -133,17 +211,13 @@ void SaveData::Push(Pumpkin* pumpkin) {
     camera->near = save.near;
     camera->perspective = save.perspective;
 
-    if (firstCamera) {
-      SetPrimaryCamera(camera);
-      firstCamera = false;
-    }
-
-
     for (std::string const& script : save.objectInfo.scripts) {
       Object_AddScript(camera, script);
     }
     camera->transform = save.objectInfo.transform;
   }
+  SetPrimaryCamera(GetCamera(primaryCamera));
+
 
 
   for (auto& saveP : objectSaves) {
@@ -164,17 +238,177 @@ void SaveData::Push(Pumpkin* pumpkin) {
 
 
 
+void SaveData::Save(std::string const& defaultPrimaryCamera) {
+  std::string relative = ToRelativePath(_DEV_SAVE_PATH);
+  std::ofstream stream(relative, std::ios::binary | std::ios::trunc);
 
-void SaveData::Save(SaveData& diff) {
-  
+  // Only object can be created in dev mode
+  // So only it can contain differences in elements
+  // All others will have differences instead in properties
+  //for (auto& diffObject : diff.objectSaves) objectSaves.erase(_STRING_HASHER(diffObject.second.name));
+  // Maybe not
+
+
+  uint32_t variableHolder;
+
+
+  variableHolder = static_cast<uint32_t>(shaderSaves.size());
+  stream.write((char*)&variableHolder, 4); // Number of shaders
+  for (auto& shaderP : shaderSaves) {
+    auto& save = shaderP.second;
+    stream.write(save.name.c_str(), save.name.size() + 1); // Name of shader
+
+    variableHolder = static_cast<uint32_t>(save.startInfos.size());
+    stream.write((char*)&variableHolder, 4); // Number of linked shaders
+    for (ShaderInfo const& info : save.startInfos) {
+      variableHolder = static_cast<uint32_t>(info.shaders.size());
+      stream.write((char*)&variableHolder, 4); // Number of files in shader
+      for (std::string const& shader : info.shaders) {
+        stream.write(shader.c_str(), shader.size() + 1); // Shader file location
+      }
+
+      variableHolder = static_cast<uint32_t>(info.type);
+      stream.write((char*)&variableHolder, 4); // Type of shader
+    }
+
+    WriteProperties;
+  }
+
+
+  variableHolder = static_cast<uint32_t>(modelSaves.size());
+  stream.write((char*)&variableHolder, 4); // Number of models
+  for (auto& modelP : modelSaves) {
+    auto& save = modelP.second;
+    stream.write(save.name.c_str(), save.name.size() + 1); // Name of model
+    stream.write(save.shader.c_str(), save.shader.size() + 1); // Shader name
+    stream.write(save.mesh.c_str(), save.mesh.size() + 1); // Mesh name
+
+    WriteProperties;
+  }
+
+
+  variableHolder = static_cast<uint32_t>(cameraSaves.size());
+  stream.write((char*)&variableHolder, 4); // Number of cameras
+  for (auto& cameraP : cameraSaves) {
+    auto& save = cameraP.second;
+    stream.write(save.objectInfo.name.c_str(), save.objectInfo.name.size() + 1); // Name of camera
+
+    stream.write((char*)&save.angleBased, 1); // bools shouldn't be more than 1 byte, I will ignore any weird ones
+    stream.write((char*)&save.fov, 4);
+    stream.write((char*)&save.aspect, 4);
+    stream.write((char*)&save.near, 4); // Data for orthogonal of width/height is shared within due to union
+    stream.write((char*)&save.far, 4);
+    stream.write((char*)&save.perspective, 1);
+
+
+    auto& object = save.objectInfo;
+    WriteObject;
+  }
+
+
+  variableHolder = static_cast<uint32_t>(objectSaves.size());
+  stream.write((char*)&variableHolder, 4); // Number of objects
+  for (auto& objectP : objectSaves) {
+    auto& object = objectP.second;
+
+    stream.write(object.name.c_str(), object.name.size() + 1); // Name of object
+    WriteObject;
+  }
+
+  stream.write(defaultPrimaryCamera.c_str(), defaultPrimaryCamera.size() + 1); // Primary camera
+
+
+  stream.flush();
+  stream.close();
 }
 
 
 
 
 
-void SaveData::Load() {
+bool SaveData::Load() {
+  std::string relative = ToRelativePath(_DEV_SAVE_PATH);
+  if (!std::filesystem::exists(relative)) return false;
 
+  Delete();
+
+  std::ifstream stream(relative, std::ios::binary);
+
+  uint32_t variableHolder;
+
+  uint32_t shaderCount;
+  ReadStream(&shaderCount, 4); // Number of shaders
+  for (uint32_t shaderIndex = 0; shaderIndex < shaderCount; shaderIndex++) {
+    ShaderSaveData save;
+    save.name = ReadString(stream); // Name of shader
+    uint32_t startInfoCount;
+    ReadStream(&startInfoCount, 4); // Number of linked shaders
+    for (uint32_t startInfoIndex = 0; startInfoIndex < startInfoCount; startInfoIndex++) {
+      ShaderInfo startInfo;
+      uint32_t fileCount;
+      ReadStream(&fileCount, 4); // Number of files in shader
+      for (uint32_t fileIndex = 0; fileIndex < fileCount; fileIndex++) {
+        startInfo.shaders.push_back(ReadString(stream)); // Shader file location
+      }
+      startInfo.shaderCount = startInfo.shaders.size();
+      ReadStream(&variableHolder, 4); // Type of shader
+      startInfo.type = variableHolder;
+
+      save.startInfos.push_back(startInfo);
+    }
+    ReadProperties;
+
+    shaderSaves.insert({_STRING_HASHER(save.name), save});
+  };
+
+
+  uint32_t modelCount;
+  ReadStream(&modelCount, 4); // Number of models
+  for (uint32_t modelIndex = 0; modelIndex < modelCount; modelIndex++) {
+    ModelSaveData save;
+    save.name = ReadString(stream); // Name of model
+    save.shader = ReadString(stream); // Shader name
+    save.mesh = ReadString(stream); // Mesh name
+    ReadProperties;
+
+    modelSaves.insert({_STRING_HASHER(save.name), save});
+  }
+
+
+  uint32_t cameraCount;
+  ReadStream(&cameraCount, 4); // Number of cameras
+  for (uint32_t cameraIndex = 0; cameraIndex < cameraCount; cameraIndex++) {
+    CameraSaveData save;
+    save.objectInfo.name = ReadString(stream); // Name of camera
+
+    ReadStream(&save.angleBased, 1);
+    ReadStream(&save.fov, 4);
+    ReadStream(&save.aspect, 4);
+    ReadStream(&save.near, 4);
+    ReadStream(&save.far, 4);
+    ReadStream(&save.perspective, 1);
+
+    ObjectSaveData& object = save.objectInfo;
+    ReadObject;
+
+    cameraSaves.insert({_STRING_HASHER(save.objectInfo.name), save});
+  }
+
+
+
+  uint32_t objectCount;
+  ReadStream(&objectCount, 4); // Number of objects
+  for (uint32_t objectIndex = 0; objectIndex < objectCount; objectIndex++) {
+    ObjectSaveData object;
+    object.name = ReadString(stream); // Name of object
+    ReadObject;
+
+    objectSaves.insert({_STRING_HASHER(object.name), object});
+  }
+
+
+  primaryCamera = ReadString(stream); // Primary camera
+  stream.close();
 }
 
 
@@ -197,6 +431,8 @@ void SaveData::Delete() {
   modelSaves.clear();
   cameraSaves.clear();
   objectSaves.clear();
+
+  primaryCamera.clear();
 }
 
 
@@ -205,6 +441,22 @@ void SaveData::Delete() {
 
 
 namespace {
+
+// My interpretation of the std::string template for ifstream formatted extract but with 0 as the delimiter
+std::string ReadString(std::ifstream& stream) {
+  std::string ret = std::string();
+
+  int c = 0;
+  do {
+    c = stream.get();
+    if (c == stream.eof() || !stream.good()) { return ret; }
+
+    ret.append(1, c);
+  } while (c != '\0');
+
+  return ret;
+}
+
 
 void CopyObject(Object* obj, ObjectSaveData& data) {
   assert(obj);

@@ -18,6 +18,7 @@ int LoadFile(std::string filePath, bool pack, bool cache, bool relative, bool bi
 void ForgetFile(std::string path);
 FileData ReadFile(std::string path, bool binary=true);
 
+std::string ToRelativePath(std::string const& path);
 
 bool OpenFileFunc(std::string const& location, bool relative, bool binary, ::pPack::FileHandle& handle);
 void CloseFileFunc(::pPack::FileHandle& handle);

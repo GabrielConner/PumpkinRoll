@@ -21,6 +21,7 @@ struct Property {
 
   void Delete() { free(prop); }
 
+  Property() = default;
   Property(std::string Name, void* Prop, ::pumpkin::VariableType Type) : name(Name), prop(Prop), type(Type) {
     typeSize = ::pumpkin_private::SizeOfType(Type);
   }
