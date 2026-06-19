@@ -24,6 +24,9 @@ inline constexpr char _RIGHT_ARROW = 0x4D;
 inline constexpr char _PAGE_DOWN = 0x51;
 
 
+inline constexpr char const* _DEV_SAVE_FILE = ".pmpknrl";
+
+
 }; // namespace pumpkin
 
 #endif

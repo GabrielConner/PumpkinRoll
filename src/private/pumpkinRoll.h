@@ -32,11 +32,20 @@ struct Pumpkin {
 
   double deltaTime = 0;
 
+  #ifdef PUMPKIN_ROLL_DEV
+  bool running = false;
+  #endif
+
   ::pumpkin::RuntimeSettings runtime = ::pumpkin::RuntimeSettings();
 };
 
-void DeleteObjects();
 
+#ifdef PUMPKIN_ROLL_DEV
+void RunProgram();
+void StopProgram();
+#endif
+
+void DeleteObjects();
 
 bool RegisterWindow(::std::string const& name, ::pPack::Window* data);
 ::pPack::Window* GetWindow(::std::string const& name);

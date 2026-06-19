@@ -317,11 +317,20 @@ void Update() {
       UpdateCamera(cam.second);
     }
 
-    for (auto& obj : pumpkinData->registeredObjects) {
-      for (auto& script : pObjInt(obj.second)->external->scripts) {
-        script.second.script->Update(obj.second, pumpkinData->deltaTime);
+#ifdef PUMPKIN_ROLL_DEV
+    if (pumpkinData->running) {
+#endif
+
+      for (auto& obj : pumpkinData->registeredObjects) {
+        for (auto& script : pObjInt(obj.second)->external->scripts) {
+          script.second.script->Update(obj.second, pumpkinData->deltaTime);
+        }
       }
+
+#ifdef PUMPKIN_ROLL_DEV
     }
+#endif
+
 
     if (pumpkinData->primaryCamera) {
       Camera_GenerateProjection(pumpkinData->primaryCamera);
@@ -377,7 +386,7 @@ void End() {
   glDeleteBuffers(1, &pumpkinData->globalVBO);
 
 #ifdef PUMPKIN_ROLL_DEV
-  EndDevelopment();
+  EndProgram();
 #endif
 
   FileManagerEnd();
@@ -675,7 +684,6 @@ Camera* GetCamera(std::string const& name) {
 
 bool SetPrimaryCamera(Camera* camera) {
   pPumpkinCheck(false);
-  pNullCheck(camera, false);
 
   pumpkinData->primaryCamera = camera;
   return true;
@@ -797,6 +805,13 @@ void Mesh::Setup() {
 Mesh* RegisterMesh(std::string const& name, void* vertices, size_t size, size_t count, bool dynamic, GLuint format) {
   pPumpkinCheck(nullptr);
 
+#ifdef PUMPKIN_ROLL_DEV
+  if (pumpkinData->running) {
+    pError("Cannot register mesh while running");
+  }
+#endif
+
+
   if (name.size() == 0) {
     pWarn("Invalid mesh name");
     return nullptr;
@@ -876,6 +891,13 @@ Mesh* GetMesh(std::string const& name) {
 
 GLuint RegisterFormat(std::string const& name, FormatStartInfo const* const formatStartInfo, GLuint count, bool autoOffset) {
   pPumpkinCheck(0);
+
+#ifdef PUMPKIN_ROLL_DEV
+  if (pumpkinData->running) {
+    pError("Cannot register format while running");
+  }
+#endif
+
   pNullCheck(formatStartInfo, 0, 0);
   pCheckIf(count, 0, 0);
 
@@ -997,6 +1019,12 @@ void ApplyStaticBuffer() {
 Model* RegisterModel(std::string const& name) {
   pPumpkinCheck(nullptr);
 
+#ifdef PUMPKIN_ROLL_DEV
+  if (pumpkinData->running) {
+    pError("Cannot register model while running");
+  }
+#endif
+
   if (name.size() == 0) {
     pWarn("Invalid model name");
     return nullptr;
@@ -1071,6 +1099,13 @@ PropertyHolder* Model_GetProperties(Model* model) {
 
 Shader* RegisterShader(std::string const& name, ShaderInfo* startInfos, int count) {
   pPumpkinCheck(nullptr);
+
+#ifdef PUMPKIN_ROLL_DEV
+  if (pumpkinData->running) {
+    pError("Cannot register shader while running");
+  }
+#endif
+
   pNullCheck(startInfos, nullptr);
   if (count <= 0) {
     pWarn("Count must be positive number");
@@ -1132,6 +1167,13 @@ PropertyHolder* Shader_GetProperties(Shader* shader) {
 
 bool RegisterScriptRaw(ScriptAllocateFunction scriptAllocate, std::string const& name, size_t size) {
   pPumpkinCheck(false);
+
+#ifdef PUMPKIN_ROLL_DEV
+  if (pumpkinData->running) {
+    pError("Cannot register script while running");
+  }
+#endif
+
   pNullCheck(scriptAllocate, false);
   if (size == 0) {
     pWarn("Invalid size");
@@ -1181,6 +1223,38 @@ char const* GetScriptName(Script* script) {
 
 
 namespace pumpkin_private {
+
+
+#ifdef PUMPKIN_ROLL_DEV
+
+void RunProgram() {
+  assert(pumpkinData);
+
+  pumpkinData->running = true;
+
+  for (auto& obj : pumpkinData->registeredObjects) {
+    for (auto& script : pObjInt(obj.second)->external->scripts) {
+      script.second.script->Start(obj.second);
+    }
+  }
+}
+
+
+
+void StopProgram() {
+  assert(pumpkinData);
+
+  pumpkinData->running = false;
+
+  for (auto& obj : pumpkinData->registeredObjects) {
+    for (auto& script : pObjInt(obj.second)->external->scripts) {
+      script.second.script->End(obj.second);
+    }
+  }
+}
+
+#endif
+
 
 
 void DeleteObjects() {

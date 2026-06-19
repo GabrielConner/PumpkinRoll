@@ -16,6 +16,7 @@
 #include <vector>
 #include <algorithm>
 #include <numeric>
+#include <filesystem>
 #include <assert.h>
 
 #include <conio.h>
@@ -73,6 +74,9 @@ void ScriptBack();
 
 void ScriptOwnedForward();
 void ScriptOwnedBack();
+
+void SaveForward();
+void SaveBack();
 
 void LookAtObjectDelete(Object* obj, int id);
 
@@ -217,6 +221,19 @@ struct ReloadShaders : Ask {
 };
 
 
+struct CreateSave : Ask {
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+};
+
+
+struct LoadSave : Ask {
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+  void Set() override;
+};
+
+
 
 
 // Return data to go backs
@@ -254,6 +271,8 @@ struct Data {
   CreateProperty createProperty;
   PropertyChanger propertyChanger;
   ReloadShaders reloadShaders;
+  CreateSave createSave;
+  LoadSave loadSave;
 
   std::string line = "";
   std::string newPropertyName = "";
@@ -284,6 +303,9 @@ struct Data {
   std::unordered_map<size_t, ScriptInfoPair>::iterator currentProgramScript;
   std::unordered_map<size_t, ScriptAddPair>::iterator currentObjectScript;
 
+  std::vector<std::string>::iterator currentSave;
+
+  std::vector<std::string> saveFiles = std::vector<std::string>();
 
 
   Camera devCamera = Camera();
@@ -309,6 +331,8 @@ struct Data {
   float jumpDistance = 3.0f;
   float moveSpeed = 1.5f;
   float cameraSpeed = 70.0f;
+
+  std::string savedSaveFile = "";
 
 
   // Handles implicit actions based on what is selected
@@ -490,12 +514,28 @@ void UpdateDevelopment() {
   assert(data != nullptr);
   assert(data->ask != nullptr);
 
+  auto window = data->pumpkin->primaryWindow;
+
+  if (window) {
+    InputInfo escape = window->GetInput(GLFW_KEY_ESCAPE);
+    if (escape.pressed && escape.mods & GLFW_MOD_SHIFT) {
+      StopProgram();
+      data->saveData.Push(data->pumpkin);
+      data->updateAsk = true;
+    }
+  }
+
+
+  if (data->pumpkin->running) {
+    return;
+  }
+
+
   data->inDevCamera = GetPrimaryCamera() == &data->devCamera;
   UpdateCamera(&data->devCamera);
 
   // Development camera moving
   if (data->inDevCamera) {
-    auto window = data->pumpkin->primaryWindow;
     if (!window) goto leaveDevCameraStuff;
 
     if (window->GetInput(GLFW_KEY_F).pressed) {
@@ -720,7 +760,7 @@ leaveDevCameraStuff:
 }
 
 
-void EndDevelopment() {
+void EndProgram() {
   assert(data != nullptr);
   data->saveData.Delete();
   delete(data);
@@ -737,9 +777,17 @@ namespace pumpkin {
 void PrintError(PrintLevel level, char const* file, char const* msg) {
   assert(data);
 
-  // Exact same as normal except messages are shoved in a list instead of console
+  if (!data->pumpkin->running) {
+    // Exact same as normal except messages are shoved in a list instead of console
+    if (data->pumpkin != nullptr && (level == PrintLevel::NOPRINT || data->pumpkin->runtime.printLevel > level)) return;
+    data->messages.push_back(std::string(msg) + '\n' + file + "\n\n");
+    return;
+  }
+
+  // Normal printing while program is running
   if (data->pumpkin != nullptr && (level == PrintLevel::NOPRINT || data->pumpkin->runtime.printLevel > level)) return;
-  data->messages.push_back(std::string(msg) + '\n' + file + "\n\n");
+  std::cerr << msg << '\n' << file << "\n\n";
+
 }
 
 }; // namespace pumpkin
@@ -757,11 +805,16 @@ namespace {
 
 void MainMenu::Prompt(int i, std::string const& line) {
   assert(data);
+  assert(data->pumpkin);
 
   if (ToNumberFromAscii(i)) return;
 
   switch (i) {
-    case 0:  //prtodo // Run
+    case 0:  // Run
+      data->saveData.Pull(data->pumpkin);
+      RunProgram();
+      system("cls");
+      std::cout << "SHIFT+ESCAPE to end\n";
       break;
     case 1: // Create object
       data->SetAsk(&data->createObject);
@@ -776,27 +829,26 @@ void MainMenu::Prompt(int i, std::string const& line) {
       data->SetAsk(&data->selectShader);
       break;
     case 5: // Primary camera view
-      //SetPrimaryCamera(&data->devCamera);
-      data->saveData.Pull(data->pumpkin);
+      SetPrimaryCamera(&data->devCamera);
       break;
     case 6: //prtodo // Build
-      data->saveData.Push(data->pumpkin);
       break;
-    case 7: //prtodo // Save
-      data->saveData.Save(data->defaultPrimaryCamera);
+    case 7: // Reload shaders
+      data->SetAsk(&data->reloadShaders);
       break;
-    case 8: // Reload shaders
-      //data->SetAsk(&data->reloadShaders);
-      data->saveData.Load();
+    case 8: // Save
+      data->SetAsk(&data->createSave);
+      break;
+    case 9: // Load
+      data->SetAsk(&data->loadSave);
       break;
   }
 }
 
 
 void MainMenu::Question(std::string const& line) {
-  std::cout << "0. Run\n1. Create object\n2. Select object\n3. Select model\n4. Select shader\n5. Primary camera view\n6. Build\n7. Save\n8. Reload shaders";
+  std::cout << "0. Run\n1. Create object\n2. Select object\n3. Select model\n4. Select shader\n5. Primary camera view\n6. Build\n7. Reload shaders\n8. Save\n9. Load";
 }
-
 
 // **************************************************
 // **************************************************
@@ -1198,8 +1250,10 @@ void SelectObject::Set() {
   assert(data);
 
   data->currentObject = data->pumpkin->registeredObjects.begin();
-  data->forward = ObjectForward;
-  data->back = ObjectBack;
+  if (data->pumpkin->registeredObjects.size() != 0) {
+    data->forward = ObjectForward;
+    data->back = ObjectBack;
+  }
 }
 
 // **************************************************
@@ -1253,8 +1307,10 @@ void SelectModel::Set() {
   assert(data);
 
   data->currentModel = data->pumpkin->registeredModels.begin();
-  data->forward = ModelForward;
-  data->back = ModelBack;
+  if (data->pumpkin->registeredModels.size() != 0) {
+    data->forward = ModelForward;
+    data->back = ModelBack;
+  }
 }
 
 // **************************************************
@@ -1308,8 +1364,10 @@ void SelectMesh::Set() {
   assert(data);
 
   data->currentMesh = data->pumpkin->registeredMeshes.begin();
-  data->forward = MeshForward;
-  data->back = MeshBack;
+  if (data->pumpkin->registeredMeshes.size() != 0) {
+    data->forward = MeshForward;
+    data->back = MeshBack;
+  }
 }
 
 // **************************************************
@@ -1363,8 +1421,10 @@ void SelectShader::Set() {
   assert(data);
 
   data->currentShader = data->pumpkin->registeredShaders.begin();
-  data->forward = ShaderForward;
-  data->back = ShaderBack;
+  if (data->pumpkin->registeredShaders.size() != 0) {
+    data->forward = ShaderForward;
+    data->back = ShaderBack;
+  }
 }
 
 // **************************************************
@@ -1572,8 +1632,10 @@ void SelectProperty::Set() {
   assert(data);
 
   data->currentProperty = data->holdingPropertyHolder->properties.begin();
-  data->forward = PropertyForward;
-  data->back = PropertyBack;
+  if (data->holdingPropertyHolder->properties.size() != 0) {
+    data->forward = PropertyForward;
+    data->back = PropertyBack;
+  }
 }
 
 // **************************************************
@@ -1743,8 +1805,10 @@ void ReloadShaders::Set() {
 
   data->currentShader = data->pumpkin->registeredShaders.begin();
 
-  data->forward = ShaderForward;
-  data->back = ShaderBack;
+  if (data->pumpkin->registeredShaders.size() != 0) {
+    data->forward = ShaderForward;
+    data->back = ShaderBack;
+  }
 }
 
 
@@ -1754,6 +1818,114 @@ void ReloadShaders::Set() {
 
 
 
+
+
+// CreateSave
+// **************************************************
+// **************************************************
+
+void CreateSave::Prompt(int i, std::string const& line) {
+  assert(data);
+
+  if (i == '\n' || i == '\r') {
+    std::string str = (data->cycle && data->savedSaveFile.size() != 0) ? data->savedSaveFile : line;
+    if (str.size() == 0) {
+      data->SetAsk(&data->mainMenu);
+      return;
+    }
+
+    data->saveData.Pull(data->pumpkin);
+    data->saveData.Save(str, data->defaultPrimaryCamera);
+    data->SetAsk(&data->mainMenu);
+    return;
+  }
+
+  data->updateAsk = true;
+}
+
+
+void CreateSave::Question(std::string const& line) {
+  assert(data);
+
+  std::string str = (data->cycle && data->savedSaveFile.size() != 0) ? data->savedSaveFile : line;
+  std::cout << "Enter name of file to save to or empty to cancel\n>>" << str;
+}
+
+// **************************************************
+// **************************************************
+// CreateSave
+
+
+
+
+
+// LoadSave
+// **************************************************
+// **************************************************
+
+void LoadSave::Prompt(int i, std::string const& line) {
+  assert(data);
+
+  if (i == '\r' || i == '\n') {
+    std::string str = (data->cycle && data->currentSave != data->saveFiles.end()) ? *data->currentSave : line;
+    if (str.size() == 0) {
+      data->SetAsk(&data->mainMenu);
+      return;
+    }
+
+    data->saveData.Load(str);
+    data->saveData.Push(data->pumpkin);
+    data->savedSaveFile = str;
+    data->SetAsk(&data->mainMenu);
+  }
+
+  data->updateAsk = true;
+}
+
+
+void LoadSave::Question(std::string const& line) {
+  assert(data);
+
+  if (data->display) {
+    for (std::string const& save : data->saveFiles) {
+      std::cout << save << '\n';
+    }
+    std::cout << '\n';
+  }
+
+  std::string str = (data->cycle && data->currentSave != data->saveFiles.end()) ? *data->currentSave : line;
+  std::cout << "Enter name of file to load to or empty to cancel\n>>" << str;
+}
+
+
+void LoadSave::Set() {
+  assert(data);
+  data->saveFiles.clear();
+
+
+  #ifdef PUMPKIN_ROLL_PROD
+  for (auto& file : std::filesystem::directory_iterator(".")) {
+  #else
+  for (auto& file : std::filesystem::directory_iterator(data->pumpkin->exePath)) {
+  #endif
+    if (!file.is_regular_file()) continue;
+
+    if (file.path().extension() == _DEV_SAVE_FILE) {
+      data->saveFiles.push_back(file.path().stem().string());
+    }
+  }
+
+  data->currentSave = data->saveFiles.begin();
+
+  if (data->saveFiles.size() != 0) {
+    data->forward = SaveForward;
+    data->back = SaveBack;
+  }
+}
+
+// **************************************************
+// **************************************************
+// LoadSave
 
 
 
@@ -2027,6 +2199,21 @@ void ScriptOwnedBack() {
 
   if (data->currentObjectScript != pObjExt(data->holdingObject)->scripts.begin()) data->currentObjectScript--;
   else data->currentObjectScript = --pObjExt(data->holdingObject)->scripts.end();
+}
+
+
+void SaveForward() {
+  assert(data);
+
+  if (data->currentSave != --data->saveFiles.end()) data->currentSave++;
+  else data->currentSave = data->saveFiles.begin();
+}
+
+void SaveBack() {
+  assert(data);
+
+  if (data->currentSave != data->saveFiles.begin()) data->currentSave--;
+  else data->currentSave = --data->saveFiles.end();
 }
 
 }; // namespace

@@ -86,9 +86,6 @@ for (uint32_t scriptIndex = 0; scriptIndex < scriptCount; scriptIndex++) { \
 }
 
 
-
-inline constexpr char const* _DEV_SAVE_PATH = "./pmpknrl";
-
 }; // namespace
 
 
@@ -238,8 +235,8 @@ void SaveData::Push(Pumpkin* pumpkin) {
 
 
 
-void SaveData::Save(std::string const& defaultPrimaryCamera) {
-  std::string relative = ToRelativePath(_DEV_SAVE_PATH);
+void SaveData::Save(std::string const& name, std::string const& defaultPrimaryCamera) {
+  std::string relative = ToRelativePath(name + _DEV_SAVE_FILE);
   std::ofstream stream(relative, std::ios::binary | std::ios::trunc);
 
   // Only object can be created in dev mode
@@ -326,8 +323,8 @@ void SaveData::Save(std::string const& defaultPrimaryCamera) {
 
 
 
-bool SaveData::Load() {
-  std::string relative = ToRelativePath(_DEV_SAVE_PATH);
+bool SaveData::Load(std::string const& name) {
+  std::string relative = ToRelativePath(name + _DEV_SAVE_FILE);
   if (!std::filesystem::exists(relative)) return false;
 
   Delete();

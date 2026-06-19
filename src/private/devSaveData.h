@@ -59,8 +59,8 @@ struct SaveData {
   void Push(Pumpkin* pumpkin);
 
   // Saves the current pulled data, make sure to pull right before save to get latest
-  void Save(std::string const& defaultPrimaryCamera);
-  bool Load();
+  void Save(std::string const& name, std::string const& defaultPrimaryCamera);
+  bool Load(std::string const& name);
 
   void Delete();
 };

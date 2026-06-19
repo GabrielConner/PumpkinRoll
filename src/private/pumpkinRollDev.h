@@ -8,7 +8,7 @@ namespace pumpkin_private {
 void StartDevelopment();
 void DevelopmentLogAfterStart();
 void UpdateDevelopment();
-void EndDevelopment();
+void EndProgram();
 
 }; // namespace pumpkin_private
 
