@@ -141,6 +141,7 @@ PropertyHolder* Shader_GetProperties(Shader* shader);
 bool PropertyHolder_AddProperty(PropertyHolder* holder, std::string const& name, void* value, VariableType type);
 bool PropertyHolder_SetProperty(PropertyHolder* holder, std::string const& name, void* value);
 bool PropertyHolder_SetOrAddProperty(PropertyHolder* holder, std::string const& name, void* value, VariableType type);
+void PropertyHolder_DeleteProperty(PropertyHolder* holder, std::string const& name);
 
 void* PropertyHolder_GetProperty(PropertyHolder* holder, std::string const& name);
 

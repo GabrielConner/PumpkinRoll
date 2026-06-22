@@ -29,6 +29,7 @@ struct ObjectSaveData {
   std::string name;
   std::string model;
   std::vector<std::string> scripts = std::vector<std::string>();
+  bool runtime;
 };
 
 struct CameraSaveData {
@@ -55,7 +56,7 @@ struct SaveData {
   std::string primaryCamera;
 
 
-  void Pull(Pumpkin* pumpkin);
+  void Pull(Pumpkin* pumpkin, std::unordered_map<size_t, ::pumpkin::Object*> runtimeObjects);
   void Push(Pumpkin* pumpkin);
 
   // Saves the current pulled data, make sure to pull right before save to get latest
@@ -63,6 +64,8 @@ struct SaveData {
   bool Load(std::string const& name);
 
   void Delete();
+
+  void Build(std::string const& path, SaveData const& compare);
 };
 
 }; // namespace pumpkin_private

@@ -7,6 +7,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <format>
 #include <assert.h>
 
 
@@ -21,6 +22,8 @@ void CopyPropertyHolder(PropertyHolder& from, PropertyHolder& to);
 
 std::string ReadString(std::ifstream& stream);
 
+
+#define WriteLine(line) stream << line << '\n'
 
 
 #define WriteProperties \
@@ -37,6 +40,7 @@ for (auto& propP : save.properties) { \
 
 
 #define WriteObject \
+stream.write((char*)&object.runtime, 1); \
 stream.write((char*)&object.transform, sizeof(Transform)); \
 stream.write(object.model.c_str(), object.model.size() + 1); \
 variableHolder = static_cast<uint32_t>(object.scripts.size()); \
@@ -77,6 +81,7 @@ for (int propertyIndex = 0; propertyIndex < propertyCount; propertyIndex++) { \
 
 
 #define ReadObject \
+ReadStream(&object.runtime, 1); \
 ReadStream(&object.transform, sizeof(Transform)); \
 object.model = ReadString(stream); \
 uint32_t scriptCount; \
@@ -92,7 +97,7 @@ for (uint32_t scriptIndex = 0; scriptIndex < scriptCount; scriptIndex++) { \
 
 namespace pumpkin_private {
 
-void SaveData::Pull(Pumpkin* pumpkin) {
+void SaveData::Pull(Pumpkin* pumpkin, std::unordered_map<size_t, Object*> runtimeObjects) {
   assert(pumpkin);
   Delete();
 
@@ -143,14 +148,18 @@ void SaveData::Pull(Pumpkin* pumpkin) {
     primaryCamera = "";
   }
 
-
   for (auto& objectP : pumpkin->registeredObjects) {
     auto& object = objectP.second;
 
     if (dynamic_cast<Camera*>(object)) continue;
 
+
     ObjectSaveData save;
     CopyObject(object, save);
+    if (runtimeObjects.contains(_STRING_HASHER(save.name))) {
+      save.runtime = true;
+    }
+
     objectSaves.insert({_STRING_HASHER(save.name), save});
   }
 }
@@ -163,7 +172,9 @@ void SaveData::Push(Pumpkin* pumpkin) {
   assert(pumpkin);
 
   SetPrimaryCamera(nullptr);
+
   DeleteObjects();
+
 
   for (auto& saveP : shaderSaves) {
     auto& save = saveP.second;
@@ -220,7 +231,14 @@ void SaveData::Push(Pumpkin* pumpkin) {
   for (auto& saveP : objectSaves) {
     auto& save = saveP.second;
 
-    Object* object = RegisterObject(save.name);
+    Object* object = nullptr;
+    if (save.runtime) {
+      object = RegisterObject(save.name);
+    } else {
+      object = GetObject(save.name);
+      if (object)
+        ClearScripts(object);
+    }
     if (!object) continue;
 
     Object_SetModel(object, GetModel(save.model));
@@ -261,7 +279,7 @@ void SaveData::Save(std::string const& name, std::string const& defaultPrimaryCa
       variableHolder = static_cast<uint32_t>(info.shaders.size());
       stream.write((char*)&variableHolder, 4); // Number of files in shader
       for (std::string const& shader : info.shaders) {
-        stream.write(shader.c_str(), shader.size() + 1); // Shader file location
+        stream.write(shader.c_str(), shader.size() + 1); // Shader path location
       }
 
       variableHolder = static_cast<uint32_t>(info.type);
@@ -345,7 +363,7 @@ bool SaveData::Load(std::string const& name) {
       uint32_t fileCount;
       ReadStream(&fileCount, 4); // Number of files in shader
       for (uint32_t fileIndex = 0; fileIndex < fileCount; fileIndex++) {
-        startInfo.shaders.push_back(ReadString(stream)); // Shader file location
+        startInfo.shaders.push_back(ReadString(stream)); // Shader path location
       }
       startInfo.shaderCount = startInfo.shaders.size();
       ReadStream(&variableHolder, 4); // Type of shader
@@ -433,11 +451,107 @@ void SaveData::Delete() {
 }
 
 
+
+
+
+void SaveData::Build(std::string const& path, SaveData const& compare) {
+  std::string relative = std::filesystem::path(ToRelativePath(path + _DEV_SAVE_FILE) + ".cpp").lexically_normal().string();
+  std::ofstream stream(relative, std::ios::trunc);
+
+  WriteLine("#include \"pumpkin/types.h\"");
+#ifdef PUMPKIN_ROLL_PROD
+  WriteLine("#include \"private/functions.h\"");
+#endif
+  WriteLine("#include \"pPack/vector.h\"");
+
+  WriteLine("using namespace ::pPack;");
+  WriteLine("using namespace ::pumpkin;");
+
+  WriteLine("int SceneBuild() {");
+  WriteLine("int tmpInt;float tmpFloat;MatrixWrapper tmpMat;Vector2 tmpVec2;Vector3 tmpVec3;Vector4 tmpVec4;");
+
+  uint32_t counter = 0;
+
+  for (auto& save : shaderSaves) {
+    std::string shaderName = std::format("shader_{:}", save.first);
+
+    auto cmpSave = compare.shaderSaves.find(save.first);
+    PropertyHolder const* propertiesCmp = nullptr;
+    if (cmpSave != compare.shaderSaves.end()) {
+      propertiesCmp = &cmpSave->second.properties;
+    }
+
+    WriteLine(std::format("Shader* {:} = GetShader({:?});", shaderName, save.second.name));
+    WriteLine(std::format("if ({:}) {{", shaderName));
+    WriteLine(std::format("PropertyHolder* prop = Shader_GetProperties({:});", shaderName));
+
+    PropertyHolder& properties = save.second.properties;
+
+
+    if (propertiesCmp != nullptr) {
+      for (auto& cmpPropP : propertiesCmp->properties) {
+        if (properties.properties.contains(cmpPropP.first)) continue;
+        WriteLine(std::format("PropertyHolder_DeleteProperty(prop, {:?});", cmpPropP.second.name));
+      }
+    }
+
+    for (auto& propP : properties) {
+      auto& p = propP.second;
+      if (propertiesCmp != nullptr) {
+        auto propCmp = propertiesCmp->properties.find(propP.first);
+        if (propCmp != propertiesCmp->properties.end() && memcmp(p.prop, propCmp->second.prop, p.typeSize) == 0) {
+          continue;
+        }
+      }
+
+
+      switch (p.type) {
+        case VariableType::UNKNOWN:
+          continue;
+        case VariableType::INT:
+          WriteLine(std::format("tmpInt = {:};", *(int*)p.prop));
+          WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpInt, VariableType::INT);", p.name));
+          break;
+        case VariableType::FLOAT:
+          WriteLine(std::format("tmpFloat = {:};", *(float*)p.prop));
+          WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpFloat, VariableType::FLOAT);", p.name));
+          break;
+        case VariableType::MAT4:
+          WriteLine(std::format("tmpMat = {:c};", *(MatrixWrapper*)p.prop));
+          WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpMat, VariableType::MAT4);", p.name));
+          break;
+        case VariableType::VECTOR2:
+          WriteLine(std::format("tmpVec2 = {:};", *(Vector2*)p.prop));
+          WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpVec2, VariableType::VECTOR2);", p.name));
+          break;
+        case VariableType::VECTOR3:
+          WriteLine(std::format("tmpVec3 = {:};", *(Vector3*)p.prop));
+          WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpVec3, VariableType::VECTOR3);", p.name));
+          break;
+        case VariableType::VECTOR4:
+          WriteLine(std::format("tmpVec4 = {:};", *(Vector4*)p.prop));
+          WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpVec4, VariableType::VECTOR4);", p.name));
+          break;
+      }
+    }
+
+    WriteLine("}");
+  }
+
+  WriteLine("return 0;\n}");
+
+  stream.flush();
+  stream.close();
+}
+
+
+
 }; // namespace pumpkin_private
 
 
 
 namespace {
+
 
 // My interpretation of the std::string template for ifstream formatted extract but with 0 as the delimiter
 std::string ReadString(std::ifstream& stream) {

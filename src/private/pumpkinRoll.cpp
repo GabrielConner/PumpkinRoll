@@ -1340,4 +1340,15 @@ void DeleteObject(Object* obj) {
 }
 
 
+
+void ClearScripts(Object* obj) {
+  assert(obj);
+  pObjDefExt(obj, e);
+  for (auto& script : e->scripts) {
+    delete(script.second.script);
+  }
+  e->scripts.clear();
+}
+
+
 }; // namespace pumpkin_private

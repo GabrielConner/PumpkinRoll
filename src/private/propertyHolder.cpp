@@ -92,6 +92,17 @@ bool PropertyHolder_SetOrAddProperty(PropertyHolder* holder, std::string const& 
 
 
 
+
+
+void PropertyHolder_DeleteProperty(PropertyHolder* holder, std::string const& name) {
+  assert(holder);
+  holder->DeleteProperty(name);
+}
+
+
+
+
+
 void* PropertyHolder_GetProperty(PropertyHolder* holder, std::string const& name) {
   pNullCheck(holder, nullptr);
 

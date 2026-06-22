@@ -4,6 +4,9 @@
 #include "pPack/vector.h"
 #include "glad/glad.h"
 
+#include <algorithm>
+#include <format>
+#include <sstream>
 #include <unordered_map>
 #include <set>
 
@@ -68,6 +71,7 @@ struct MatrixWrapper {
   };
 
   MatrixWrapper() : col0(1,0,0,0), col1(0,1,0,0), col2(0,0,1,0), col3(0,0,0,1) {}
+  MatrixWrapper(::pPack::Vector4 Col0, ::pPack::Vector4 Col1, ::pPack::Vector4 Col2, ::pPack::Vector4 Col3) : col0(Col0), col1(Col1), col2(Col2), col3(Col3) {}
 };
 
 
@@ -186,7 +190,55 @@ struct Model;
 struct Shader;
 struct PropertyHolder;
 
-
 }; // namespace pumpkin
+
+
+
+
+/*************************************************************************/
+/*************************************************************************/
+/*                                                                       */
+/*                        F O R M A T T E R S                            */
+/*                                                                       */
+/*************************************************************************/
+/*************************************************************************/
+
+
+template<>
+struct std::formatter<::pumpkin::MatrixWrapper, char> {
+  bool construct = false;
+
+  template<class ParseContext>
+  constexpr ParseContext::iterator parse(ParseContext& ctx) {
+    auto it = ctx.begin();
+    if (it == ctx.end())
+      return it;
+
+    if (*it == 'c') {
+      construct = true;
+      ++it;
+    }
+
+
+    // Required by specifications of BasicFormatter
+    if (it != ctx.end() && *it != '}')
+      throw std::format_error("Invalid format args for MatrixWrapper.");
+
+    return it;
+  }
+
+  template<class FmtContext>
+  FmtContext::iterator format(::pumpkin::MatrixWrapper s, FmtContext& ctx) const {
+    std::ostringstream out;
+    if (construct) {
+      out << "::pumpkin::MatrixWrapper(" << "::pPack::Vector4(" << s.cols[0] << ")," << "::pPack::Vector4(" << s.cols[1] << ")," << "::pPack::Vector4(" << s.cols[2] << ")," << "::pPack::Vector4(" << s.cols[3] << "))";
+    } else {
+      out << "{" << s.cols[0] << ',' << s.cols[1] << ',' << s.cols[2] << ',' << s.cols[3] << "}";
+    }
+
+    return std::ranges::copy(std::move(out).str(), ctx.out()).out;
+  }
+};
+
 
 #endif

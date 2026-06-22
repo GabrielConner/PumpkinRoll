@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <numeric>
 #include <filesystem>
+#include <fstream>
 #include <assert.h>
 
 #include <conio.h>
@@ -234,6 +235,11 @@ struct LoadSave : Ask {
 };
 
 
+struct BuildPumpkin : Ask {
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+};
+
 
 
 // Return data to go backs
@@ -273,6 +279,7 @@ struct Data {
   ReloadShaders reloadShaders;
   CreateSave createSave;
   LoadSave loadSave;
+  BuildPumpkin buildPumpkin;
 
   std::string line = "";
   std::string newPropertyName = "";
@@ -291,8 +298,8 @@ struct Data {
 
   Object* lookAtObject = nullptr;
 
+  SaveData startSaveData;
   SaveData saveData;
-  std::string defaultPrimaryCamera;
 
 
   std::unordered_map<size_t, Model*>::iterator currentModel;
@@ -333,6 +340,10 @@ struct Data {
   float cameraSpeed = 70.0f;
 
   std::string savedSaveFile = "";
+
+
+  std::unordered_map<size_t, Object*> runtimeObjects = std::unordered_map<size_t, Object*>();
+
 
 
   // Handles implicit actions based on what is selected
@@ -501,12 +512,7 @@ void DevelopmentLogAfterStart() {
   assert(data);
   assert(data->pumpkin);
 
-  Camera* cam = GetPrimaryCamera();
-  if (cam) {
-    data->defaultPrimaryCamera = pObjInt(cam)->name;
-  } else {
-    data->defaultPrimaryCamera.clear();
-  }
+  data->startSaveData.Pull(data->pumpkin, {});
 }
 
 
@@ -763,6 +769,7 @@ leaveDevCameraStuff:
 void EndProgram() {
   assert(data != nullptr);
   data->saveData.Delete();
+  data->startSaveData.Delete();
   delete(data);
 }
 
@@ -811,7 +818,7 @@ void MainMenu::Prompt(int i, std::string const& line) {
 
   switch (i) {
     case 0:  // Run
-      data->saveData.Pull(data->pumpkin);
+      data->saveData.Pull(data->pumpkin, data->runtimeObjects);
       RunProgram();
       system("cls");
       std::cout << "SHIFT+ESCAPE to end\n";
@@ -831,7 +838,8 @@ void MainMenu::Prompt(int i, std::string const& line) {
     case 5: // Primary camera view
       SetPrimaryCamera(&data->devCamera);
       break;
-    case 6: //prtodo // Build
+    case 6: // Build
+      data->SetAsk(&data->buildPumpkin);
       break;
     case 7: // Reload shaders
       data->SetAsk(&data->reloadShaders);
@@ -988,6 +996,8 @@ void CreateObject::Prompt(int i, std::string const& line) {
       data->updateAsk = true;
       return;
     }
+
+    data->runtimeObjects.insert({_STRING_HASHER(line), render});
 
     // Isn't part of the selecting cycle stuff so can be direct
     data->SetAsk(&data->mainMenu);
@@ -1834,8 +1844,8 @@ void CreateSave::Prompt(int i, std::string const& line) {
       return;
     }
 
-    data->saveData.Pull(data->pumpkin);
-    data->saveData.Save(str, data->defaultPrimaryCamera);
+    data->saveData.Pull(data->pumpkin, data->runtimeObjects);
+    data->saveData.Save(str, data->startSaveData.primaryCamera);
     data->SetAsk(&data->mainMenu);
     return;
   }
@@ -1927,6 +1937,40 @@ void LoadSave::Set() {
 // **************************************************
 // LoadSave
 
+
+
+
+
+// BuildPumpkin
+// **************************************************
+// **************************************************
+
+void BuildPumpkin::Prompt(int i, std::string const& line) {
+  assert(data);
+
+  if (i == '\n' || i == '\r') {
+    if (line.size() == 0) {
+      data->SetAsk(&data->mainMenu);
+      return;
+    }
+
+    data->saveData.Pull(data->pumpkin, data->runtimeObjects);
+    data->saveData.Build(line, data->startSaveData);
+    data->SetAsk(&data->mainMenu);
+    return;
+  }
+
+  data->updateAsk = true;
+}
+
+
+void BuildPumpkin::Question(std::string const& line) {
+  std::cout << "Enter name of file to build to or empty to cancel\n>>" << line;
+}
+
+// **************************************************
+// **************************************************
+// BuildPumpkin
 
 
 

@@ -46,7 +46,7 @@ void StopProgram();
 #endif
 
 void DeleteObjects();
-
+void ClearScripts(::pumpkin::Object* obj);
 bool RegisterWindow(::std::string const& name, ::pPack::Window* data);
 ::pPack::Window* GetWindow(::std::string const& name);
 
