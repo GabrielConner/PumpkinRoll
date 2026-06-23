@@ -16,6 +16,12 @@
 
 namespace pumpkin {
 
+#define RegisterScript(scriptAllocate, script) RegisterScriptRaw(scriptAllocate, typeid(script).name(), sizeof(script))
+#define ScriptAllocateFunction(script) Script* Allocate ## script () { return new script ## (); }
+
+#define ScriptName(script) typeid(script).name()
+
+
 
 #ifndef PUMPKIN_ROLL_VERBOSE_PRINT
 

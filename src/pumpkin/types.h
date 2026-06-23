@@ -80,6 +80,9 @@ struct Transform {
   ::pPack::Vector3 position = 0;
   ::pPack::Vector3 scale = 1;
   ::pPack::Vector3 rotation = 0;
+
+  Transform() = default;
+  Transform(::pPack::Vector3 Position, ::pPack::Vector3 Scale, ::pPack::Vector3 Rotation) : position(Position), scale(Scale), rotation(Rotation) {}
 };
 
 
@@ -126,6 +129,7 @@ struct Object {
   Line internal[6] = {0};
 
   Transform transform = Transform();
+  bool developmentObject = false;
 
   virtual ~Object() {}
 };
@@ -165,12 +169,8 @@ struct FormatStartInfo {
 
 
 struct Script {
-#ifdef PUMPKIN_ROLL_DEV
-  virtual void Prebuild(Object* obj) {}
-#endif
-
   virtual void Start(Object* obj) {}
-  virtual void Update(Object* obj, double deltaTime) {}
+  virtual void Update(Object* obj, double deltaTime, double totalTime) {}
   virtual void End(Object* obj) {}
 };
 
@@ -234,6 +234,44 @@ struct std::formatter<::pumpkin::MatrixWrapper, char> {
       out << "::pumpkin::MatrixWrapper(" << "::pPack::Vector4(" << s.cols[0] << ")," << "::pPack::Vector4(" << s.cols[1] << ")," << "::pPack::Vector4(" << s.cols[2] << ")," << "::pPack::Vector4(" << s.cols[3] << "))";
     } else {
       out << "{" << s.cols[0] << ',' << s.cols[1] << ',' << s.cols[2] << ',' << s.cols[3] << "}";
+    }
+
+    return std::ranges::copy(std::move(out).str(), ctx.out()).out;
+  }
+};
+
+
+
+template<>
+struct std::formatter<::pumpkin::Transform, char> {
+  bool construct = false;
+
+  template<class ParseContext>
+  constexpr ParseContext::iterator parse(ParseContext& ctx) {
+    auto it = ctx.begin();
+    if (it == ctx.end())
+      return it;
+
+    if (*it == 'c') {
+      construct = true;
+      ++it;
+    }
+
+
+    // Required by specifications of BasicFormatter
+    if (it != ctx.end() && *it != '}')
+      throw std::format_error("Invalid format args for Transform.");
+
+    return it;
+  }
+
+  template<class FmtContext>
+  FmtContext::iterator format(::pumpkin::Transform s, FmtContext& ctx) const {
+    std::ostringstream out;
+    if (construct) {
+      out << "::pumpkin::Transform(" << "::pPack::Vector3(" << s.position << ")," << "::pPack::Vector3(" << s.scale << ")," << "::pPack::Vector3(" << s.rotation << "))";
+    } else {
+      out << "{" << s.position << ',' << s.scale << ',' << s.rotation << "}";
     }
 
     return std::ranges::copy(std::move(out).str(), ctx.out()).out;

@@ -471,6 +471,7 @@ struct Data {
   void ResetHold() {
     holdingObject = nullptr;
     holdingModel = nullptr;
+    holdingShader = nullptr;
     selectedObject = nullptr;
     selectedModel = nullptr;
     holdingProperty = nullptr;
@@ -526,7 +527,7 @@ void UpdateDevelopment() {
     InputInfo escape = window->GetInput(GLFW_KEY_ESCAPE);
     if (escape.pressed && escape.mods & GLFW_MOD_SHIFT) {
       StopProgram();
-      data->saveData.Push(data->pumpkin);
+      data->saveData.Push(data->pumpkin, data->runtimeObjects);
       data->updateAsk = true;
     }
   }
@@ -1884,7 +1885,7 @@ void LoadSave::Prompt(int i, std::string const& line) {
     }
 
     data->saveData.Load(str);
-    data->saveData.Push(data->pumpkin);
+    data->saveData.Push(data->pumpkin, data->runtimeObjects);
     data->savedSaveFile = str;
     data->SetAsk(&data->mainMenu);
   }

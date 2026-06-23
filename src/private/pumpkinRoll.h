@@ -31,6 +31,7 @@ struct Pumpkin {
   GLuint globalVBO = 0;
 
   double deltaTime = 0;
+  double totalTime = 0;
 
   #ifdef PUMPKIN_ROLL_DEV
   bool running = false;

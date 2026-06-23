@@ -6,7 +6,7 @@
 namespace pumpkin {
 
 
-StartReturn Init(StartSettings const& start);
+StartReturn Init(StartSettings const& start, int argv, char** argc, void (*devLoad)());
 void Update();
 void End();
 
@@ -158,11 +158,6 @@ void* PropertyHolder_GetProperty(PropertyHolder* holder, std::string const& name
 bool RegisterScriptRaw(ScriptAllocateFunction scriptAllocate, std::string const& name, size_t size);
 Script* CreateScript(std::string const& name);
 char const* GetScriptName(Script* script);
-
-#define RegisterScript(scriptAllocate, script) RegisterScriptRaw(scriptAllocate, typeid(script).name(), sizeof(script))
-#define ScriptAllocateFunction(script) Script* Allocate ## script () { return new script ## (); }
-
-#define ScriptName(script) typeid(script).name()
 
 // --------------------------------------------------
 // --------------------------------------------------

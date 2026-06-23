@@ -87,9 +87,33 @@ object.model = ReadString(stream); \
 uint32_t scriptCount; \
 ReadStream(&scriptCount, 4); \
 for (uint32_t scriptIndex = 0; scriptIndex < scriptCount; scriptIndex++) { \
-  object.scripts.push_back(ReadString(stream)); \
+  object.scripts.insert(ReadString(stream)); \
 }
 
+
+
+void Build_CameraHeader(std::ostream& stream, std::string const& cameraName, std::pair<size_t, CameraSaveData> const& save);
+void Build_Camera(std::ostream& stream, std::string const& cameraName, std::pair<size_t, CameraSaveData> const& save, std::pair<const size_t, CameraSaveData> const* cmpSave);
+void Build_CameraEnd(std::ostream& stream, std::pair<size_t, CameraSaveData> const& save);
+
+void Build_ObjectDelete(std::ostream& stream, std::pair<size_t, ObjectSaveData> const& save);
+void Build_ObjectHeader(std::ostream& stream, std::string const& objectName, std::pair<size_t, ObjectSaveData> const& save);
+void Build_ObjectSetModel(std::ostream& stream, std::string const& objectName, std::string const& modelName);
+void Build_Object(std::ostream& stream, std::string const& objectName, std::pair<size_t, ObjectSaveData> const& save, std::pair<const size_t, ObjectSaveData> const* cmpSave);
+void Build_ObjectEnd(std::ostream& stream, std::pair<size_t, ObjectSaveData> const& save);
+
+void Build_ModelHeader(std::ostream& stream, std::string const& shaderName, std::pair<size_t, ModelSaveData> const& save);
+void Build_ModelEnd(std::ostream& stream, std::pair<size_t, ModelSaveData> const& save);
+void Build_ModelGetProperties(std::ostream& stream, std::string const& shaderName);
+void Build_ModelSetShader(std::ostream& stream, std::string const& modelName, std::string const& shaderName);
+void Build_ModelSetMesh(std::ostream& stream, std::string const& modelName, std::string const& meshName);
+
+void Build_ShaderHeader(std::ostream& stream, std::string const& shaderName, std::pair<size_t, ShaderSaveData> const& save);
+void Build_ShaderEnd(std::ostream& stream, std::pair<size_t, ShaderSaveData> const& save);
+void Build_ShaderGetProperties(std::ostream& stream, std::string const& shaderName);
+
+void Build_PropertiesHeader(std::ostream& stream);
+void Build_Properties(std::ostream& stream, PropertyHolder const& properties, PropertyHolder const* propertiesCmp, void (*getFunc)(std::ostream& stream, std::string const& name), std::string const& name);
 
 }; // namespace
 
@@ -97,7 +121,7 @@ for (uint32_t scriptIndex = 0; scriptIndex < scriptCount; scriptIndex++) { \
 
 namespace pumpkin_private {
 
-void SaveData::Pull(Pumpkin* pumpkin, std::unordered_map<size_t, Object*> runtimeObjects) {
+void SaveData::Pull(Pumpkin* pumpkin, std::unordered_map<size_t, Object*> const& runtimeObjects) {
   assert(pumpkin);
   Delete();
 
@@ -158,6 +182,8 @@ void SaveData::Pull(Pumpkin* pumpkin, std::unordered_map<size_t, Object*> runtim
     CopyObject(object, save);
     if (runtimeObjects.contains(_STRING_HASHER(save.name))) {
       save.runtime = true;
+    } else {
+      save.runtime = false;
     }
 
     objectSaves.insert({_STRING_HASHER(save.name), save});
@@ -168,12 +194,20 @@ void SaveData::Pull(Pumpkin* pumpkin, std::unordered_map<size_t, Object*> runtim
 
 
 
-void SaveData::Push(Pumpkin* pumpkin) {
+void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runtimeObjects) {
   assert(pumpkin);
 
   SetPrimaryCamera(nullptr);
 
-  DeleteObjects();
+  for (int i = 0; i < pumpkin->registeredObjects.size(); i++) {
+    auto ref = std::next(pumpkin->registeredObjects.begin(), i);
+    if (runtimeObjects.contains(_STRING_HASHER(pObjInt(ref->second)->name)) || dynamic_cast<Camera*>(ref->second)) {
+      ::pumpkin::DeleteObject(pObjInt(ref->second)->name);
+      i--;
+      continue;
+    }
+  }
+  pumpkin->registeredCameras.clear();
 
 
   for (auto& saveP : shaderSaves) {
@@ -241,12 +275,18 @@ void SaveData::Push(Pumpkin* pumpkin) {
     }
     if (!object) continue;
 
-    Object_SetModel(object, GetModel(save.model));
+    if ((!pObjInt(object)->model && save.model.size() != 0) || (pObjInt(object)->model && pObjInt(object)->model->name != save.model)) {
+      Object_SetModel(object, GetModel(save.model));
+    }
 
+    ClearScripts(object);
     for (std::string const& script : save.scripts) {
       Object_AddScript(object, script);
     }
     object->transform = save.transform;
+    if (save.runtime) {
+      runtimeObjects.insert({_STRING_HASHER(save.name), object});
+    }
   }
 }
 
@@ -480,63 +520,67 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
     if (cmpSave != compare.shaderSaves.end()) {
       propertiesCmp = &cmpSave->second.properties;
     }
+    PropertyHolder& properties = save.second.properties;
 
-    WriteLine(std::format("Shader* {:} = GetShader({:?});", shaderName, save.second.name));
-    WriteLine(std::format("if ({:}) {{", shaderName));
-    WriteLine(std::format("PropertyHolder* prop = Shader_GetProperties({:});", shaderName));
+    Build_ShaderHeader(stream, shaderName, save);
+    Build_PropertiesHeader(stream);
+    Build_Properties(stream, properties, propertiesCmp, Build_ShaderGetProperties, shaderName);
+    Build_ShaderEnd(stream, save);
+  }
 
+
+  for (auto& save : modelSaves) {
+    std::string modelName = std::format("model_{:}", save.first);
+    auto cmpSave = compare.modelSaves.find(save.first);
+    PropertyHolder const* propertiesCmp = nullptr;
+    if (cmpSave != compare.modelSaves.end()) {
+      propertiesCmp = &cmpSave->second.properties;
+    }
     PropertyHolder& properties = save.second.properties;
 
 
-    if (propertiesCmp != nullptr) {
-      for (auto& cmpPropP : propertiesCmp->properties) {
-        if (properties.properties.contains(cmpPropP.first)) continue;
-        WriteLine(std::format("PropertyHolder_DeleteProperty(prop, {:?});", cmpPropP.second.name));
-      }
+    Build_ModelHeader(stream, modelName, save);
+    Build_PropertiesHeader(stream);
+    Build_Properties(stream, properties, propertiesCmp, Build_ModelGetProperties, modelName);
+
+    if (cmpSave != compare.modelSaves.end()) {
+      if (save.second.shader != cmpSave->second.shader)
+        Build_ModelSetShader(stream, modelName, save.second.shader);
+
+      if (save.second.mesh != cmpSave->second.mesh)
+        Build_ModelSetMesh(stream, modelName, save.second.mesh);
     }
 
-    for (auto& propP : properties) {
-      auto& p = propP.second;
-      if (propertiesCmp != nullptr) {
-        auto propCmp = propertiesCmp->properties.find(propP.first);
-        if (propCmp != propertiesCmp->properties.end() && memcmp(p.prop, propCmp->second.prop, p.typeSize) == 0) {
-          continue;
-        }
-      }
-
-
-      switch (p.type) {
-        case VariableType::UNKNOWN:
-          continue;
-        case VariableType::INT:
-          WriteLine(std::format("tmpInt = {:};", *(int*)p.prop));
-          WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpInt, VariableType::INT);", p.name));
-          break;
-        case VariableType::FLOAT:
-          WriteLine(std::format("tmpFloat = {:};", *(float*)p.prop));
-          WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpFloat, VariableType::FLOAT);", p.name));
-          break;
-        case VariableType::MAT4:
-          WriteLine(std::format("tmpMat = {:c};", *(MatrixWrapper*)p.prop));
-          WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpMat, VariableType::MAT4);", p.name));
-          break;
-        case VariableType::VECTOR2:
-          WriteLine(std::format("tmpVec2 = {:};", *(Vector2*)p.prop));
-          WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpVec2, VariableType::VECTOR2);", p.name));
-          break;
-        case VariableType::VECTOR3:
-          WriteLine(std::format("tmpVec3 = {:};", *(Vector3*)p.prop));
-          WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpVec3, VariableType::VECTOR3);", p.name));
-          break;
-        case VariableType::VECTOR4:
-          WriteLine(std::format("tmpVec4 = {:};", *(Vector4*)p.prop));
-          WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpVec4, VariableType::VECTOR4);", p.name));
-          break;
-      }
-    }
-
-    WriteLine("}");
+    Build_ModelEnd(stream, save);
   }
+
+
+  for (auto& delObj : compare.objectSaves) {
+    if (objectSaves.contains(delObj.first)) continue;
+    Build_ObjectDelete(stream, delObj);
+  }
+  
+  for (auto& save : objectSaves) {
+    std::string objectName = std::format("object_{:}", save.first);
+    auto cmpSave = compare.objectSaves.find(save.first);
+
+    Build_ObjectHeader(stream, objectName, save);
+    Build_Object(stream, objectName, save, cmpSave == compare.objectSaves.end() ? nullptr : &*cmpSave);
+    Build_ObjectEnd(stream, save);
+  }
+
+
+  for (auto& save : cameraSaves) {
+    std::string cameraName = std::format("camera_{:}", save.first);
+    auto cmpSave = compare.cameraSaves.find(save.first);
+
+    Build_CameraHeader(stream, cameraName, save);
+    Build_Camera(stream, cameraName, save, cmpSave == compare.cameraSaves.end() ? nullptr : &*cmpSave);
+    Build_CameraEnd(stream, save);
+  }
+
+
+
 
   WriteLine("return 0;\n}");
 
@@ -551,6 +595,232 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
 
 
 namespace {
+
+void Build_CameraHeader(std::ostream& stream, std::string const& cameraName, std::pair<size_t, CameraSaveData> const& save) {
+  WriteLine(std::format("// Camera {:}", save.second.objectInfo.name));
+  WriteLine("// --------------------------------------------------");
+  WriteLine(std::format("Camera* {:} = GetCamera({:?});", cameraName, save.second.objectInfo.name));
+  WriteLine(std::format("if ({:}) {{", cameraName));
+}
+
+
+void Build_Camera(std::ostream& stream, std::string const& cameraName, std::pair<size_t, CameraSaveData> const& save, std::pair<const size_t, CameraSaveData> const* cmpSave) {
+  if (!cmpSave) {
+    WriteLine(std::format("{:}->angleBased = {:};", cameraName, save.second.angleBased));
+    WriteLine(std::format("{:}->fov = {:};", cameraName, save.second.fov));
+    WriteLine(std::format("{:}->aspect = {:};", cameraName, save.second.aspect));
+    WriteLine(std::format("{:}->near = {:};", cameraName, save.second.near));
+    WriteLine(std::format("{:}->far = {:};", cameraName, save.second.far));
+    WriteLine(std::format("{:}->perspective = {:};", cameraName, save.second.perspective));
+
+    std::string objectName = std::format("object_{:}", save.first);
+    WriteLine(std::format("Object* {:} = (Object*){:}", objectName, cameraName));
+    std::pair<size_t, ObjectSaveData> build = {save.first, save.second.objectInfo};
+    Build_Object(stream, objectName, build, nullptr);
+  }
+}
+
+
+void Build_CameraEnd(std::ostream& stream, std::pair<size_t, CameraSaveData> const& save) {
+  WriteLine("}");
+  WriteLine("// --------------------------------------------------");
+  WriteLine(std::format("// Camera {:}", save.second.objectInfo.name));
+}
+
+
+
+
+
+void Build_ObjectDelete(std::ostream& stream, std::pair<size_t, ObjectSaveData> const& save) {
+  WriteLine(std::format("DeleteObject({:?});", save.second.name));
+}
+
+
+void Build_ObjectHeader(std::ostream& stream, std::string const& objectName, std::pair<size_t, ObjectSaveData> const& save) {
+  WriteLine(std::format("// Object {:}", save.second.name));
+  WriteLine("// --------------------------------------------------");
+  if (save.second.runtime) {
+    WriteLine(std::format("Object* {:} = RegisterObject({:?});", objectName, save.second.name));
+  } else {
+    WriteLine(std::format("Object* {:} = GetObject({:?});", objectName, save.second.name));
+  }
+  WriteLine(std::format("if ({:}) {{", objectName));
+}
+
+
+void Build_ObjectSetModel(std::ostream& stream, std::string const& objectName, std::string const& modelName) {
+  WriteLine(std::format("Object_SetModel({:}, GetModel({:?}));", objectName, modelName));
+}
+
+
+void Build_Object(std::ostream& stream, std::string const& objectName, std::pair<size_t, ObjectSaveData> const& save, std::pair<const size_t, ObjectSaveData> const* cmpSave) {
+  if (cmpSave == nullptr || memcmp(&save.second.transform, &cmpSave->second.transform, sizeof(Transform) == 0)) {
+    WriteLine(std::format("{:}->transform = {:c};", objectName, save.second.transform));
+  }
+
+  if (cmpSave == nullptr || save.second.model != cmpSave->second.model) {
+    Build_ObjectSetModel(stream, objectName, save.second.model);
+  }
+
+  if (cmpSave != nullptr) {
+    for (std::string const& script : save.second.scripts) {
+      if (save.second.scripts.contains(script)) continue;
+
+      WriteLine(std::format("Object_RemoveScript({:}, {:?});", objectName, script));
+    }
+  }
+
+  for (std::string const& script : save.second.scripts) {
+    if (cmpSave == nullptr || !cmpSave->second.scripts.contains(script)) {
+      WriteLine(std::format("Object_AddScript({:}, {:?});", objectName, script));
+    }
+  }
+}
+
+
+void Build_ObjectEnd(std::ostream& stream, std::pair<size_t, ObjectSaveData> const& save) {
+  WriteLine("}");
+  WriteLine("// --------------------------------------------------");
+  WriteLine(std::format("// Object {:}", save.second.name));
+}
+
+
+
+
+void Build_ModelHeader(std::ostream& stream, std::string const& modelName, std::pair<size_t, ModelSaveData> const& save) {
+  WriteLine(std::format("// Model {:}", save.second.name));
+  WriteLine("// --------------------------------------------------");
+  WriteLine(std::format("Model* {:} = GetModel({:?});", modelName, save.second.name));
+  WriteLine(std::format("if ({:}) {{", modelName));
+}
+
+
+void Build_ModelEnd(std::ostream& stream, std::pair<size_t, ModelSaveData> const& save) {
+  WriteLine("}");
+  WriteLine("// --------------------------------------------------");
+  WriteLine(std::format("// Model {:}", save.second.name));
+}
+
+
+void Build_ModelGetProperties(std::ostream& stream, std::string const& modelName) {
+  WriteLine(std::format("PropertyHolder* prop = Model_GetProperties({:});", modelName));
+}
+
+
+void Build_ModelSetShader(std::ostream& stream, std::string const& modelName, std::string const& shaderName) {
+  WriteLine(std::format("Model_SetShader({:}, GetShader({:}));", modelName, shaderName));
+}
+
+
+void Build_ModelSetMesh(std::ostream& stream, std::string const& modelName, std::string const& meshName) {
+  WriteLine(std::format("Model_SetMesh({:}, GetMesh({:}));", modelName, meshName));
+}
+
+
+
+
+
+void Build_ShaderHeader(std::ostream& stream, std::string const& shaderName, std::pair<size_t, ShaderSaveData> const& save) {
+  WriteLine(std::format("// Shader {:}", save.second.name));
+  WriteLine("// --------------------------------------------------");
+  WriteLine(std::format("Shader* {:} = GetShader({:?});", shaderName, save.second.name));
+  WriteLine(std::format("if ({:}) {{", shaderName));
+}
+
+
+void Build_ShaderEnd(std::ostream& stream, std::pair<size_t, ShaderSaveData> const& save) {
+  WriteLine("}");
+  WriteLine("// --------------------------------------------------");
+  WriteLine(std::format("// Shader {:}\n", save.second.name));
+}
+
+
+void Build_ShaderGetProperties(std::ostream& stream, std::string const& shaderName) {
+  WriteLine(std::format("PropertyHolder* prop = Shader_GetProperties({:});", shaderName));
+}
+
+
+
+
+
+void Build_PropertiesHeader(std::ostream& stream) {
+  WriteLine("// Properties");
+  WriteLine("// --------------------------------------------------");
+}
+
+
+void Build_Properties(std::ostream& stream, PropertyHolder const& properties, PropertyHolder const* propertiesCmp, void (*getFunc)(std::ostream& stream, std::string const& name), std::string const& name) {
+  assert(getFunc != nullptr);
+  bool didSomething = false;
+
+  if (propertiesCmp != nullptr) {
+    for (auto const& cmpPropP : propertiesCmp->properties) {
+      if (properties.properties.contains(cmpPropP.first)) continue;
+
+      if (!didSomething) {
+        didSomething = true;
+        Build_PropertiesHeader(stream);
+        getFunc(stream, name);
+      }
+
+      WriteLine(std::format("PropertyHolder_DeleteProperty(prop, {:?});", cmpPropP.second.name));
+    }
+  }
+
+  for (auto const& propP : properties.properties) {
+
+    auto& p = propP.second;
+
+    if (propertiesCmp != nullptr) {
+      auto propCmp = propertiesCmp->properties.find(propP.first);
+      if (propCmp != propertiesCmp->properties.end() && memcmp(p.prop, propCmp->second.prop, p.typeSize) == 0) {
+        continue;
+      }
+    }
+
+    if (!didSomething) {
+      didSomething = true;
+      Build_PropertiesHeader(stream);
+      getFunc(stream, name);
+    }
+
+    switch (p.type) {
+      case VariableType::UNKNOWN:
+        continue;
+      case VariableType::INT:
+        WriteLine(std::format("tmpInt = {:};", *(int*)p.prop));
+        WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpInt, VariableType::INT);", p.name));
+        break;
+      case VariableType::FLOAT:
+        WriteLine(std::format("tmpFloat = {:};", *(float*)p.prop));
+        WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpFloat, VariableType::FLOAT);", p.name));
+        break;
+      case VariableType::MAT4:
+        WriteLine(std::format("tmpMat = {:c};", *(MatrixWrapper*)p.prop));
+        WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpMat, VariableType::MAT4);", p.name));
+        break;
+      case VariableType::VECTOR2:
+        WriteLine(std::format("tmpVec2 = {:};", *(Vector2*)p.prop));
+        WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpVec2, VariableType::VECTOR2);", p.name));
+        break;
+      case VariableType::VECTOR3:
+        WriteLine(std::format("tmpVec3 = {:};", *(Vector3*)p.prop));
+        WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpVec3, VariableType::VECTOR3);", p.name));
+        break;
+      case VariableType::VECTOR4:
+        WriteLine(std::format("tmpVec4 = {:};", *(Vector4*)p.prop));
+        WriteLine(std::format("PropertyHolder_SetOrAddProperty(prop, {:?}, &tmpVec4, VariableType::VECTOR4);", p.name));
+        break;
+    }
+  }
+  WriteLine("// --------------------------------------------------");
+  WriteLine("// Properties\n");
+}
+
+
+
+
+
 
 
 // My interpretation of the std::string template for ifstream formatted extract but with 0 as the delimiter
@@ -582,7 +852,7 @@ void CopyObject(Object* obj, ObjectSaveData& data) {
   for (auto& scriptP : e->scripts) {
     auto& script = scriptP.second;
 
-    data.scripts.push_back(script.name);
+    data.scripts.insert(script.name);
   }
 }
 

@@ -70,7 +70,7 @@ namespace pumpkin {
 struct TempScript : Script {
   double totalTime = 0;
 
-  void Update(Object* obj, double deltaTime) override {
+  void Update(Object* obj, double deltaTime, double totalTime) override {
     totalTime += deltaTime;
     obj->transform.position.y = sin(totalTime);
   }
@@ -79,7 +79,7 @@ ScriptAllocateFunction(TempScript);
 
 
 
-StartReturn Init(StartSettings const& start) {
+StartReturn Init(StartSettings const& start, int argv, char** argc, void (*devLoad)()) {
 
 #ifdef PUMPKIN_ROLL_DEV
   _CrtMemCheckpoint(&crtMemState);
@@ -168,6 +168,11 @@ StartReturn Init(StartSettings const& start) {
 
   // END OF FAILURE ZONE
 
+
+  if (argv > 1 && strlen(argc[1]) >= 2 && strcmp(argc[1], "-d") == 0) {
+    if (devLoad) devLoad();
+    //prtodo load dev functions
+  }
 
 
 
@@ -306,6 +311,7 @@ void Update() {
   // Loop until the main window is closed
   while (!pumpkinData->primaryWindow->ShouldClose()) {
     pumpkinData->deltaTime = singleton.GetDeltaTime();
+    pumpkinData->totalTime = singleton.GetTotalTime();
 
     glfwPollEvents();
 
@@ -323,7 +329,7 @@ void Update() {
 
       for (auto& obj : pumpkinData->registeredObjects) {
         for (auto& script : pObjInt(obj.second)->external->scripts) {
-          script.second.script->Update(obj.second, pumpkinData->deltaTime);
+          script.second.script->Update(obj.second, pumpkinData->deltaTime, pumpkinData->totalTime);
         }
       }
 
@@ -517,6 +523,11 @@ char const* Object_GetName(Object const* object) {
 bool Object_SetModel(Object* object, Model* model) {
   pNullCheck(object, false);
   pNullCheck(model, false);
+
+  #ifndef PUMPKIN_ROLL_DEV
+  if (object->developmentObject) return false;
+  #endif
+
 
   pObjDefInt(object, i);
 

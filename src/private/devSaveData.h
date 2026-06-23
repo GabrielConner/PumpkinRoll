@@ -5,6 +5,7 @@
 #include "private/types.h"
 #include "private/pumpkinRoll.h"
 #include "private/propertyHolder.h"
+#include <set>
 #include <unordered_map>
 #include <string>
 
@@ -28,7 +29,7 @@ struct ObjectSaveData {
   ::pumpkin::Transform transform;
   std::string name;
   std::string model;
-  std::vector<std::string> scripts = std::vector<std::string>();
+  std::set<std::string> scripts = std::set<std::string>();
   bool runtime;
 };
 
@@ -50,14 +51,14 @@ struct SaveData {
 
   std::unordered_map<size_t, ShaderSaveData> shaderSaves = std::unordered_map<size_t, ShaderSaveData>();
   std::unordered_map<size_t, ModelSaveData> modelSaves = std::unordered_map<size_t, ModelSaveData>();
-  std::unordered_map<size_t, CameraSaveData> cameraSaves = std::unordered_map<size_t, CameraSaveData>();
   std::unordered_map<size_t, ObjectSaveData> objectSaves = std::unordered_map<size_t, ObjectSaveData>();
+  std::unordered_map<size_t, CameraSaveData> cameraSaves = std::unordered_map<size_t, CameraSaveData>();
 
   std::string primaryCamera;
 
 
-  void Pull(Pumpkin* pumpkin, std::unordered_map<size_t, ::pumpkin::Object*> runtimeObjects);
-  void Push(Pumpkin* pumpkin);
+  void Pull(Pumpkin* pumpkin, std::unordered_map<size_t, ::pumpkin::Object*> const& runtimeObjects);
+  void Push(Pumpkin* pumpkin, std::unordered_map<size_t, ::pumpkin::Object*>& runtimeObjects);
 
   // Saves the current pulled data, make sure to pull right before save to get latest
   void Save(std::string const& name, std::string const& defaultPrimaryCamera);
