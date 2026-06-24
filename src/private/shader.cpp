@@ -29,7 +29,7 @@ void Shader::RenderAll() {
   }
 
   // Get camera
-  Camera* camera = GetPrimaryCamera();
+  Camera* camera = Pumpkin_GetPrimaryCamera();
   assert(camera);
 
   // Apply projection

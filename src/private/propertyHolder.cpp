@@ -183,7 +183,6 @@ namespace pumpkin_private {
 
 size_t SizeOfType(VariableType const& type) {
   switch (type) {
-    case VariableType::UNKNOWN:
       return 0;
     case VariableType::INT:
       return sizeof(int);
@@ -197,6 +196,9 @@ size_t SizeOfType(VariableType const& type) {
       return sizeof(::pPack::Vector3);
     case VariableType::VECTOR4:
       return sizeof(::pPack::Vector4);
+    case VariableType::UNKNOWN:
+    default:
+      return 0;
   }
 }
 

@@ -1,3 +1,5 @@
+#ifdef PUMPKIN_ROLL_DEV
+
 #include "private/devSaveData.h"
 #include "private/propertyHolder.h"
 #include "private/model.h"
@@ -166,7 +168,7 @@ void SaveData::Pull(Pumpkin* pumpkin, std::unordered_map<size_t, Object*> const&
 
     cameraSaves.insert({_STRING_HASHER(save.objectInfo.name), save});
   }
-  Camera* pCam = GetPrimaryCamera();
+  Camera* pCam = Pumpkin_GetPrimaryCamera();
   if (pCam) {
     primaryCamera = pObjInt(pCam)->name;
   } else {
@@ -198,12 +200,12 @@ void SaveData::Pull(Pumpkin* pumpkin, std::unordered_map<size_t, Object*> const&
 void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runtimeObjects) {
   assert(pumpkin);
 
-  SetPrimaryCamera(nullptr);
+  Pumpkin_SetPrimaryCamera(nullptr);
 
   for (int i = 0; i < pumpkin->registeredObjects.size(); i++) {
     auto ref = std::next(pumpkin->registeredObjects.begin(), i);
     if (runtimeObjects.contains(_STRING_HASHER(pObjInt(ref->second)->name)) || dynamic_cast<Camera*>(ref->second)) {
-      ::pumpkin::DeleteObject(pObjInt(ref->second)->name);
+      ::pumpkin::Pumpkin_DeleteObject(pObjInt(ref->second)->name);
       i--;
       continue;
     }
@@ -214,7 +216,7 @@ void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runti
   for (auto& saveP : shaderSaves) {
     auto& save = saveP.second;
 
-    Shader* shader = GetShader(save.name);
+    Shader* shader = Pumpkin_GetShader(save.name);
     if (!shader) {
       continue;
     }
@@ -228,21 +230,21 @@ void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runti
   for (auto& saveP : modelSaves) {
     auto& save = saveP.second;
 
-    Model* model = GetModel(save.name);
+    Model* model = Pumpkin_GetModel(save.name);
     if (!model) {
       continue;
     }
 
     CopyPropertyHolder(save.properties, model->properties);
-    Model_SetShader(model, GetShader(save.shader));
-    Model_SetMesh(model, GetMesh(save.mesh));
+    Model_SetShader(model, Pumpkin_GetShader(save.shader));
+    Model_SetMesh(model, Pumpkin_GetMesh(save.mesh));
   }
 
 
   for (auto& saveP : cameraSaves) {
     auto& save = saveP.second;
 
-    auto camera = RegisterCamera(save.objectInfo.name);
+    auto camera = Pumpkin_RegisterCamera(save.objectInfo.name);
     if (!camera) {
       continue;
     }
@@ -259,7 +261,7 @@ void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runti
     }
     camera->transform = save.objectInfo.transform;
   }
-  SetPrimaryCamera(GetCamera(primaryCamera));
+  Pumpkin_SetPrimaryCamera(Pumpkin_GetCamera(primaryCamera));
 
 
 
@@ -268,16 +270,16 @@ void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runti
 
     Object* object = nullptr;
     if (save.runtime) {
-      object = RegisterObject(save.name);
+      object = Pumpkin_RegisterObject(save.name);
     } else {
-      object = GetObject(save.name);
+      object = Pumpkin_GetObject(save.name);
       if (object)
         ClearScripts(object);
     }
     if (!object) continue;
 
     if ((!pObjInt(object)->model && save.model.size() != 0) || (pObjInt(object)->model && pObjInt(object)->model->name != save.model)) {
-      Object_SetModel(object, GetModel(save.model));
+      Object_SetModel(object, Pumpkin_GetModel(save.model));
     }
 
     ClearScripts(object);
@@ -465,6 +467,8 @@ bool SaveData::Load(std::string const& name) {
 
   primaryCamera = ReadString(stream); // Primary camera
   stream.close();
+
+  return true;
 }
 
 
@@ -942,3 +946,5 @@ void CopyPropertyHolder(PropertyHolder& from, PropertyHolder& to) {
 
 
 }; // namespace
+
+#endif

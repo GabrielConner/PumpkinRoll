@@ -538,7 +538,7 @@ void UpdateDevelopment() {
   }
 
 
-  data->inDevCamera = GetPrimaryCamera() == &data->devCamera;
+  data->inDevCamera = Pumpkin_GetPrimaryCamera() == &data->devCamera;
   UpdateCamera(&data->devCamera);
 
   // Development camera moving
@@ -782,7 +782,7 @@ void EndProgram() {
 namespace pumpkin {
 
 // Redirect errors to list so they can display correctly
-void PrintError(PrintLevel level, char const* file, char const* msg) {
+void Pumpkin_PrintError(PrintLevel level, char const* file, char const* msg) {
   assert(data);
 
   if (!data->pumpkin->running) {
@@ -837,7 +837,7 @@ void MainMenu::Prompt(int i, std::string const& line) {
       data->SetAsk(&data->selectShader);
       break;
     case 5: // Primary camera view
-      SetPrimaryCamera(&data->devCamera);
+      Pumpkin_SetPrimaryCamera(&data->devCamera);
       break;
     case 6: // Build
       data->SetAsk(&data->buildPumpkin);
@@ -991,7 +991,7 @@ void CreateObject::Prompt(int i, std::string const& line) {
     }
     
 
-    Object* render = RegisterObject(line);
+    Object* render = Pumpkin_RegisterObject(line);
     if (!render) {
       AddError((std::string("Failed to create ") + line).c_str());
       data->updateAsk = true;
@@ -1078,7 +1078,7 @@ void HoldObject::Prompt(int i, std::string const& line) {
 
   switch (i) {
     case 0: // Delete object
-      ::pumpkin::DeleteObject(pObjInt(data->holdingObject)->name);
+      ::pumpkin::Pumpkin_DeleteObject(pObjInt(data->holdingObject)->name);
       data->holdingObject = nullptr;
       data->SetAsk(&data->mainMenu);
       break;
@@ -1233,7 +1233,7 @@ void SelectObject::Prompt(int i, std::string const& line) {
     }
 
 
-    data->selectedObject = GetObject(str);
+    data->selectedObject = Pumpkin_GetObject(str);
     if (data->selectedObject == nullptr) {
       AddError("No object selected");
     }
@@ -1290,7 +1290,7 @@ void SelectModel::Prompt(int i, std::string const& line) {
       return;
     }
 
-    data->selectedModel = GetModel(str);
+    data->selectedModel = Pumpkin_GetModel(str);
     if (data->selectedModel == nullptr) {
       AddError("No model selected");
     }
@@ -1347,7 +1347,7 @@ void SelectMesh::Prompt(int i, std::string const& line) {
       return;
     }
 
-    data->selectedMesh = GetMesh(str);
+    data->selectedMesh = Pumpkin_GetMesh(str);
     if (data->selectedMesh == nullptr) {
       AddError("No mesh selected");
     }
@@ -1404,7 +1404,7 @@ void SelectShader::Prompt(int i, std::string const& line) {
       return;
     }
 
-    data->selectedShader = GetShader(str);
+    data->selectedShader = Pumpkin_GetShader(str);
     if (data->selectedShader == nullptr) {
       AddError("No shader selected");
     }
@@ -1780,7 +1780,7 @@ void ReloadShaders::Prompt(int i, std::string const& line) {
       return;
     }
 
-    Shader* shader = GetShader(str);
+    Shader* shader = Pumpkin_GetShader(str);
     if (!shader) {
       AddError("Not a valid shader");
       return;

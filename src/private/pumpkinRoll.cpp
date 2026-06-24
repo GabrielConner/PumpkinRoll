@@ -79,7 +79,7 @@ ScriptAllocateFunction(TempScript);
 
 
 
-StartReturn Init(StartSettings const& start, int argv, char** argc, void (*devLoad)()) {
+StartReturn Pumpkin_Init(StartSettings const& start, int argv, char** argc, void (*devLoad)()) {
 
 #ifdef PUMPKIN_ROLL_DEV
   _CrtMemCheckpoint(&crtMemState);
@@ -87,7 +87,7 @@ StartReturn Init(StartSettings const& start, int argv, char** argc, void (*devLo
 
 
   // START OF FAILURE ZONE
-  // where calling End would cause more errors
+  // where calling Pumpkin_End would cause more errors
 
 
   // Can be start/stopped
@@ -169,11 +169,8 @@ StartReturn Init(StartSettings const& start, int argv, char** argc, void (*devLo
   // END OF FAILURE ZONE
 
 
-  if (argv > 1 && strlen(argc[1]) >= 2 && strcmp(argc[1], "-d") == 0) {
+  if (argv > 1 && strcmp(argc[1], "-d") == 0) {
     if (devLoad) devLoad();
-    //prtodo load dev functions
-  } else {
-    // prtodo normal load things
   }
 
 
@@ -182,12 +179,12 @@ StartReturn Init(StartSettings const& start, int argv, char** argc, void (*devLo
   // Register and create defaults
 
   // Camera
-  Camera* camera = RegisterCamera("PumpkinRoll__DefaultCamera");
+  Camera* camera = Pumpkin_RegisterCamera("PumpkinRoll__DefaultCamera");
   if (!camera) {
     pError("Failed to create default camera");
     return StartReturn::ERROR;
   }
-  if (!SetPrimaryCamera(camera)) {
+  if (!Pumpkin_SetPrimaryCamera(camera)) {
     pError("Failed to set primary camera");
     return StartReturn::ERROR;
   }
@@ -200,7 +197,7 @@ StartReturn Init(StartSettings const& start, int argv, char** argc, void (*devLo
 
   ShaderInfo shaderCreateInfos[] = {ShaderInfo({vertLocs}, 1, GL_VERTEX_SHADER), ShaderInfo({fragLocs}, 1, GL_FRAGMENT_SHADER)};
 
-  Shader* shader = RegisterShader("PumpkinRoll__DefaultShader", shaderCreateInfos, sizeof(shaderCreateInfos) / sizeof(ShaderInfo));
+  Shader* shader = Pumpkin_RegisterShader("PumpkinRoll__DefaultShader", shaderCreateInfos, sizeof(shaderCreateInfos) / sizeof(ShaderInfo));
   if (!shader) {
     pError("Failed to create default shader");
     return StartReturn::ERROR;
@@ -213,7 +210,7 @@ StartReturn Init(StartSettings const& start, int argv, char** argc, void (*devLo
     FormatStartInfo{.size = 4},
   };
 
-  GLuint format = RegisterFormat("PumpkinRoll__DefaultFormat", formatCreateInfos, 2, true);
+  GLuint format = Pumpkin_RegisterFormat("PumpkinRoll__DefaultFormat", formatCreateInfos, 2, true);
   if (!format) {
     pError("Failed to create default format");
     return StartReturn::ERROR;
@@ -232,7 +229,7 @@ StartReturn Init(StartSettings const& start, int argv, char** argc, void (*devLo
     1.0f, 0.0f, -1.0f,        1.0f, 0.0f, 1.0f, 1.0f
   };
 
-  Mesh* mesh = RegisterMesh("PumpkinRoll__PlaneMesh", planeVerts, 7 * sizeof(float), 6, false, format);
+  Mesh* mesh = Pumpkin_RegisterMesh("PumpkinRoll__PlaneMesh", planeVerts, 7 * sizeof(float), 6, false, format);
   if (!mesh) {
     pError("Failed to create default mesh");
     return StartReturn::ERROR;
@@ -248,7 +245,7 @@ StartReturn Init(StartSettings const& start, int argv, char** argc, void (*devLo
     0.f, 0.0f, -1.0f,         0.0f, 0.0f, 1.0f, 1.0f,
   };
 
-  if (!RegisterMesh("PumpkinRoll__TriangleMesh", triVerts, 7 * sizeof(float), 3, false, format)) {
+  if (!Pumpkin_RegisterMesh("PumpkinRoll__TriangleMesh", triVerts, 7 * sizeof(float), 3, false, format)) {
     pError("Failed to create triangle mesh");
     return StartReturn::ERROR;
   }
@@ -258,7 +255,7 @@ StartReturn Init(StartSettings const& start, int argv, char** argc, void (*devLo
 
 
   // Model
-  Model* model = RegisterModel("PumpkinRoll_PlaneModel");
+  Model* model = Pumpkin_RegisterModel("PumpkinRoll_PlaneModel");
   if (!model) {
     pError("Failed to create default model");
     return StartReturn::ERROR;
@@ -279,7 +276,7 @@ StartReturn Init(StartSettings const& start, int argv, char** argc, void (*devLo
 
 
   // Object
-  Object* render = RegisterObject("TestObj");
+  Object* render = Pumpkin_RegisterObject("TestObj");
   if (!render) {
     pError("Failed to create TestObj");
     return StartReturn::ERROR;
@@ -288,7 +285,7 @@ StartReturn Init(StartSettings const& start, int argv, char** argc, void (*devLo
   render->transform.rotation.x = 45;
 
 
-  ApplyStaticBuffer();
+  Pumpkin_ApplyStaticBuffer();
 
 
 
@@ -301,14 +298,16 @@ StartReturn Init(StartSettings const& start, int argv, char** argc, void (*devLo
 
 
 
-void Update() {
+void Pumpkin_Update() {
   pPumpkinCheck();
 
   auto& runtime = pumpkinData->runtime;
 
   Timer& singleton = Timer::GetSingleton();
 
+#ifdef PUMPKIN_ROLL_DEV
   DevelopmentLogAfterStart();
+#endif
 
   // Loop until the main window is closed
   while (!pumpkinData->primaryWindow->ShouldClose()) {
@@ -364,7 +363,7 @@ void Update() {
 
 
 
-void End() {
+void Pumpkin_End() {
   pPumpkinCheck();
 
   // Delete all registered items
@@ -421,14 +420,14 @@ void End() {
 
 
 
-RuntimeSettings* GetRuntime() {
+RuntimeSettings* Pumpkin_GetRuntime() {
   pPumpkinCheck(nullptr);
   return &pumpkinData->runtime;
 }
 
 
 
-std::string ExecutableLocation() {
+std::string Pumpkin_ExecutableLocation() {
   pPumpkinCheck("");
   return pumpkinData->exePath;
 }
@@ -436,18 +435,23 @@ std::string ExecutableLocation() {
 
 
 #ifndef PUMPKIN_ROLL_DEV
-void PrintError(PrintLevel level, char const* file, char const* msg) {
+void Pumpkin_PrintError(PrintLevel level, char const* file, char const* msg) {
   if (pumpkinData != nullptr && (level == PrintLevel::NOPRINT || pumpkinData->runtime.printLevel > level)) return;
   std::cerr << msg << '\n' << file << "\n\n";
 }
 #endif
 
 
-double DeltaTime() {
+double Pumpkin_DeltaTime() {
   pPumpkinCheck(0);
   return pumpkinData->deltaTime;
 }
 
+
+double Pumpkin_TotalTime() {
+  pPumpkinCheck(0);
+  return pumpkinData->totalTime;
+}
 
 
 
@@ -456,7 +460,7 @@ double DeltaTime() {
 // --------------------------------------------------
 // --------------------------------------------------
 
-Object* RegisterObject(std::string const& name) {
+Object* Pumpkin_RegisterObject(std::string const& name) {
   pPumpkinCheck(nullptr);
 
   if (name.size() == 0) {
@@ -486,7 +490,7 @@ Object* RegisterObject(std::string const& name) {
 
 
 
-Object* GetObject(std::string const& name) {
+Object* Pumpkin_GetObject(std::string const& name) {
   pPumpkinCheck(nullptr);
 
   auto ret = pumpkinData->registeredObjects.find(_STRING_HASHER(name));
@@ -495,7 +499,7 @@ Object* GetObject(std::string const& name) {
 
 
 
-bool DeleteObject(std::string const& name) {
+bool Pumpkin_DeleteObject(std::string const& name) {
   pPumpkinCheck(false);
 
   auto ret = pumpkinData->registeredObjects.find(_STRING_HASHER(name));
@@ -550,7 +554,7 @@ bool Object_SetModel(Object* object, Model* model) {
 bool Object_AddScript(Object* object, std::string const& name) {
   pNullCheck(object, false);
 
-  Script* script = CreateScript(name);
+  Script* script = Pumpkin_CreateScript(name);
   if (script == nullptr) {
     pWarn("Failed to add script with name to object");
     return false;
@@ -648,7 +652,7 @@ void Transform_GenerateModel(Transform transform, MatrixWrapper& store) {
 // --------------------------------------------------
 // --------------------------------------------------
 
-Camera* RegisterCamera(std::string const& name) {
+Camera* Pumpkin_RegisterCamera(std::string const& name) {
   pPumpkinCheck(nullptr);
 
   if (name.size() == 0) {
@@ -686,7 +690,7 @@ Camera* RegisterCamera(std::string const& name) {
 
 
 
-Camera* GetCamera(std::string const& name) {
+Camera* Pumpkin_GetCamera(std::string const& name) {
   pPumpkinCheck(nullptr);
 
   auto ret = pumpkinData->registeredCameras.find(_STRING_HASHER(name));
@@ -695,7 +699,7 @@ Camera* GetCamera(std::string const& name) {
 
 
 
-bool SetPrimaryCamera(Camera* camera) {
+bool Pumpkin_SetPrimaryCamera(Camera* camera) {
   pPumpkinCheck(false);
 
   pumpkinData->primaryCamera = camera;
@@ -704,7 +708,7 @@ bool SetPrimaryCamera(Camera* camera) {
 
 
 
-Camera* GetPrimaryCamera() {
+Camera* Pumpkin_GetPrimaryCamera() {
   pPumpkinCheck(nullptr);
 
   return pumpkinData->primaryCamera;
@@ -815,7 +819,7 @@ void Mesh::Setup() {
 
 
 
-Mesh* RegisterMesh(std::string const& name, void* vertices, size_t size, size_t count, bool dynamic, GLuint format) {
+Mesh* Pumpkin_RegisterMesh(std::string const& name, void* vertices, size_t size, size_t count, bool dynamic, GLuint format) {
   pPumpkinCheck(nullptr);
 
 #ifdef PUMPKIN_ROLL_DEV
@@ -893,7 +897,7 @@ Mesh* RegisterMesh(std::string const& name, void* vertices, size_t size, size_t 
 
 
 
-Mesh* GetMesh(std::string const& name) {
+Mesh* Pumpkin_GetMesh(std::string const& name) {
   pPumpkinCheck(nullptr);
 
   auto ret = pumpkinData->registeredMeshes.find(_STRING_HASHER(name));
@@ -902,7 +906,7 @@ Mesh* GetMesh(std::string const& name) {
 
 
 
-GLuint RegisterFormat(std::string const& name, FormatStartInfo const* const formatStartInfo, GLuint count, bool autoOffset) {
+GLuint Pumpkin_RegisterFormat(std::string const& name, FormatStartInfo const* const formatStartInfo, GLuint count, bool autoOffset) {
   pPumpkinCheck(0);
 
 #ifdef PUMPKIN_ROLL_DEV
@@ -968,7 +972,7 @@ GLuint RegisterFormat(std::string const& name, FormatStartInfo const* const form
 
 
 
-GLuint GetFormat(std::string const& name) {
+GLuint Pumpkin_GetFormat(std::string const& name) {
   pPumpkinCheck(0);
 
   auto ret = pumpkinData->registeredFormats.find(_STRING_HASHER(name));
@@ -978,7 +982,7 @@ GLuint GetFormat(std::string const& name) {
 
 
 
-void ApplyStaticBuffer() {
+void Pumpkin_ApplyStaticBuffer() {
   pPumpkinCheck();
 
   std::vector<Mesh*> staticMeshes = std::vector<Mesh*>();
@@ -1029,7 +1033,7 @@ void ApplyStaticBuffer() {
 // --------------------------------------------------
 // --------------------------------------------------
 
-Model* RegisterModel(std::string const& name) {
+Model* Pumpkin_RegisterModel(std::string const& name) {
   pPumpkinCheck(nullptr);
 
 #ifdef PUMPKIN_ROLL_DEV
@@ -1058,7 +1062,7 @@ Model* RegisterModel(std::string const& name) {
 
 
 
-Model* GetModel(std::string const& name) {
+Model* Pumpkin_GetModel(std::string const& name) {
   pPumpkinCheck(nullptr);
 
   auto ret = pumpkinData->registeredModels.find(_STRING_HASHER(name));
@@ -1110,7 +1114,7 @@ PropertyHolder* Model_GetProperties(Model* model) {
 // --------------------------------------------------
 // --------------------------------------------------
 
-Shader* RegisterShader(std::string const& name, ShaderInfo* startInfos, int count) {
+Shader* Pumpkin_RegisterShader(std::string const& name, ShaderInfo* startInfos, int count) {
   pPumpkinCheck(nullptr);
 
 #ifdef PUMPKIN_ROLL_DEV
@@ -1151,7 +1155,7 @@ Shader* RegisterShader(std::string const& name, ShaderInfo* startInfos, int coun
 
 
 
-Shader* GetShader(std::string const& name) {
+Shader* Pumpkin_GetShader(std::string const& name) {
   pPumpkinCheck(nullptr);
 
   auto ret = pumpkinData->registeredShaders.find(_STRING_HASHER(name));
@@ -1178,7 +1182,7 @@ PropertyHolder* Shader_GetProperties(Shader* shader) {
 // --------------------------------------------------
 // --------------------------------------------------
 
-bool RegisterScriptRaw(ScriptAllocateFunction scriptAllocate, std::string const& name, size_t size) {
+bool Pumpkin_RegisterScriptRaw(ScriptAllocateFunction scriptAllocate, std::string const& name, size_t size) {
   pPumpkinCheck(false);
 
 #ifdef PUMPKIN_ROLL_DEV
@@ -1203,7 +1207,7 @@ bool RegisterScriptRaw(ScriptAllocateFunction scriptAllocate, std::string const&
 
 
 
-Script* CreateScript(std::string const& name) {
+Script* Pumpkin_CreateScript(std::string const& name) {
   pPumpkinCheck(nullptr);
   
   auto find = pumpkinData->registeredScripts.find(_STRING_HASHER(name));
@@ -1217,7 +1221,7 @@ Script* CreateScript(std::string const& name) {
 
 
 
-char const* GetScriptName(Script* script) {
+char const* Pumpkin_GetScriptName(Script* script) {
   pNullCheck(script, nullptr);
   return typeid(*script).name();
 }

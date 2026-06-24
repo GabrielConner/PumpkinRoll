@@ -8,15 +8,22 @@
 
 #ifdef PUMPKIN_ROLL_PROD
 #include "private/functions.h"
+#define DLL __declspec(dllexport)
 #else
-#include "pumpkin/functions.h"
+#include "pumpkin/pumpkinLoadingFunctions.h"
+#define DLL __declspec(dllimport)
 #endif
 #include "pumpkin/constants.h"
 #include "pumpkin/types.h"
 
+
 namespace pumpkin {
 
-#define RegisterScript(scriptAllocate, script) RegisterScriptRaw(scriptAllocate, typeid(script).name(), sizeof(script))
+bool Load(int argv, char** argc);
+void End();
+
+
+#define RegisterScript(scriptAllocate, script) Pumpkin_RegisterScriptRaw(scriptAllocate, typeid(script).name(), sizeof(script))
 #define ScriptAllocateFunction(script) Script* Allocate ## script () { return new script ## (); }
 
 #define ScriptName(script) typeid(script).name()
@@ -25,18 +32,18 @@ namespace pumpkin {
 
 #ifndef PUMPKIN_ROLL_VERBOSE_PRINT
 
-#define pDebug(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::DEBUG, "", msg)
-#define pWarn(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::WARNING, "[WARNING] ", msg)
-#define pError(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::ERROR, "[ERROR] ", msg)
+#define pDebug(msg) ::pumpkin::Pumpkin_PrintError(::pumpkin::PrintLevel::DEBUG, "", msg)
+#define pWarn(msg) ::pumpkin::Pumpkin_PrintError(::pumpkin::PrintLevel::WARNING, "[WARNING] ", msg)
+#define pError(msg) ::pumpkin::Pumpkin_PrintError(::pumpkin::PrintLevel::ERROR, "[ERROR] ", msg)
 
 #else
 
 #define STRINGYFY(x) # x
 #define PASTE_AS_STRING(s) STRINGYFY(s)
 
-#define pDebug(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::DEBUG, "", msg)
-#define pWarn(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::WARNING, "[WARNING] " __FILE__ " -- " PASTE_AS_STRING(__LINE__), msg)
-#define pError(msg) ::pumpkin::PrintError(::pumpkin::PrintLevel::ERROR, "[ERROR] " __FILE__ " -- " PASTE_AS_STRING(__LINE__),  msg)
+#define pDebug(msg) ::pumpkin::Pumpkin_PrintError(::pumpkin::PrintLevel::DEBUG, "", msg)
+#define pWarn(msg) ::pumpkin::Pumpkin_PrintError(::pumpkin::PrintLevel::WARNING, "[WARNING] " __FILE__ " -- " PASTE_AS_STRING(__LINE__), msg)
+#define pError(msg) ::pumpkin::Pumpkin_PrintError(::pumpkin::PrintLevel::ERROR, "[ERROR] " __FILE__ " -- " PASTE_AS_STRING(__LINE__),  msg)
 
 #endif
 

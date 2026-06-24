@@ -48,6 +48,8 @@ struct Object;
 typedef void (*ObjectDeleteCallback)(Object*, int id);
 struct Script;
 typedef Script* (*ScriptAllocateFunction)();
+typedef void* (*ProcAddressFunction(const char* name));
+typedef bool (*PumpkinRollLoadFunction)(ProcAddressFunction func);
 
 struct Vertex {
   ::pPack::Vector3 position;

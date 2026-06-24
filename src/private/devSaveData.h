@@ -1,3 +1,5 @@
+#ifdef PUMPKIN_ROLL_DEV
+
 #ifndef PUMPKIN_ROLL_SRC_PRIVATE_DEV_SAVE_DATA_H
 #define PUMPKIN_ROLL_SRC_PRIVATE_DEV_SAVE_DATA_H
 
@@ -70,5 +72,7 @@ struct SaveData {
 };
 
 }; // namespace pumpkin_private
+
+#endif
 
 #endif

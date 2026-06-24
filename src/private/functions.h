@@ -1,40 +1,43 @@
-#ifndef PUMPKIN_ROLL_SRC_PRIVATE_FUNCTIONS_H
-#define PUMPKIN_ROLL_SRC_PRIVATE_FUNCTIONS_H
+#ifndef PUMPKIN_ROLL_SRC_PUMPKIN_FUNCTIONS_H
+#define PUMPKIN_ROLL_SRC_PUMPKIN_FUNCTIONS_H
 
 #include "pumpkin/types.h"
 
 namespace pumpkin {
+extern "C" {
 
+#define API __declspec(dllexport)
 
-StartReturn Init(StartSettings const& start, int argv, char** argc, void (*devLoad)());
-void Update();
-void End();
+API StartReturn Pumpkin_Init(StartSettings const& start, int argv, char** argc, void (*devLoad)());
+API void Pumpkin_Update();
+API void Pumpkin_End();
 
-RuntimeSettings* GetRuntime();
+API RuntimeSettings* Pumpkin_GetRuntime();
 
-std::string ExecutableLocation();
+API std::string Pumpkin_ExecutableLocation();
 
-void PrintError(PrintLevel level, char const* file, char const* msg);
+API void Pumpkin_PrintError(PrintLevel level, char const* file, char const* msg);
 
-double DeltaTime();
+API double Pumpkin_DeltaTime();
+API double Pumpkin_TotalTime();
 
 
 // Object
 // --------------------------------------------------
 // --------------------------------------------------
 
-Object* RegisterObject(std::string const& name);
-Object* GetObject(std::string const& name);
-bool DeleteObject(std::string const& name);
+API Object* Pumpkin_RegisterObject(std::string const& name);
+API Object* Pumpkin_GetObject(std::string const& name);
+API bool Pumpkin_DeleteObject(std::string const& name);
 
-char const* Object_GetName(Object const* object);
-bool Object_SetModel(Object* object, Model* model);
-bool Object_AddScript(Object* object, std::string const& name);
-Script* Object_GetScript(Object* object, std::string const& name);
-bool Object_RemoveScript(Object* object, std::string const& name);
+API char const* Object_GetName(Object const* object);
+API bool Object_SetModel(Object* object, Model* model);
+API bool Object_AddScript(Object* object, std::string const& name);
+API Script* Object_GetScript(Object* object, std::string const& name);
+API bool Object_RemoveScript(Object* object, std::string const& name);
 
-void Object_AddDeleteCallback(Object* object, ObjectDeleteCallback ptrFunc, int id);
-void Object_RemoveDeleteCallback(Object* object, ObjectDeleteCallback ptrFunc, int id);
+API void Object_AddDeleteCallback(Object* object, ObjectDeleteCallback ptrFunc, int id);
+API void Object_RemoveDeleteCallback(Object* object, ObjectDeleteCallback ptrFunc, int id);
 
 // --------------------------------------------------
 // --------------------------------------------------
@@ -46,7 +49,7 @@ void Object_RemoveDeleteCallback(Object* object, ObjectDeleteCallback ptrFunc, i
 // --------------------------------------------------
 // --------------------------------------------------
 
-void Transform_GenerateModel(Transform transform, MatrixWrapper& store);
+API void Transform_GenerateModel(Transform transform, MatrixWrapper& store);
 
 // --------------------------------------------------
 // --------------------------------------------------
@@ -58,23 +61,23 @@ void Transform_GenerateModel(Transform transform, MatrixWrapper& store);
 // --------------------------------------------------
 // --------------------------------------------------
 
-Camera* RegisterCamera(std::string const& name);
-Camera* GetCamera(std::string const& name);
+API Camera* Pumpkin_RegisterCamera(std::string const& name);
+API Camera* Pumpkin_GetCamera(std::string const& name);
 
-bool SetPrimaryCamera(Camera* camera);
-Camera* GetPrimaryCamera();
+API bool Pumpkin_SetPrimaryCamera(Camera* camera);
+API Camera* Pumpkin_GetPrimaryCamera();
 
-void Camera_GenerateView(Camera* camera);
-void Camera_GenerateProjection(Camera* camera);
+API void Camera_GenerateView(Camera* camera);
+API void Camera_GenerateProjection(Camera* camera);
 
-::pPack::Vector3* Camera_Forward(Camera* camera);
-::pPack::Vector3* Camera_Right(Camera* camera);
+API ::pPack::Vector3* Camera_Forward(Camera* camera);
+API ::pPack::Vector3* Camera_Right(Camera* camera);
 
-bool Camera_GetAngleBased(Camera* camera);
-void Camera_AngleBased(Camera* camera, bool b);
+API bool Camera_GetAngleBased(Camera* camera);
+API void Camera_AngleBased(Camera* camera, bool b);
 
-void Camera_LookAtTarget(Camera* camera, ::pPack::Vector3* target);
-::pPack::Vector3* Camera_GetLookAtTarget(Camera* camera);
+API void Camera_LookAtTarget(Camera* camera, ::pPack::Vector3* target);
+API ::pPack::Vector3* Camera_GetLookAtTarget(Camera* camera);
 
 // --------------------------------------------------
 // --------------------------------------------------
@@ -87,13 +90,13 @@ void Camera_LookAtTarget(Camera* camera, ::pPack::Vector3* target);
 // --------------------------------------------------
 // --------------------------------------------------
 
-Mesh* RegisterMesh(std::string const& name, void* vertices, size_t size, size_t count, bool dynamic, GLuint format);
-Mesh* GetMesh(std::string const& name);
+API Mesh* Pumpkin_RegisterMesh(std::string const& name, void* vertices, size_t size, size_t count, bool dynamic, GLuint format);
+API Mesh* Pumpkin_GetMesh(std::string const& name);
 
-GLuint RegisterFormat(std::string const& name, FormatStartInfo const* const formatStartInfo, GLuint count, bool autoOffset);
-GLuint GetFormat(std::string const& name);
+API GLuint Pumpkin_RegisterFormat(std::string const& name, FormatStartInfo const* const formatStartInfo, GLuint count, bool autoOffset);
+API GLuint Pumpkin_GetFormat(std::string const& name);
 
-void ApplyStaticBuffer();
+API void Pumpkin_ApplyStaticBuffer();
 
 // --------------------------------------------------
 // --------------------------------------------------
@@ -105,13 +108,13 @@ void ApplyStaticBuffer();
 // --------------------------------------------------
 // --------------------------------------------------
 
-Model* RegisterModel(std::string const& name);
-Model* GetModel(std::string const& name);
+API Model* Pumpkin_RegisterModel(std::string const& name);
+API Model* Pumpkin_GetModel(std::string const& name);
 
-bool Model_SetShader(Model* model, Shader* shader);
-bool Model_SetMesh(Model* model, Mesh* mesh);
+API bool Model_SetShader(Model* model, Shader* shader);
+API bool Model_SetMesh(Model* model, Mesh* mesh);
 
-PropertyHolder* Model_GetProperties(Model* shader);
+API PropertyHolder* Model_GetProperties(Model* shader);
 
 // --------------------------------------------------
 // --------------------------------------------------
@@ -123,10 +126,10 @@ PropertyHolder* Model_GetProperties(Model* shader);
 // --------------------------------------------------
 // --------------------------------------------------
 
-Shader* RegisterShader(std::string const& name, ShaderInfo* startInfos, int count);
-Shader* GetShader(std::string const& name);
+API Shader* Pumpkin_RegisterShader(std::string const& name, ShaderInfo* startInfos, int count);
+API Shader* Pumpkin_GetShader(std::string const& name);
 
-PropertyHolder* Shader_GetProperties(Shader* shader);
+API PropertyHolder* Shader_GetProperties(Shader* shader);
 
 // --------------------------------------------------
 // --------------------------------------------------
@@ -138,12 +141,12 @@ PropertyHolder* Shader_GetProperties(Shader* shader);
 // --------------------------------------------------
 // --------------------------------------------------
 
-bool PropertyHolder_AddProperty(PropertyHolder* holder, std::string const& name, void* value, VariableType type);
-bool PropertyHolder_SetProperty(PropertyHolder* holder, std::string const& name, void* value);
-bool PropertyHolder_SetOrAddProperty(PropertyHolder* holder, std::string const& name, void* value, VariableType type);
-void PropertyHolder_DeleteProperty(PropertyHolder* holder, std::string const& name);
+API bool PropertyHolder_AddProperty(PropertyHolder* holder, std::string const& name, void* value, VariableType type);
+API bool PropertyHolder_SetProperty(PropertyHolder* holder, std::string const& name, void* value);
+API bool PropertyHolder_SetOrAddProperty(PropertyHolder* holder, std::string const& name, void* value, VariableType type);
+API void PropertyHolder_DeleteProperty(PropertyHolder* holder, std::string const& name);
 
-void* PropertyHolder_GetProperty(PropertyHolder* holder, std::string const& name);
+API void* PropertyHolder_GetProperty(PropertyHolder* holder, std::string const& name);
 
 // --------------------------------------------------
 // --------------------------------------------------
@@ -155,14 +158,15 @@ void* PropertyHolder_GetProperty(PropertyHolder* holder, std::string const& name
 // --------------------------------------------------
 // --------------------------------------------------
 
-bool RegisterScriptRaw(ScriptAllocateFunction scriptAllocate, std::string const& name, size_t size);
-Script* CreateScript(std::string const& name);
-char const* GetScriptName(Script* script);
+API bool Pumpkin_RegisterScriptRaw(ScriptAllocateFunction scriptAllocate, std::string const& name, size_t size);
+API Script* Pumpkin_CreateScript(std::string const& name);
+API char const* Pumpkin_GetScriptName(Script* script);
 
 // --------------------------------------------------
 // --------------------------------------------------
 // Script
 
+}
 }; // namespace pumpkin
 
 
