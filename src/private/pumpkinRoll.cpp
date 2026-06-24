@@ -172,6 +172,8 @@ StartReturn Init(StartSettings const& start, int argv, char** argc, void (*devLo
   if (argv > 1 && strlen(argc[1]) >= 2 && strcmp(argc[1], "-d") == 0) {
     if (devLoad) devLoad();
     //prtodo load dev functions
+  } else {
+    // prtodo normal load things
   }
 
 

@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <format>
+#include <chrono>
 #include <assert.h>
 
 
@@ -492,11 +493,19 @@ void SaveData::Delete() {
 
 
 
-
-
 void SaveData::Build(std::string const& path, SaveData const& compare) {
   std::string relative = std::filesystem::path(ToRelativePath(path + _DEV_SAVE_FILE) + ".cpp").lexically_normal().string();
+
+  #ifndef PUMPKIN_ROLL_FAUX_BUILD
   std::ofstream stream(relative, std::ios::trunc);
+  #else
+  std::ostringstream stream;
+  #endif
+
+
+  std::chrono::time_point now{std::chrono::system_clock::now()};
+  std::chrono::year_month_day ymd{std::chrono::floor<std::chrono::days>(now)};
+  WriteLine(std::format("/*\n*\n*\n* Pumpkin Roll Build File\n* Built {:%F} {:%r}\n*\n*/\n", ymd, now));
 
   WriteLine("#include \"pumpkin/types.h\"");
 #ifdef PUMPKIN_ROLL_PROD
@@ -510,8 +519,6 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
   WriteLine("int SceneBuild() {");
   WriteLine("int tmpInt;float tmpFloat;MatrixWrapper tmpMat;Vector2 tmpVec2;Vector3 tmpVec3;Vector4 tmpVec4;");
 
-  uint32_t counter = 0;
-
   for (auto& save : shaderSaves) {
     std::string shaderName = std::format("shader_{:}", save.first);
 
@@ -522,10 +529,14 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
     }
     PropertyHolder& properties = save.second.properties;
 
-    Build_ShaderHeader(stream, shaderName, save);
-    Build_PropertiesHeader(stream);
-    Build_Properties(stream, properties, propertiesCmp, Build_ShaderGetProperties, shaderName);
-    Build_ShaderEnd(stream, save);
+    std::ostringstream propStream;
+    Build_Properties(propStream, properties, propertiesCmp, Build_ShaderGetProperties, shaderName);
+
+    if (propStream.tellp() != 0) {
+      Build_ShaderHeader(stream, shaderName, save);
+      stream << std::move(propStream).str();
+      Build_ShaderEnd(stream, save);
+    }
   }
 
 
@@ -538,20 +549,29 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
     }
     PropertyHolder& properties = save.second.properties;
 
+    std::ostringstream modelStream;
+    std::ostringstream propStream;
 
-    Build_ModelHeader(stream, modelName, save);
-    Build_PropertiesHeader(stream);
-    Build_Properties(stream, properties, propertiesCmp, Build_ModelGetProperties, modelName);
+    Build_Properties(propStream, properties, propertiesCmp, Build_ModelGetProperties, modelName);
+
+    if (propStream.str().size() != 0) {
+      modelStream << std::move(propStream).str();
+    }
+
 
     if (cmpSave != compare.modelSaves.end()) {
       if (save.second.shader != cmpSave->second.shader)
-        Build_ModelSetShader(stream, modelName, save.second.shader);
+        Build_ModelSetShader(modelStream, modelName, save.second.shader);
 
       if (save.second.mesh != cmpSave->second.mesh)
-        Build_ModelSetMesh(stream, modelName, save.second.mesh);
+        Build_ModelSetMesh(modelStream, modelName, save.second.mesh);
     }
 
-    Build_ModelEnd(stream, save);
+    if (modelStream.str().size() != 0) {
+      Build_ModelHeader(stream, modelName, save);
+      stream << std::move(modelStream).str();
+      Build_ModelEnd(stream, save);
+    }
   }
 
 
@@ -564,9 +584,14 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
     std::string objectName = std::format("object_{:}", save.first);
     auto cmpSave = compare.objectSaves.find(save.first);
 
-    Build_ObjectHeader(stream, objectName, save);
-    Build_Object(stream, objectName, save, cmpSave == compare.objectSaves.end() ? nullptr : &*cmpSave);
-    Build_ObjectEnd(stream, save);
+    std::ostringstream objStream;
+    Build_Object(objStream, objectName, save, cmpSave == compare.objectSaves.end() ? nullptr : &*cmpSave);
+
+    if (objStream.str().size() != 0) {
+      Build_ObjectHeader(stream, objectName, save);
+      stream << std::move(objStream).str();
+      Build_ObjectEnd(stream, save);
+    }
   }
 
 
@@ -574,9 +599,14 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
     std::string cameraName = std::format("camera_{:}", save.first);
     auto cmpSave = compare.cameraSaves.find(save.first);
 
-    Build_CameraHeader(stream, cameraName, save);
-    Build_Camera(stream, cameraName, save, cmpSave == compare.cameraSaves.end() ? nullptr : &*cmpSave);
-    Build_CameraEnd(stream, save);
+    std::ostringstream camStream;
+    Build_Camera(camStream, cameraName, save, cmpSave == compare.cameraSaves.end() ? nullptr : &*cmpSave);
+
+    if (camStream.str().size() != 0) {
+      Build_CameraHeader(stream, cameraName, save);
+      stream << std::move(camStream).str();
+      Build_CameraEnd(stream, save);
+    }
   }
 
 
@@ -585,7 +615,10 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
   WriteLine("return 0;\n}");
 
   stream.flush();
+
+  #ifndef PUMPKIN_ROLL_FAUX_BUILD
   stream.close();
+  #endif
 }
 
 
@@ -597,7 +630,7 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
 namespace {
 
 void Build_CameraHeader(std::ostream& stream, std::string const& cameraName, std::pair<size_t, CameraSaveData> const& save) {
-  WriteLine(std::format("// Camera {:}", save.second.objectInfo.name));
+  WriteLine(std::format("\n// Camera {:}", save.second.objectInfo.name));
   WriteLine("// --------------------------------------------------");
   WriteLine(std::format("Camera* {:} = GetCamera({:?});", cameraName, save.second.objectInfo.name));
   WriteLine(std::format("if ({:}) {{", cameraName));
@@ -617,6 +650,34 @@ void Build_Camera(std::ostream& stream, std::string const& cameraName, std::pair
     WriteLine(std::format("Object* {:} = (Object*){:}", objectName, cameraName));
     std::pair<size_t, ObjectSaveData> build = {save.first, save.second.objectInfo};
     Build_Object(stream, objectName, build, nullptr);
+  } else {
+    if (save.second.angleBased != cmpSave->second.angleBased)
+      WriteLine(std::format("{:}->angleBased = {:};", cameraName, save.second.angleBased));
+    if (save.second.fov != cmpSave->second.fov)
+      WriteLine(std::format("{:}->fov = {:};", cameraName, save.second.fov));
+    if (save.second.aspect != cmpSave->second.aspect)
+      WriteLine(std::format("{:}->aspect = {:};", cameraName, save.second.aspect));
+    if (save.second.near != cmpSave->second.near)
+      WriteLine(std::format("{:}->near = {:};", cameraName, save.second.near));
+    if (save.second.far != cmpSave->second.far)
+      WriteLine(std::format("{:}->far = {:};", cameraName, save.second.far));
+    if (save.second.perspective != cmpSave->second.perspective)
+      WriteLine(std::format("{:}->perspective = {:};", cameraName, save.second.perspective));
+
+
+    std::ostringstream objStream;
+    std::string objectName = std::format("object_{:}", save.first);
+    std::pair<size_t, ObjectSaveData> build = {save.first, save.second.objectInfo};
+    if (cmpSave) {
+      std::pair<const size_t, ObjectSaveData> cmp = {save.first, cmpSave->second.objectInfo};
+      Build_Object(objStream, objectName, build, &cmp);
+    } else {
+      Build_Object(objStream, objectName, build, nullptr);
+    }
+
+    if (objStream.str().size() != 0) {
+      stream << std::move(objStream).str();
+    }
   }
 }
 
@@ -624,7 +685,7 @@ void Build_Camera(std::ostream& stream, std::string const& cameraName, std::pair
 void Build_CameraEnd(std::ostream& stream, std::pair<size_t, CameraSaveData> const& save) {
   WriteLine("}");
   WriteLine("// --------------------------------------------------");
-  WriteLine(std::format("// Camera {:}", save.second.objectInfo.name));
+  WriteLine(std::format("// Camera {:}\n", save.second.objectInfo.name));
 }
 
 
@@ -637,7 +698,7 @@ void Build_ObjectDelete(std::ostream& stream, std::pair<size_t, ObjectSaveData> 
 
 
 void Build_ObjectHeader(std::ostream& stream, std::string const& objectName, std::pair<size_t, ObjectSaveData> const& save) {
-  WriteLine(std::format("// Object {:}", save.second.name));
+  WriteLine(std::format("\n// Object {:}", save.second.name));
   WriteLine("// --------------------------------------------------");
   if (save.second.runtime) {
     WriteLine(std::format("Object* {:} = RegisterObject({:?});", objectName, save.second.name));
@@ -654,7 +715,7 @@ void Build_ObjectSetModel(std::ostream& stream, std::string const& objectName, s
 
 
 void Build_Object(std::ostream& stream, std::string const& objectName, std::pair<size_t, ObjectSaveData> const& save, std::pair<const size_t, ObjectSaveData> const* cmpSave) {
-  if (cmpSave == nullptr || memcmp(&save.second.transform, &cmpSave->second.transform, sizeof(Transform) == 0)) {
+  if (cmpSave == nullptr || memcmp(&save.second.transform, &cmpSave->second.transform, sizeof(Transform)) != 0) {
     WriteLine(std::format("{:}->transform = {:c};", objectName, save.second.transform));
   }
 
@@ -681,14 +742,14 @@ void Build_Object(std::ostream& stream, std::string const& objectName, std::pair
 void Build_ObjectEnd(std::ostream& stream, std::pair<size_t, ObjectSaveData> const& save) {
   WriteLine("}");
   WriteLine("// --------------------------------------------------");
-  WriteLine(std::format("// Object {:}", save.second.name));
+  WriteLine(std::format("// Object {:}\n", save.second.name));
 }
 
 
 
 
 void Build_ModelHeader(std::ostream& stream, std::string const& modelName, std::pair<size_t, ModelSaveData> const& save) {
-  WriteLine(std::format("// Model {:}", save.second.name));
+  WriteLine(std::format("\n// Model {:}", save.second.name));
   WriteLine("// --------------------------------------------------");
   WriteLine(std::format("Model* {:} = GetModel({:?});", modelName, save.second.name));
   WriteLine(std::format("if ({:}) {{", modelName));
@@ -698,7 +759,7 @@ void Build_ModelHeader(std::ostream& stream, std::string const& modelName, std::
 void Build_ModelEnd(std::ostream& stream, std::pair<size_t, ModelSaveData> const& save) {
   WriteLine("}");
   WriteLine("// --------------------------------------------------");
-  WriteLine(std::format("// Model {:}", save.second.name));
+  WriteLine(std::format("// Model {:}\n", save.second.name));
 }
 
 
@@ -721,7 +782,7 @@ void Build_ModelSetMesh(std::ostream& stream, std::string const& modelName, std:
 
 
 void Build_ShaderHeader(std::ostream& stream, std::string const& shaderName, std::pair<size_t, ShaderSaveData> const& save) {
-  WriteLine(std::format("// Shader {:}", save.second.name));
+  WriteLine(std::format("\n// Shader {:}", save.second.name));
   WriteLine("// --------------------------------------------------");
   WriteLine(std::format("Shader* {:} = GetShader({:?});", shaderName, save.second.name));
   WriteLine(std::format("if ({:}) {{", shaderName));
@@ -744,8 +805,8 @@ void Build_ShaderGetProperties(std::ostream& stream, std::string const& shaderNa
 
 
 void Build_PropertiesHeader(std::ostream& stream) {
-  WriteLine("// Properties");
-  WriteLine("// --------------------------------------------------");
+  WriteLine("\n// Properties");
+  WriteLine("// ----------");
 }
 
 
@@ -813,8 +874,11 @@ void Build_Properties(std::ostream& stream, PropertyHolder const& properties, Pr
         break;
     }
   }
-  WriteLine("// --------------------------------------------------");
-  WriteLine("// Properties\n");
+
+  if (didSomething) {
+    WriteLine("// ----------");
+    WriteLine("// Properties\n");
+  }
 }
 
 
@@ -827,13 +891,13 @@ void Build_Properties(std::ostream& stream, PropertyHolder const& properties, Pr
 std::string ReadString(std::ifstream& stream) {
   std::string ret = std::string();
 
-  int c = 0;
-  do {
-    c = stream.get();
-    if (c == stream.eof() || !stream.good()) { return ret; }
+  int c = stream.get();
+  while (c != '\0') {
+    if (stream.eof() || !stream.good()) { return ret; }
 
     ret.append(1, c);
-  } while (c != '\0');
+    c = stream.get();
+  }
 
   return ret;
 }

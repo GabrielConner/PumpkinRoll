@@ -1,5 +1,6 @@
 *.ppm_psave
 *pmpknrl*
+main.cpp
 
 srcExt/
 library/
