@@ -1,11 +1,11 @@
 /*
 *
 * Function Declarations Source
-* Built 2026-06-24 09:32 AM
+* Built 2026-06-24 09:10 PM
 *
 */
 
-#include "pumpkin/pumpkinLoadingFunctions.h"
+#include "pumpkinFunctions.h"
 
 namespace pumpkin {
 
@@ -61,6 +61,12 @@ FPPROPERTYHOLDER_GETPROPERTY PropertyHolder_GetProperty = NULL;
 FPPUMPKIN_REGISTERSCRIPTRAW Pumpkin_RegisterScriptRaw = NULL;
 FPPUMPKIN_CREATESCRIPT Pumpkin_CreateScript = NULL;
 FPPUMPKIN_GETSCRIPTNAME Pumpkin_GetScriptName = NULL;
+FPPUMPKIN_LOADFILE Pumpkin_LoadFile = NULL;
+FPPUMPKIN_FORGETFILE Pumpkin_ForgetFile = NULL;
+FPPUMPKIN_READFILE Pumpkin_ReadFile = NULL;
+FPPUMPKIN_TORELATIVEPATH Pumpkin_ToRelativePath = NULL;
+FPPUMPKIN_OPENFILEFUNC Pumpkin_OpenFileFunc = NULL;
+FPPUMPKIN_CLOSEFILEFUNC Pumpkin_CloseFileFunc = NULL;
 
 
 bool LoadFunctions(PROCADDRESSFUNC proc) {
@@ -118,6 +124,12 @@ bool LoadFunctions(PROCADDRESSFUNC proc) {
   Pumpkin_RegisterScriptRaw = (FPPUMPKIN_REGISTERSCRIPTRAW)proc("Pumpkin_RegisterScriptRaw"); if (!Pumpkin_RegisterScriptRaw) return false;
   Pumpkin_CreateScript = (FPPUMPKIN_CREATESCRIPT)proc("Pumpkin_CreateScript"); if (!Pumpkin_CreateScript) return false;
   Pumpkin_GetScriptName = (FPPUMPKIN_GETSCRIPTNAME)proc("Pumpkin_GetScriptName"); if (!Pumpkin_GetScriptName) return false;
+  Pumpkin_LoadFile = (FPPUMPKIN_LOADFILE)proc("Pumpkin_LoadFile"); if (!Pumpkin_LoadFile) return false;
+  Pumpkin_ForgetFile = (FPPUMPKIN_FORGETFILE)proc("Pumpkin_ForgetFile"); if (!Pumpkin_ForgetFile) return false;
+  Pumpkin_ReadFile = (FPPUMPKIN_READFILE)proc("Pumpkin_ReadFile"); if (!Pumpkin_ReadFile) return false;
+  Pumpkin_ToRelativePath = (FPPUMPKIN_TORELATIVEPATH)proc("Pumpkin_ToRelativePath"); if (!Pumpkin_ToRelativePath) return false;
+  Pumpkin_OpenFileFunc = (FPPUMPKIN_OPENFILEFUNC)proc("Pumpkin_OpenFileFunc"); if (!Pumpkin_OpenFileFunc) return false;
+  Pumpkin_CloseFileFunc = (FPPUMPKIN_CLOSEFILEFUNC)proc("Pumpkin_CloseFileFunc"); if (!Pumpkin_CloseFileFunc) return false;
 
   return true;
 }

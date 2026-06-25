@@ -1,5 +1,4 @@
 #include "private/fileManager.h"
-#include "pumpkin/fileManager.h"
 #include "pumpkin/constants.h"
 #include "private/pumpkinRoll.h"
 #include "pumpkin/pumpkinRoll.h"
@@ -41,7 +40,7 @@ struct FileManager {
 namespace pumpkin {
 
 
-int LoadFile(std::string filePath, bool pack, bool cache, bool relative, bool binary) {
+int Pumpkin_LoadFile(std::string filePath, bool pack, bool cache, bool relative, bool binary) {
   if (files == nullptr) {
     pWarn("FileManager has not been started");
     return 1;
@@ -109,7 +108,7 @@ int LoadFile(std::string filePath, bool pack, bool cache, bool relative, bool bi
 
 
 
-void ForgetFile(std::string path) {
+void Pumpkin_ForgetFile(std::string const& path) {
   if (files == nullptr) {
     pWarn("FileManager has not been started");
     return;
@@ -126,7 +125,7 @@ void ForgetFile(std::string path) {
 
 
 
-FileData ReadFile(std::string path, bool binary) {
+FileData Pumpkin_ReadFile(std::string const& path, bool binary) {
   if (files == nullptr) {
     pWarn("FileManager has not been started");
     return {};
@@ -182,7 +181,7 @@ FileData ReadFile(std::string path, bool binary) {
 
 
 
-std::string ToRelativePath(std::string const& path) {
+std::string Pumpkin_ToRelativePath(std::string const& path) {
 #ifdef PUMPKIN_ROLL_PROD
   return path;
 #else
@@ -192,16 +191,16 @@ std::string ToRelativePath(std::string const& path) {
 
 
 
-bool OpenFileFunc(std::string const& location, bool relative, bool binary, ::pPack::FileHandle& handle) {
+bool Pumpkin_OpenFileFunc(std::string const& location, bool relative, bool binary, ::pPack::FileHandle& handle) {
 
   if (!files->loadedFiles.contains(_STRING_HASHER(location))) {
-    if (LoadFile(location, true, false, relative, binary)) {
+    if (Pumpkin_LoadFile(location, true, false, relative, binary)) {
       return false;
     }
   }
 
 
-  FileData data = ReadFile(location, binary);
+  FileData data = Pumpkin_ReadFile(location, binary);
 
   handle.location = location;
   handle.data = (char*)data.data;
@@ -214,7 +213,7 @@ bool OpenFileFunc(std::string const& location, bool relative, bool binary, ::pPa
 
 
 
-void CloseFileFunc(::pPack::FileHandle& handle) {
+void Pumpkin_CloseFileFunc(::pPack::FileHandle& handle) {
   auto file = files->loadedFiles.find(_STRING_HASHER(handle.location));
   if (file == files->loadedFiles.end()) return;
   free(handle.data);

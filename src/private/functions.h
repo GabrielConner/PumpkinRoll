@@ -6,7 +6,11 @@
 namespace pumpkin {
 extern "C" {
 
+#ifdef PUMPKIN_ROLL_PROD
 #define API __declspec(dllexport)
+#else
+#define API __declspec(dllimport)
+#endif
 
 API StartReturn Pumpkin_Init(StartSettings const& start, int argv, char** argc, void (*devLoad)());
 API void Pumpkin_Update();
@@ -165,6 +169,26 @@ API char const* Pumpkin_GetScriptName(Script* script);
 // --------------------------------------------------
 // --------------------------------------------------
 // Script
+
+
+
+
+// FileManager
+// --------------------------------------------------
+// --------------------------------------------------
+
+API int Pumpkin_LoadFile(std::string filePath, bool pack, bool cache, bool relative, bool binary);
+API void Pumpkin_ForgetFile(std::string const& path);
+API FileData Pumpkin_ReadFile(std::string const& path, bool binary);
+
+API std::string Pumpkin_ToRelativePath(std::string const& path);
+
+API bool Pumpkin_OpenFileFunc(std::string const& location, bool relative, bool binary, ::pPack::FileHandle& handle);
+API void Pumpkin_CloseFileFunc(::pPack::FileHandle& handle);
+
+// --------------------------------------------------
+// --------------------------------------------------
+// FileManager
 
 }
 }; // namespace pumpkin

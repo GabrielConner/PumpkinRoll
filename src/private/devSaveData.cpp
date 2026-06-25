@@ -5,7 +5,6 @@
 #include "private/model.h"
 #include "private/shader.h"
 #include "private/mesh.h"
-#include "pumpkin/fileManager.h"
 
 #include <filesystem>
 #include <fstream>
@@ -297,7 +296,7 @@ void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runti
 
 
 void SaveData::Save(std::string const& name, std::string const& defaultPrimaryCamera) {
-  std::string relative = ToRelativePath(name + _DEV_SAVE_FILE);
+  std::string relative = Pumpkin_ToRelativePath(name + _DEV_SAVE_FILE);
   std::ofstream stream(relative, std::ios::binary | std::ios::trunc);
 
   // Only object can be created in dev mode
@@ -385,7 +384,7 @@ void SaveData::Save(std::string const& name, std::string const& defaultPrimaryCa
 
 
 bool SaveData::Load(std::string const& name) {
-  std::string relative = ToRelativePath(name + _DEV_SAVE_FILE);
+  std::string relative = Pumpkin_ToRelativePath(name + _DEV_SAVE_FILE);
   if (!std::filesystem::exists(relative)) return false;
 
   Delete();
@@ -498,7 +497,7 @@ void SaveData::Delete() {
 
 
 void SaveData::Build(std::string const& path, SaveData const& compare) {
-  std::string relative = std::filesystem::path(ToRelativePath(path + _DEV_SAVE_FILE) + ".cpp").lexically_normal().string();
+  std::string relative = std::filesystem::path(Pumpkin_ToRelativePath(path + _DEV_SAVE_FILE) + ".cpp").lexically_normal().string();
 
   #ifndef PUMPKIN_ROLL_FAUX_BUILD
   std::ofstream stream(relative, std::ios::trunc);
@@ -512,9 +511,7 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
   WriteLine(std::format("/*\n*\n*\n* Pumpkin Roll Build File\n* Built {:%F} {:%r}\n*\n*/\n", ymd, now));
 
   WriteLine("#include \"pumpkin/types.h\"");
-#ifdef PUMPKIN_ROLL_PROD
-  WriteLine("#include \"private/functions.h\"");
-#endif
+  WriteLine("#include \"pumpkinFunctions.h\"");
   WriteLine("#include \"pPack/vector.h\"");
 
   WriteLine("using namespace ::pPack;");
@@ -636,7 +633,7 @@ namespace {
 void Build_CameraHeader(std::ostream& stream, std::string const& cameraName, std::pair<size_t, CameraSaveData> const& save) {
   WriteLine(std::format("\n// Camera {:}", save.second.objectInfo.name));
   WriteLine("// --------------------------------------------------");
-  WriteLine(std::format("Camera* {:} = GetCamera({:?});", cameraName, save.second.objectInfo.name));
+  WriteLine(std::format("Camera* {:} = Pumpkin_GetCamera({:?});", cameraName, save.second.objectInfo.name));
   WriteLine(std::format("if ({:}) {{", cameraName));
 }
 
@@ -705,16 +702,16 @@ void Build_ObjectHeader(std::ostream& stream, std::string const& objectName, std
   WriteLine(std::format("\n// Object {:}", save.second.name));
   WriteLine("// --------------------------------------------------");
   if (save.second.runtime) {
-    WriteLine(std::format("Object* {:} = RegisterObject({:?});", objectName, save.second.name));
+    WriteLine(std::format("Object* {:} = Pumpkin_RegisterObject({:?});", objectName, save.second.name));
   } else {
-    WriteLine(std::format("Object* {:} = GetObject({:?});", objectName, save.second.name));
+    WriteLine(std::format("Object* {:} = Pumpkin_GetObject({:?});", objectName, save.second.name));
   }
   WriteLine(std::format("if ({:}) {{", objectName));
 }
 
 
 void Build_ObjectSetModel(std::ostream& stream, std::string const& objectName, std::string const& modelName) {
-  WriteLine(std::format("Object_SetModel({:}, GetModel({:?}));", objectName, modelName));
+  WriteLine(std::format("Object_SetModel({:}, Pumpkin_GetModel({:?}));", objectName, modelName));
 }
 
 
@@ -755,7 +752,7 @@ void Build_ObjectEnd(std::ostream& stream, std::pair<size_t, ObjectSaveData> con
 void Build_ModelHeader(std::ostream& stream, std::string const& modelName, std::pair<size_t, ModelSaveData> const& save) {
   WriteLine(std::format("\n// Model {:}", save.second.name));
   WriteLine("// --------------------------------------------------");
-  WriteLine(std::format("Model* {:} = GetModel({:?});", modelName, save.second.name));
+  WriteLine(std::format("Model* {:} = Pumpkin_GetModel({:?});", modelName, save.second.name));
   WriteLine(std::format("if ({:}) {{", modelName));
 }
 
@@ -773,12 +770,12 @@ void Build_ModelGetProperties(std::ostream& stream, std::string const& modelName
 
 
 void Build_ModelSetShader(std::ostream& stream, std::string const& modelName, std::string const& shaderName) {
-  WriteLine(std::format("Model_SetShader({:}, GetShader({:}));", modelName, shaderName));
+  WriteLine(std::format("Model_SetShader({:}, Pumpkin_GetShader({:}));", modelName, shaderName));
 }
 
 
 void Build_ModelSetMesh(std::ostream& stream, std::string const& modelName, std::string const& meshName) {
-  WriteLine(std::format("Model_SetMesh({:}, GetMesh({:}));", modelName, meshName));
+  WriteLine(std::format("Model_SetMesh({:}, Pumpkin_GetMesh({:}));", modelName, meshName));
 }
 
 
@@ -788,7 +785,7 @@ void Build_ModelSetMesh(std::ostream& stream, std::string const& modelName, std:
 void Build_ShaderHeader(std::ostream& stream, std::string const& shaderName, std::pair<size_t, ShaderSaveData> const& save) {
   WriteLine(std::format("\n// Shader {:}", save.second.name));
   WriteLine("// --------------------------------------------------");
-  WriteLine(std::format("Shader* {:} = GetShader({:?});", shaderName, save.second.name));
+  WriteLine(std::format("Shader* {:} = Pumpkin_GetShader({:?});", shaderName, save.second.name));
   WriteLine(std::format("if ({:}) {{", shaderName));
 }
 

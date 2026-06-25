@@ -5,7 +5,7 @@ DON'T INCLUDE IN PROD BUILD
 
 */
 
-#include "pumpkin/pumpkinLoadingFunctions.h"
+#include "pumpkinFunctions.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -21,11 +21,20 @@ HMODULE libraryHandle;
 namespace pumpkin {
 
 bool Load(int argv, char** argc) {
+
+#if _DEBUG
   if (argv > 1 && strcmp(argc[1], "-d") == 0) {
-    libraryHandle = LoadLibraryA("pumpkinRoll.dll");
+    libraryHandle = LoadLibraryA("pumpkinRollDev-d.dll");
   } else {
-    libraryHandle = LoadLibraryA("pumpkinRollDev.dll");
+    libraryHandle = LoadLibraryA("pumpkinRoll-d.dll");
   }
+#else
+  if (argv > 1 && strcmp(argc[1], "-d") == 0) {
+    libraryHandle = LoadLibraryA("pumpkinRollDev.dll");
+  } else {
+    libraryHandle = LoadLibraryA("pumpkinRoll.dll");
+  }
+#endif
 
   if (libraryHandle == NULL) {
     return false;

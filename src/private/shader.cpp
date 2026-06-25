@@ -1,7 +1,6 @@
 #include "private/shader.h"
 #include "private/model.h"
 #include "pumpkin/pumpkinRoll.h"
-#include "pumpkin/fileManager.h"
 #include "private/pumpkinRoll.h"
 
 #include "pPack/shaderHandling.h"
@@ -82,7 +81,7 @@ void Shader::Reload() {
     infos[i].type = startInfos[i].type;
   }
 
-  shader = ShaderHandler::CreateShader(infos, startInfos.size(), OpenFileFunc, nullptr, CloseFileFunc);
+  shader = ShaderHandler::CreateShader(infos, startInfos.size(), Pumpkin_OpenFileFunc, nullptr, Pumpkin_CloseFileFunc);
 
   for (int i = 0; i < startInfos.size(); i++) {
     delete[](infos[i].shaders);

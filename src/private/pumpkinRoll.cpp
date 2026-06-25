@@ -4,7 +4,6 @@
 #include "private/fileManager.h"
 #include "private/shader.h"
 #include "private/camera.h"
-#include "pumpkin/fileManager.h"
 #include "private/mesh.h"
 #include "private/model.h"
 #include "private/propertyHolder.h"

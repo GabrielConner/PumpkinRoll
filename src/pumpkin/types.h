@@ -1,6 +1,7 @@
 #ifndef PUMPKIN_ROLL_SRC_PUMPKIN_TYPES_H
 #define PUMPKIN_ROLL_SRC_PUMPKIN_TYPES_H
 
+#include "pPack/fileInterface.h"
 #include "pPack/vector.h"
 #include "glad/glad.h"
 
@@ -176,6 +177,15 @@ struct Script {
   virtual void End(Object* obj) {}
 };
 
+
+
+struct FileData {
+  void* data = 0;
+  size_t size = 0;
+  bool shouldDelete = false;
+
+  void Delete() { free(data); data = nullptr; size = 0; }
+};
 
 
 

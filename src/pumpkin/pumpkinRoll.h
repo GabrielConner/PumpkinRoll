@@ -8,10 +8,8 @@
 
 #ifdef PUMPKIN_ROLL_PROD
 #include "private/functions.h"
-#define DLL __declspec(dllexport)
 #else
-#include "pumpkin/pumpkinLoadingFunctions.h"
-#define DLL __declspec(dllimport)
+#include "pumpkinFunctions.h"
 #endif
 #include "pumpkin/constants.h"
 #include "pumpkin/types.h"
