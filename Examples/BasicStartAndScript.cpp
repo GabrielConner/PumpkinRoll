@@ -24,17 +24,14 @@ ScriptAllocateFunction(BounceScript);
 
 int SceneBuild();
 int main(int argv, char** argc) {
-
-  if (!Load(argv, argc)) return 1; // Load DLL
   
+  if (!Load(argv, argc)) return 1; // Load DLL
+
+  StartReturn ret = Pumpkin_Init(StartSettings(), argv, argc, nullptr); // Starts up and loads stuff
   if (ret == StartReturn::FAILURE) { // Failure means to not call Pumpkin_End, End still needs to be called
     End(); // Close DLL
     return 1;
   }
-
-  StartReturn ret = Pumpkin_Init(StartSettings(), argv, argc, nullptr); // Starts up and loads stuff
-  if (ret == StartReturn::FAILURE) return 1; // Failure means end should not be called
-
   if (ret != StartReturn::ERROR) { // Error means failed to fully start but Pumpkin_End does need to be called
     RegisterScript(AllocateBounceScript, BounceScript, sizeof(BounceScript));
 
