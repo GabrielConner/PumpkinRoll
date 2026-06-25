@@ -338,7 +338,7 @@ void SaveData::Save(std::string const& name, std::string const& defaultPrimaryCa
     auto& save = modelP.second;
     stream.write(save.name.c_str(), save.name.size() + 1); // Name of model
     stream.write(save.shader.c_str(), save.shader.size() + 1); // Shader name
-    stream.write(save.mesh.c_str(), save.mesh.size() + 1); // Mesh name
+    stream.write(save.mesh.c_str(), save.mesh.size() + 1); // LoadedModelMesh name
 
     WriteProperties;
   }
@@ -425,7 +425,7 @@ bool SaveData::Load(std::string const& name) {
     ModelSaveData save;
     save.name = ReadString(stream); // Name of model
     save.shader = ReadString(stream); // Shader name
-    save.mesh = ReadString(stream); // Mesh name
+    save.mesh = ReadString(stream); // LoadedModelMesh name
     ReadProperties;
 
     modelSaves.insert({_STRING_HASHER(save.name), save});

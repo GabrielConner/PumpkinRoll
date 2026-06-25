@@ -818,6 +818,7 @@ void MainMenu::Prompt(int i, std::string const& line) {
   if (ToNumberFromAscii(i)) return;
 
   switch (i) {
+    // prtodo reset camera even if no saved set primary camera
     case 0:  // Run
       data->saveData.Pull(data->pumpkin, data->runtimeObjects);
       RunProgram();
@@ -837,7 +838,7 @@ void MainMenu::Prompt(int i, std::string const& line) {
       data->SetAsk(&data->selectShader);
       break;
     case 5: // Primary camera view
-      Pumpkin_SetPrimaryCamera(&data->devCamera);
+      Pumpkin_SetPrimaryCamera(&data->devCamera); // prtodo make option to select the primary camera and rename to match
       break;
     case 6: // Build
       data->SetAsk(&data->buildPumpkin);
@@ -1001,7 +1002,8 @@ void CreateObject::Prompt(int i, std::string const& line) {
     data->runtimeObjects.insert({_STRING_HASHER(line), render});
 
     // Isn't part of the selecting cycle stuff so can be direct
-    data->SetAsk(&data->mainMenu);
+    data->holdingObject = render;
+    data->SetAsk(&data->holdObject);
     return;
   }
 

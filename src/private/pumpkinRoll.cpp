@@ -10,6 +10,7 @@
 #include "private/types.h"
 #include "pumpkin/types.h"
 #include "private/pumpkinRollDev.h"
+#include "private/rawMeshes.h"
 
 #include "pPack/windowManager.h"
 #include "pPack/shaderHandling.h"
@@ -59,23 +60,33 @@ Pumpkin* pumpkinData = nullptr;
 _CrtMemState crtMemState;
 #endif
 
+
+#define CREATE_MESH(name) \
+Mesh* mesh = Pumpkin_RegisterMesh("PumpkinRoll__" #name "Mesh", rawMesh, 8 * sizeof(float), sizeof(rawMesh) / (8 * sizeof(float)), false, format); \
+if (!mesh) { \
+  pError("Failed to create " #name " mesh"); \
+  return StartReturn::ERROR; \
+} \
+Model* model = Pumpkin_RegisterModel("PumpkinRoll_" #name "Model"); \
+if (!model) { \
+  pError("Failed to create " #name  " model"); \
+  return StartReturn::ERROR; \
+} \
+if (!Model_SetShader(model, shader)) { \
+  pError("Failed to set " #name  " model shader"); \
+  return StartReturn::ERROR; \
+} \
+if (!Model_SetMesh(model, mesh)) { \
+  pError("Failed to set " #name  " model mesh"); \
+  return StartReturn::ERROR; \
+}
+
 }; // namespace
 
 
 
 
 namespace pumpkin {
-
-struct TempScript : Script {
-  double totalTime = 0;
-
-  void Update(Object* obj, double deltaTime, double totalTime) override {
-    totalTime += deltaTime;
-    obj->transform.position.y = sin(totalTime);
-  }
-};
-ScriptAllocateFunction(TempScript);
-
 
 
 StartReturn Pumpkin_Init(StartSettings const& start, int argv, char** argc, void (*devLoad)()) {
@@ -191,8 +202,8 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argv, char** argc, void
 
 
   // Shader
-  char const* vertLocs = "shaders/test.vert";
-  char const* fragLocs = "shaders/test.frag";
+  char const* vertLocs = "shaders/pumpkinDefault.vert";
+  char const* fragLocs = "shaders/pumpkinDefault.frag";
 
   ShaderInfo shaderCreateInfos[] = {ShaderInfo({vertLocs}, 1, GL_VERTEX_SHADER), ShaderInfo({fragLocs}, 1, GL_FRAGMENT_SHADER)};
 
@@ -206,7 +217,8 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argv, char** argc, void
   // Format
   FormatStartInfo formatCreateInfos[] = {
     FormatStartInfo{},
-    FormatStartInfo{.size = 4},
+    FormatStartInfo{.size = 2},
+    FormatStartInfo{},
   };
 
   GLuint format = Pumpkin_RegisterFormat("PumpkinRoll__DefaultFormat", formatCreateInfos, 2, true);
@@ -214,87 +226,54 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argv, char** argc, void
     pError("Failed to create default format");
     return StartReturn::ERROR;
   }
+  
 
+  {
+    float rawMesh[] = {
+      // Position               // UV           // Normal
+      -1.0f, 0.0f, 1.0f,        0.f, 0.f,       0.f, 1.f, 0.f,
+      1.0f, 0.0f, 1.0f,         1.f, 0.f,       0.f, 1.f, 0.f,
+      -1.0f, 0.0f, -1.0f,       0.f, 1.f,       0.f, 1.f, 0.f,
 
-  // Mesh
-  float planeVerts[] = {
-    // Position               // Color
-    -1.0f, 0.0f, 1.0f,        1.0f, 0.0f, 0.0f, 1.0f,
-    1.0f, 0.0f, 1.0f,         0.0f, 1.0f, 0.0f, 1.0f,
-    -1.0f, 0.0f, -1.0f,       0.0f, 0.0f, 1.0f, 1.0f,
-
-    -1.0f, 0.0f, -1.0f,       0.0f, 0.0f, 1.0f, 1.0f,
-    1.0f, 0.0f, 1.0f,         0.0f, 1.0f, 0.0f, 1.0f,
-    1.0f, 0.0f, -1.0f,        1.0f, 0.0f, 1.0f, 1.0f
-  };
-
-  Mesh* mesh = Pumpkin_RegisterMesh("PumpkinRoll__PlaneMesh", planeVerts, 7 * sizeof(float), 6, false, format);
-  if (!mesh) {
-    pError("Failed to create default mesh");
-    return StartReturn::ERROR;
+      -1.0f, 0.0f, -1.0f,       0.f, 1.f,       0.f, 1.f, 0.f,
+      1.0f, 0.0f, 1.0f,         1.f, 0.f,       0.f, 1.f, 0.f,
+      1.0f, 0.0f, -1.0f,        1.f, 1.f,       0.f, 1.f, 0.f,
+    };
+    CREATE_MESH(Plane);
   }
 
-
-
-  // Triangle
-  float triVerts[] = {
-    // Position               // Color
-    -1.0f, 0.0f, 1.0f,        1.0f, 0.0f, 0.0f, 1.0f,
-    1.0f, 0.0f, 1.0f,         0.0f, 1.0f, 0.0f, 1.0f,
-    0.f, 0.0f, -1.0f,         0.0f, 0.0f, 1.0f, 1.0f,
-  };
-
-  if (!Pumpkin_RegisterMesh("PumpkinRoll__TriangleMesh", triVerts, 7 * sizeof(float), 3, false, format)) {
-    pError("Failed to create triangle mesh");
-    return StartReturn::ERROR;
+  {
+    RAW_MESH_CUBE;
+    CREATE_MESH(Cube);
   }
 
-
-
-
-
-  // Model
-  Model* model = Pumpkin_RegisterModel("PumpkinRoll_PlaneModel");
-  if (!model) {
-    pError("Failed to create default model");
-    return StartReturn::ERROR;
+  {
+    RAW_MESH_CONE;
+    CREATE_MESH(Cone);
   }
-  if (!Model_SetShader(model, shader)) {
-    pError("Failed to set model shader");
-    return StartReturn::ERROR;
+
+  {
+    RAW_MESH_CYLINDER;
+    CREATE_MESH(Cylinder);
   }
-  if (!Model_SetMesh(model, mesh)) {
-    pError("Failed to set model mesh");
-    return StartReturn::ERROR;
+
+  {
+    RAW_MESH_DONUT;
+    CREATE_MESH(Donut);
   }
-  PropertyHolder_AddProperty(Model_GetProperties(model), "color", nullptr, VariableType::VECTOR4);
 
-  MatrixWrapper identity = MatrixWrapper();
-  PropertyHolder_AddProperty(Shader_GetProperties(shader), "adjust", &identity, VariableType::MAT4);
-
-
-
-  // Object
-  Object* render = Pumpkin_RegisterObject("TestObj");
-  if (!render) {
-    pError("Failed to create TestObj");
-    return StartReturn::ERROR;
+  {
+    RAW_MESH_SPHERE;
+    CREATE_MESH(Sphere);
   }
-  Object_SetModel(render, model);
-  render->transform.rotation.x = 45;
-
 
   Pumpkin_ApplyStaticBuffer();
-
-
-
-  RegisterScript(AllocateTempScript, TempScript);
 
   return StartReturn::SUCCESS;
 }
 
 
-
+// prtodo give blank screen if no primary camera is selected
 
 
 void Pumpkin_Update() {
@@ -793,7 +772,7 @@ void Camera_LookAtTarget(Camera* camera, ::pPack::Vector3* target) {
 
 
 
-// Mesh
+// LoadedModelMesh
 // --------------------------------------------------
 // --------------------------------------------------
 
@@ -1022,7 +1001,7 @@ void Pumpkin_ApplyStaticBuffer() {
 
 // --------------------------------------------------
 // --------------------------------------------------
-// Mesh
+// LoadedModelMesh
 
 
 

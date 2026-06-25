@@ -90,7 +90,7 @@ API ::pPack::Vector3* Camera_GetLookAtTarget(Camera* camera);
 
 
 
-// Mesh
+// LoadedModelMesh
 // --------------------------------------------------
 // --------------------------------------------------
 
@@ -104,7 +104,7 @@ API void Pumpkin_ApplyStaticBuffer();
 
 // --------------------------------------------------
 // --------------------------------------------------
-// Mesh
+// LoadedModelMesh
 
 
 

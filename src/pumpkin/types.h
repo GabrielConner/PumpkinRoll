@@ -52,7 +52,7 @@ typedef Script* (*ScriptAllocateFunction)();
 typedef void* (*ProcAddressFunction(const char* name));
 typedef bool (*PumpkinRollLoadFunction)(ProcAddressFunction func);
 
-struct Vertex {
+struct LoadedMeshVertex {
   ::pPack::Vector3 position;
   ::pPack::Vector3 normal;
   ::pPack::Vector2 uv;
