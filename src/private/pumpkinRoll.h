@@ -41,10 +41,8 @@ struct Pumpkin {
 };
 
 
-#ifdef PUMPKIN_ROLL_DEV
 void RunProgram();
 void StopProgram();
-#endif
 
 void DeleteObjects();
 void ClearScripts(::pumpkin::Object* obj);

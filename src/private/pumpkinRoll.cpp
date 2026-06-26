@@ -188,18 +188,6 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argv, char** argc, void
 
   // Register and create defaults
 
-  // Camera
-  Camera* camera = Pumpkin_RegisterCamera("PumpkinRoll__DefaultCamera");
-  if (!camera) {
-    pError("Failed to create default camera");
-    return StartReturn::ERROR;
-  }
-  if (!Pumpkin_SetPrimaryCamera(camera)) {
-    pError("Failed to set primary camera");
-    return StartReturn::ERROR;
-  }
-  camera->transform.position.z = 5;
-
 
   // Shader
   char const* vertLocs = "shaders/pumpkinDefault.vert";
@@ -273,7 +261,6 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argv, char** argc, void
 }
 
 
-// prtodo give blank screen if no primary camera is selected
 
 
 void Pumpkin_Update() {
@@ -285,6 +272,8 @@ void Pumpkin_Update() {
 
 #ifdef PUMPKIN_ROLL_DEV
   DevelopmentLogAfterStart();
+#else
+  RunProgram();
 #endif
 
   // Loop until the main window is closed
@@ -371,7 +360,9 @@ void Pumpkin_End() {
   glDeleteBuffers(1, &pumpkinData->globalVBO);
 
 #ifdef PUMPKIN_ROLL_DEV
-  EndProgram();
+  EndDevelopmentProgram();
+#else
+  StopProgram();
 #endif
 
   FileManagerEnd();
@@ -506,14 +497,18 @@ char const* Object_GetName(Object const* object) {
 
 bool Object_SetModel(Object* object, Model* model) {
   pNullCheck(object, false);
-  pNullCheck(model, false);
 
   #ifndef PUMPKIN_ROLL_DEV
   if (object->developmentObject) return false;
   #endif
-
-
   pObjDefInt(object, i);
+
+  if (!model) {
+    if (i->model != nullptr) i->model->RemoveObject(object);
+    i->model = nullptr;
+    return true;
+  }
+
 
   if (!model->AddObject(object)) {
     pWarn("Failed to set object model");
@@ -1050,12 +1045,13 @@ Model* Pumpkin_GetModel(std::string const& name) {
 
 bool Model_SetShader(Model* model, Shader* shader) {
   pNullCheck(model, false);
-  pNullCheck(shader, false);
 
   if (model->shader) {
     model->shader->RemoveModel(model);
     model->shader = nullptr;
   }
+
+  if (!shader) return true;
 
   if (shader->AddModel(model))
     model->shader = shader;
@@ -1066,9 +1062,7 @@ bool Model_SetShader(Model* model, Shader* shader) {
 
 bool Model_SetMesh(Model* model, Mesh* mesh) {
   pNullCheck(model, false);
-  pNullCheck(mesh, false);
-
-
+  
   model->mesh = mesh;
   return true;
 }
@@ -1220,12 +1214,13 @@ char const* Pumpkin_GetScriptName(Script* script) {
 namespace pumpkin_private {
 
 
-#ifdef PUMPKIN_ROLL_DEV
 
 void RunProgram() {
   assert(pumpkinData);
 
+#ifdef PUMPKIN_ROLL_DEV
   pumpkinData->running = true;
+#endif
 
   for (auto& obj : pumpkinData->registeredObjects) {
     for (auto& script : pObjInt(obj.second)->external->scripts) {
@@ -1239,7 +1234,9 @@ void RunProgram() {
 void StopProgram() {
   assert(pumpkinData);
 
+#ifdef PUMPKIN_ROLL_DEV
   pumpkinData->running = false;
+#endif
 
   for (auto& obj : pumpkinData->registeredObjects) {
     for (auto& script : pObjInt(obj.second)->external->scripts) {
@@ -1247,8 +1244,6 @@ void StopProgram() {
     }
   }
 }
-
-#endif
 
 
 

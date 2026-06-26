@@ -50,6 +50,7 @@ void ListModels();
 void ListShaders();
 void ListScripts();
 void ListOwnedScripts();
+void ListCameras();
 
 inline bool ToNumberFromAscii(int& i) { i -= 48; return i < 0 || i > 9; }
 void AddError(std::string const& msg);
@@ -78,6 +79,9 @@ void ScriptOwnedBack();
 
 void SaveForward();
 void SaveBack();
+
+void CameraForward();
+void CameraBack();
 
 void LookAtObjectDelete(Object* obj, int id);
 
@@ -163,6 +167,13 @@ struct SelectMesh : Ask {
 
 
 struct SelectShader : Ask {
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+  void Set() override;
+};
+
+
+struct SelectCamera : Ask {
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
   void Set() override;
@@ -272,6 +283,7 @@ struct Data {
   SelectModel selectModel;
   SelectMesh selectMesh;
   SelectShader selectShader;
+  SelectCamera selectCamera;
   HoldProperty holdProperty;
   SelectProperty selectProperty;
   CreateProperty createProperty;
@@ -309,6 +321,7 @@ struct Data {
   std::unordered_map<size_t, Property>::iterator currentProperty;
   std::unordered_map<size_t, ScriptInfoPair>::iterator currentProgramScript;
   std::unordered_map<size_t, ScriptAddPair>::iterator currentObjectScript;
+  std::unordered_map<size_t, Camera*>::iterator currentCamera;
 
   std::vector<std::string>::iterator currentSave;
 
@@ -514,6 +527,8 @@ void DevelopmentLogAfterStart() {
   assert(data->pumpkin);
 
   data->startSaveData.Pull(data->pumpkin, {});
+
+  Pumpkin_SetPrimaryCamera(&data->devCamera);
 }
 
 
@@ -529,6 +544,7 @@ void UpdateDevelopment() {
       StopProgram();
       data->saveData.Push(data->pumpkin, data->runtimeObjects);
       data->updateAsk = true;
+      Pumpkin_SetPrimaryCamera(&data->devCamera);
     }
   }
 
@@ -540,6 +556,12 @@ void UpdateDevelopment() {
 
   data->inDevCamera = Pumpkin_GetPrimaryCamera() == &data->devCamera;
   UpdateCamera(&data->devCamera);
+
+
+  if (window && window->GetInput(GLFW_KEY_B).pressed) { // Can be used by prompts for special stuff, just a hack for now
+    data->ask->Prompt(0, data->line);
+  }
+
 
   // Development camera moving
   if (data->inDevCamera) {
@@ -767,10 +789,16 @@ leaveDevCameraStuff:
 }
 
 
-void EndProgram() {
+void EndDevelopmentProgram() {
   assert(data != nullptr);
+
+  if (data->pumpkin->running) {
+    StopProgram();
+  }
+
   data->saveData.Delete();
   data->startSaveData.Delete();
+
   delete(data);
 }
 
@@ -818,8 +846,8 @@ void MainMenu::Prompt(int i, std::string const& line) {
   if (ToNumberFromAscii(i)) return;
 
   switch (i) {
-    // prtodo reset camera even if no saved set primary camera
     case 0:  // Run
+      Pumpkin_SetPrimaryCamera(Pumpkin_GetCamera(data->startSaveData.primaryCamera));
       data->saveData.Pull(data->pumpkin, data->runtimeObjects);
       RunProgram();
       system("cls");
@@ -837,8 +865,8 @@ void MainMenu::Prompt(int i, std::string const& line) {
     case 4: // Select shader
       data->SetAsk(&data->selectShader);
       break;
-    case 5: // Primary camera view
-      Pumpkin_SetPrimaryCamera(&data->devCamera); // prtodo make option to select the primary camera and rename to match
+    case 5: // Set view camera
+      data->SetAsk(&data->selectCamera);
       break;
     case 6: // Build
       data->SetAsk(&data->buildPumpkin);
@@ -857,7 +885,7 @@ void MainMenu::Prompt(int i, std::string const& line) {
 
 
 void MainMenu::Question(std::string const& line) {
-  std::cout << "0. Run\n1. Create object\n2. Select object\n3. Select model\n4. Select shader\n5. Primary camera view\n6. Build\n7. Reload shaders\n8. Save\n9. Load";
+  std::cout << "0. Run\n1. Create object\n2. Select object\n3. Select model\n4. Select shader\n5. Set view camera\n6. Build\n7. Reload shaders\n8. Save\n9. Load";
 }
 
 // **************************************************
@@ -1448,6 +1476,64 @@ void SelectShader::Set() {
 
 
 
+// SelectCamera
+// **************************************************
+// **************************************************
+
+void SelectCamera::Prompt(int i, std::string const& line) {
+  if (data->pumpkin->primaryWindow && data->pumpkin->primaryWindow->GetInput(GLFW_KEY_B).pressed) {
+    data->SetAsk(&data->mainMenu);
+    Pumpkin_SetPrimaryCamera(&data->devCamera);
+    return;
+  }
+
+  if (i == '\n' || i == '\r') {
+    std::string str = (data->cycle && data->currentCamera != data->pumpkin->registeredCameras.end()) ? pObjInt(data->currentCamera->second)->name : line;
+    if (str.size() == 0) {
+      data->SetAsk(&data->mainMenu);
+      return;
+    }
+
+    Camera* cam = Pumpkin_GetCamera(line);
+    if (cam) {
+      Pumpkin_SetPrimaryCamera(cam);
+    } else {
+      AddError("Failed to find camera");
+    }
+    data->SetAsk(&data->mainMenu);
+    return;
+  }
+
+  data->updateAsk = true;
+}
+
+
+void SelectCamera::Question(std::string const& line) {
+  if (data->display) {
+    ListCameras();
+  }
+  
+  std::string str = (data->cycle && data->currentCamera != data->pumpkin->registeredCameras.end()) ? pObjInt(data->currentCamera->second)->name : line;
+  std::cout << "Enter camera name to set as view camera or empty to go back\n[Press B in window to use dev camera]\n>>" << str;
+}
+
+
+void SelectCamera::Set() {
+  assert(data);
+
+  data->forward = CameraForward;
+  data->back = CameraBack;
+  data->currentCamera = data->pumpkin->registeredCameras.begin();
+}
+
+// **************************************************
+// **************************************************
+// SelectCamera
+
+
+
+
+
 // HoldProperty
 // **************************************************
 // **************************************************
@@ -1847,6 +1933,7 @@ void CreateSave::Prompt(int i, std::string const& line) {
       return;
     }
 
+    Pumpkin_SetPrimaryCamera(Pumpkin_GetCamera(data->startSaveData.primaryCamera));
     data->saveData.Pull(data->pumpkin, data->runtimeObjects);
     data->saveData.Save(str, data->startSaveData.primaryCamera);
     data->SetAsk(&data->mainMenu);
@@ -1957,6 +2044,7 @@ void BuildPumpkin::Prompt(int i, std::string const& line) {
       return;
     }
 
+    Pumpkin_SetPrimaryCamera(Pumpkin_GetCamera(data->startSaveData.primaryCamera));
     data->saveData.Pull(data->pumpkin, data->runtimeObjects);
     data->saveData.Build(line, data->startSaveData);
     data->SetAsk(&data->mainMenu);
@@ -2097,6 +2185,18 @@ void ListOwnedScripts() {
 }
 
 
+
+void ListCameras() {
+  assert(data);
+
+  std::vector<std::string> list;
+  for (auto t : data->pumpkin->registeredCameras) {
+    list.push_back(pObjInt(t.second)->name);
+  }
+  std::sort(list.begin(), list.end(), StringSort);
+  for (auto& elem : list) std::cout << elem << "\n";
+  std::cout << '\n';
+}
 
 
 /*************************************************************************/
@@ -2261,6 +2361,21 @@ void SaveBack() {
 
   if (data->currentSave != data->saveFiles.begin()) data->currentSave--;
   else data->currentSave = --data->saveFiles.end();
+}
+
+
+void CameraForward() {
+  assert(data);
+
+  if (data->currentCamera != --data->pumpkin->registeredCameras.end()) data->currentCamera++;
+  else data->currentCamera = data->pumpkin->registeredCameras.begin();
+}
+
+void CameraBack() {
+  assert(data);
+
+  if (data->currentCamera != data->pumpkin->registeredCameras.begin()) data->currentCamera--;
+  else data->currentCamera = --data->pumpkin->registeredCameras.end();
 }
 
 }; // namespace

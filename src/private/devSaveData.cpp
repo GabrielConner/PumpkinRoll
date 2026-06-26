@@ -609,7 +609,7 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
       Build_CameraEnd(stream, save);
     }
   }
-
+  WriteLine(std::format("Pumpkin_SetPrimaryCamera(Pumpkin_GetCamera({:}));", compare.primaryCamera));
 
 
 
