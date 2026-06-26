@@ -61,8 +61,8 @@ _CrtMemState crtMemState;
 #endif
 
 
-#define CREATE_MESH(name) \
-Mesh* mesh = Pumpkin_RegisterMesh("PumpkinRoll__" #name "Mesh", rawMesh, 8 * sizeof(float), sizeof(rawMesh) / (8 * sizeof(float)), false, format); \
+#define CREATE_MESH(name, var) \
+Mesh* mesh = Pumpkin_RegisterMesh("PumpkinRoll__" #name "Mesh", (void*)var, 8 * sizeof(float), sizeof(var) / (8 * sizeof(float)), false, format); \
 if (!mesh) { \
   pError("Failed to create " #name " mesh"); \
   return StartReturn::ERROR; \
@@ -227,32 +227,32 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argv, char** argc, void
       1.0f, 0.0f, 1.0f,         1.f, 0.f,       0.f, 1.f, 0.f,
       1.0f, 0.0f, -1.0f,        1.f, 1.f,       0.f, 1.f, 0.f,
     };
-    CREATE_MESH(Plane);
+    CREATE_MESH(Plane, rawMesh);
   }
 
   {
     RAW_MESH_CUBE;
-    CREATE_MESH(Cube);
+    CREATE_MESH(Cube, RAW_MESH_CUBE);
   }
 
   {
     RAW_MESH_CONE;
-    CREATE_MESH(Cone);
+    CREATE_MESH(Cone, RAW_MESH_CONE);
   }
 
   {
     RAW_MESH_CYLINDER;
-    CREATE_MESH(Cylinder);
+    CREATE_MESH(Cylinder, RAW_MESH_CYLINDER);
   }
 
   {
     RAW_MESH_DONUT;
-    CREATE_MESH(Donut);
+    CREATE_MESH(Donut, RAW_MESH_DONUT);
   }
 
   {
     RAW_MESH_SPHERE;
-    CREATE_MESH(Sphere);
+    CREATE_MESH(Sphere, RAW_MESH_SPHERE);
   }
 
   Pumpkin_ApplyStaticBuffer();
