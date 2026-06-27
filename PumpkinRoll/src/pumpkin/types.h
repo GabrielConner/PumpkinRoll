@@ -79,6 +79,14 @@ struct MatrixWrapper {
 
 
 
+struct Vertex {
+  ::pPack::Vector3 position;
+  ::pPack::Vector2 uv;
+  ::pPack::Vector3 normal;
+};
+
+
+
 struct Transform {
   ::pPack::Vector3 position = 0;
   ::pPack::Vector3 scale = 1;

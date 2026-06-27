@@ -12,7 +12,7 @@ extern "C" {
 #define API __declspec(dllimport)
 #endif
 
-API StartReturn Pumpkin_Init(StartSettings const& start, int argv, char** argc, void (*devLoad)());
+API StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void (*devLoad)());
 API void Pumpkin_Update();
 API void Pumpkin_End();
 
@@ -22,8 +22,8 @@ API std::string Pumpkin_ExecutableLocation();
 
 API void Pumpkin_PrintError(PrintLevel level, char const* file, char const* msg);
 
-API double Pumpkin_DeltaTime();
-API double Pumpkin_TotalTime();
+API double* Pumpkin_DeltaTime();
+API double* Pumpkin_TotalTime();
 
 
 // Object
@@ -90,7 +90,7 @@ API ::pPack::Vector3* Camera_GetLookAtTarget(Camera* camera);
 
 
 
-// LoadedModelMesh
+// Mesh
 // --------------------------------------------------
 // --------------------------------------------------
 
@@ -102,9 +102,12 @@ API GLuint Pumpkin_GetFormat(std::string const& name);
 
 API void Pumpkin_ApplyStaticBuffer();
 
+API void* Mesh_GetMeshVertices(Mesh* mesh);
+API void Mesh_Reload(Mesh* mesh);
+
 // --------------------------------------------------
 // --------------------------------------------------
-// LoadedModelMesh
+// Mesh
 
 
 
@@ -112,7 +115,7 @@ API void Pumpkin_ApplyStaticBuffer();
 // --------------------------------------------------
 // --------------------------------------------------
 
-API Model* Pumpkin_RegisterModel(std::string const& name);
+API Model* Pumpkin_RegisterModel(std::string const& name, void(*setup)());
 API Model* Pumpkin_GetModel(std::string const& name);
 
 API bool Model_SetShader(Model* model, Shader* shader);
@@ -130,7 +133,7 @@ API PropertyHolder* Model_GetProperties(Model* shader);
 // --------------------------------------------------
 // --------------------------------------------------
 
-API Shader* Pumpkin_RegisterShader(std::string const& name, ShaderInfo* startInfos, int count);
+API Shader* Pumpkin_RegisterShader(std::string const& name, ShaderInfo* startInfos, int count, void(*setup)());
 API Shader* Pumpkin_GetShader(std::string const& name);
 
 API PropertyHolder* Shader_GetProperties(Shader* shader);

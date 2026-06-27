@@ -27,6 +27,8 @@ void Shader::RenderAll() {
     ApplyShaderVariable(prop.second);
   }
 
+  if (setup) setup();
+
   // Get camera
   Camera* camera = Pumpkin_GetPrimaryCamera();
   assert(camera);

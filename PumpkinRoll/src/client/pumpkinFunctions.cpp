@@ -1,7 +1,7 @@
 /*
 *
 * Function Declarations Source
-* Built 2026-06-24 09:10 PM
+* Built 2026-06-26 10:03 PM
 *
 */
 
@@ -45,6 +45,8 @@ FPPUMPKIN_GETMESH Pumpkin_GetMesh = NULL;
 FPPUMPKIN_REGISTERFORMAT Pumpkin_RegisterFormat = NULL;
 FPPUMPKIN_GETFORMAT Pumpkin_GetFormat = NULL;
 FPPUMPKIN_APPLYSTATICBUFFER Pumpkin_ApplyStaticBuffer = NULL;
+FPMESH_GETMESHVERTICES Mesh_GetMeshVertices = NULL;
+FPMESH_RELOAD Mesh_Reload = NULL;
 FPPUMPKIN_REGISTERMODEL Pumpkin_RegisterModel = NULL;
 FPPUMPKIN_GETMODEL Pumpkin_GetModel = NULL;
 FPMODEL_SETSHADER Model_SetShader = NULL;
@@ -108,6 +110,8 @@ bool LoadFunctions(PROCADDRESSFUNC proc) {
   Pumpkin_RegisterFormat = (FPPUMPKIN_REGISTERFORMAT)proc("Pumpkin_RegisterFormat"); if (!Pumpkin_RegisterFormat) return false;
   Pumpkin_GetFormat = (FPPUMPKIN_GETFORMAT)proc("Pumpkin_GetFormat"); if (!Pumpkin_GetFormat) return false;
   Pumpkin_ApplyStaticBuffer = (FPPUMPKIN_APPLYSTATICBUFFER)proc("Pumpkin_ApplyStaticBuffer"); if (!Pumpkin_ApplyStaticBuffer) return false;
+  Mesh_GetMeshVertices = (FPMESH_GETMESHVERTICES)proc("Mesh_GetMeshVertices"); if (!Mesh_GetMeshVertices) return false;
+  Mesh_Reload = (FPMESH_RELOAD)proc("Mesh_Reload"); if (!Mesh_Reload) return false;
   Pumpkin_RegisterModel = (FPPUMPKIN_REGISTERMODEL)proc("Pumpkin_RegisterModel"); if (!Pumpkin_RegisterModel) return false;
   Pumpkin_GetModel = (FPPUMPKIN_GETMODEL)proc("Pumpkin_GetModel"); if (!Pumpkin_GetModel) return false;
   Model_SetShader = (FPMODEL_SETSHADER)proc("Model_SetShader"); if (!Model_SetShader) return false;

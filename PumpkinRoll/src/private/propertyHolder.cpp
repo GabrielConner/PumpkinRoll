@@ -29,7 +29,7 @@ bool PropertyHolder_AddProperty(PropertyHolder* holder, std::string const& name,
 
   ret.first->second.prop = calloc(1, typeSize);
   if (ret.first->second.prop == nullptr) {
-    throw std::bad_alloc();
+    throw std::bad_alloc(); // protodo remove all instances of exceptions
   }
   if (value) {
     memcpy(ret.first->second.prop, value, typeSize);

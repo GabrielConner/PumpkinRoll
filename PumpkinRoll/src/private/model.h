@@ -18,6 +18,8 @@ struct Model {
   Mesh* mesh = nullptr;
   Shader* shader = nullptr;
 
+  void (*setup)() = nullptr;
+
 
   void RenderAll();
   bool AddObject(Object* obj);

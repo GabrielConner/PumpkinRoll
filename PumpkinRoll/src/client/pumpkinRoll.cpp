@@ -20,16 +20,16 @@ HMODULE libraryHandle;
 
 namespace pumpkin {
 
-bool Load(int argv, char** argc) {
+bool Load(int argc, char** argv) {
 
 #if _DEBUG
-  if (argv > 1 && strcmp(argc[1], "-d") == 0) {
+  if (argc > 1 && strcmp(argv[1], "-d") == 0) {
     libraryHandle = LoadLibraryA("pumpkinRollDev-d.dll");
   } else {
     libraryHandle = LoadLibraryA("pumpkinRoll-d.dll");
   }
 #else
-  if (argv > 1 && strcmp(argc[1], "-d") == 0) {
+  if (argc > 1 && strcmp(argv[1], "-d") == 0) {
     libraryHandle = LoadLibraryA("pumpkinRollDev.dll");
   } else {
     libraryHandle = LoadLibraryA("pumpkinRoll.dll");

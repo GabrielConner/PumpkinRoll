@@ -19,6 +19,7 @@ struct Mesh {
   std::string name = "";
 
   void Setup();
+  void Reload() const;
 
   GLuint GetVBO() const { assert(!dynamic || pVBO); return dynamic ? VBO : *pVBO ; }
   void Delete();

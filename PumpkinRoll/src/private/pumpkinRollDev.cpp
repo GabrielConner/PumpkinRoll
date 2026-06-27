@@ -1494,7 +1494,7 @@ void SelectCamera::Prompt(int i, std::string const& line) {
       return;
     }
 
-    Camera* cam = Pumpkin_GetCamera(line);
+    Camera* cam = Pumpkin_GetCamera(str);
     if (cam) {
       Pumpkin_SetPrimaryCamera(cam);
     } else {
@@ -1937,6 +1937,7 @@ void CreateSave::Prompt(int i, std::string const& line) {
     data->saveData.Pull(data->pumpkin, data->runtimeObjects);
     data->saveData.Save(str, data->startSaveData.primaryCamera);
     data->SetAsk(&data->mainMenu);
+    Pumpkin_SetPrimaryCamera(&data->devCamera);
     return;
   }
 

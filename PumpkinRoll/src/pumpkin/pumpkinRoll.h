@@ -17,7 +17,7 @@
 
 namespace pumpkin {
 
-bool Load(int argv, char** argc);
+bool Load(int argc, char** argv);
 void End();
 
 

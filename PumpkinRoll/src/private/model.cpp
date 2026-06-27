@@ -30,6 +30,8 @@ void Model::RenderAll() {
     ApplyShaderVariable(prop.second);
   }
 
+  if (setup) setup();
+
   mesh->Setup();
 
   // Draw instances

@@ -1,7 +1,7 @@
 /*
 *
 * Function Declarations Header
-* Built 2026-06-24 09:10 PM
+* Built 2026-06-26 10:03 PM
 *
 */
 
@@ -22,8 +22,8 @@ typedef void (APIENTRYP FPPUMPKIN_END)();
 typedef RuntimeSettings* (APIENTRYP FPPUMPKIN_GETRUNTIME)();
 typedef std::string (APIENTRYP FPPUMPKIN_EXECUTABLELOCATION)();
 typedef void (APIENTRYP FPPUMPKIN_PRINTERROR)(PrintLevel level, char const* file, char const* msg);
-typedef double (APIENTRYP FPPUMPKIN_DELTATIME)();
-typedef double (APIENTRYP FPPUMPKIN_TOTALTIME)();
+typedef double* (APIENTRYP FPPUMPKIN_DELTATIME)();
+typedef double* (APIENTRYP FPPUMPKIN_TOTALTIME)();
 typedef Object* (APIENTRYP FPPUMPKIN_REGISTEROBJECT)(std::string const& name);
 typedef Object* (APIENTRYP FPPUMPKIN_GETOBJECT)(std::string const& name);
 typedef bool (APIENTRYP FPPUMPKIN_DELETEOBJECT)(std::string const& name);
@@ -52,12 +52,14 @@ typedef Mesh* (APIENTRYP FPPUMPKIN_GETMESH)(std::string const& name);
 typedef GLuint (APIENTRYP FPPUMPKIN_REGISTERFORMAT)(std::string const& name, FormatStartInfo const* const formatStartInfo, GLuint count, bool autoOffset);
 typedef GLuint (APIENTRYP FPPUMPKIN_GETFORMAT)(std::string const& name);
 typedef void (APIENTRYP FPPUMPKIN_APPLYSTATICBUFFER)();
-typedef Model* (APIENTRYP FPPUMPKIN_REGISTERMODEL)(std::string const& name);
+typedef void* (APIENTRYP FPMESH_GETMESHVERTICES)(Mesh* mesh);
+typedef void (APIENTRYP FPMESH_RELOAD)(Mesh* mesh);
+typedef Model* (APIENTRYP FPPUMPKIN_REGISTERMODEL)(std::string const& name, void(*setup)());
 typedef Model* (APIENTRYP FPPUMPKIN_GETMODEL)(std::string const& name);
 typedef bool (APIENTRYP FPMODEL_SETSHADER)(Model* model, Shader* shader);
 typedef bool (APIENTRYP FPMODEL_SETMESH)(Model* model, Mesh* mesh);
 typedef PropertyHolder* (APIENTRYP FPMODEL_GETPROPERTIES)(Model* shader);
-typedef Shader* (APIENTRYP FPPUMPKIN_REGISTERSHADER)(std::string const& name, ShaderInfo* startInfos, int count);
+typedef Shader* (APIENTRYP FPPUMPKIN_REGISTERSHADER)(std::string const& name, ShaderInfo* startInfos, int count, void(*setup)());
 typedef Shader* (APIENTRYP FPPUMPKIN_GETSHADER)(std::string const& name);
 typedef PropertyHolder* (APIENTRYP FPSHADER_GETPROPERTIES)(Shader* shader);
 typedef bool (APIENTRYP FPPROPERTYHOLDER_ADDPROPERTY)(PropertyHolder* holder, std::string const& name, void* value, VariableType type);
@@ -115,6 +117,8 @@ APIGET FPPUMPKIN_GETMESH Pumpkin_GetMesh;
 APIGET FPPUMPKIN_REGISTERFORMAT Pumpkin_RegisterFormat;
 APIGET FPPUMPKIN_GETFORMAT Pumpkin_GetFormat;
 APIGET FPPUMPKIN_APPLYSTATICBUFFER Pumpkin_ApplyStaticBuffer;
+APIGET FPMESH_GETMESHVERTICES Mesh_GetMeshVertices;
+APIGET FPMESH_RELOAD Mesh_Reload;
 APIGET FPPUMPKIN_REGISTERMODEL Pumpkin_RegisterModel;
 APIGET FPPUMPKIN_GETMODEL Pumpkin_GetModel;
 APIGET FPMODEL_SETSHADER Model_SetShader;

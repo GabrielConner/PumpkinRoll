@@ -18,6 +18,8 @@ struct Shader {
   std::set<Model*> models = std::set<Model*>();
   std::string name = "";
 
+  void (*setup)() = nullptr;
+
   void RenderAll();  
   bool AddModel(Model* model);
   void RemoveModel(Model* model);

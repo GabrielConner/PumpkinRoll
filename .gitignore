@@ -2,6 +2,8 @@
 *pmpknrl*
 main.cpp
 
+pumpkinBuild/
+
 srcExt/
 library/
 assimp-vc143-mt.dll

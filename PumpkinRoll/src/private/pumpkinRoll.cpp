@@ -67,7 +67,7 @@ if (!mesh) { \
   pError("Failed to create " #name " mesh"); \
   return StartReturn::ERROR; \
 } \
-Model* model = Pumpkin_RegisterModel("PumpkinRoll_" #name "Model"); \
+Model* model = Pumpkin_RegisterModel("PumpkinRoll_" #name "Model", nullptr); \
 if (!model) { \
   pError("Failed to create " #name  " model"); \
   return StartReturn::ERROR; \
@@ -85,11 +85,20 @@ if (!Model_SetMesh(model, mesh)) { \
 
 
 
+namespace pumpkin_private {
+
+// Load the LibGen managing functions
+__declspec(dllimport) bool InitLibGen();
+__declspec(dllimport) void EndLibGen();
+
+}; // namespace pumpkin_private
+
+
 
 namespace pumpkin {
 
 
-StartReturn Pumpkin_Init(StartSettings const& start, int argv, char** argc, void (*devLoad)()) {
+StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void (*devLoad)()) {
 
 #ifdef PUMPKIN_ROLL_DEV
   _CrtMemCheckpoint(&crtMemState);
@@ -117,12 +126,18 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argv, char** argc, void
 
 
   // GLFW
-  if (!glfwInit()) {
+/*  if (!glfwInit()) {
     pError("Failed to initialize GLFW");
     delete(pumpkinData);
     return StartReturn::FAILURE;
-  }
+  }*/
+  /*
+    Should only call glfw related functions through
+    'windowManager' to use its loaded glfw memory
 
+    GLFW is only added here for the macros and types, not functions
+  */
+  InitLibGen();
 
   // Open main window
   WindowCreateHint hints[] = {
@@ -151,7 +166,7 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argv, char** argc, void
   pumpkinData->primaryWindow = mainWindow;
 
   // Start OpenGL
-  if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+  if (!gladLoadGLLoader((GLADloadproc)GetGLFWProcAddress())) {
     pError("Failed to load OpenGL");
     delete(pumpkinData);
     delete(mainWindow);
@@ -179,7 +194,7 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argv, char** argc, void
   // END OF FAILURE ZONE
 
 
-  if (argv > 1 && strcmp(argc[1], "-d") == 0) {
+  if (argc > 1 && strcmp(argv[1], "-d") == 0) {
     if (devLoad) devLoad();
   }
 
@@ -195,7 +210,7 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argv, char** argc, void
 
   ShaderInfo shaderCreateInfos[] = {ShaderInfo({vertLocs}, 1, GL_VERTEX_SHADER), ShaderInfo({fragLocs}, 1, GL_FRAGMENT_SHADER)};
 
-  Shader* shader = Pumpkin_RegisterShader("PumpkinRoll__DefaultShader", shaderCreateInfos, sizeof(shaderCreateInfos) / sizeof(ShaderInfo));
+  Shader* shader = Pumpkin_RegisterShader("PumpkinRoll__DefaultShader", shaderCreateInfos, sizeof(shaderCreateInfos) / sizeof(ShaderInfo), nullptr);
   if (!shader) {
     pError("Failed to create default shader");
     return StartReturn::ERROR;
@@ -281,7 +296,7 @@ void Pumpkin_Update() {
     pumpkinData->deltaTime = singleton.GetDeltaTime();
     pumpkinData->totalTime = singleton.GetTotalTime();
 
-    glfwPollEvents();
+    GLFWPollEvents();
 
     glClearColor(runtime.backgroundColor.x, runtime.backgroundColor.y, runtime.backgroundColor.z, runtime.backgroundColor.w);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -367,7 +382,8 @@ void Pumpkin_End() {
 
   FileManagerEnd();
 
-  glfwTerminate();
+  //glfwTerminate();
+  EndLibGen();
 
   // Delete pumpkinData
   delete(pumpkinData);
@@ -411,15 +427,15 @@ void Pumpkin_PrintError(PrintLevel level, char const* file, char const* msg) {
 #endif
 
 
-double Pumpkin_DeltaTime() {
+double* Pumpkin_DeltaTime() {
   pPumpkinCheck(0);
-  return pumpkinData->deltaTime;
+  return &pumpkinData->deltaTime;
 }
 
 
-double Pumpkin_TotalTime() {
+double* Pumpkin_TotalTime() {
   pPumpkinCheck(0);
-  return pumpkinData->totalTime;
+  return &pumpkinData->totalTime;
 }
 
 
@@ -475,10 +491,6 @@ bool Pumpkin_DeleteObject(std::string const& name) {
   if (ret == pumpkinData->registeredObjects.end()) {
     pWarn("Object does not exist with name");
     return false;
-  }
-
-  for (auto& callbacks : pObjExt(ret->second)->deleteCallbacks) {
-    callbacks.first(ret->second, callbacks.second);
   }
 
   ::pumpkin_private::DeleteObject(ret->second);
@@ -767,7 +779,7 @@ void Camera_LookAtTarget(Camera* camera, ::pPack::Vector3* target) {
 
 
 
-// LoadedModelMesh
+// Mesh
 // --------------------------------------------------
 // --------------------------------------------------
 
@@ -788,6 +800,12 @@ void Mesh::Delete() {
 void Mesh::Setup() {
   glBindVertexArray(format);
   glBindVertexBuffer(0, GetVBO(), offset, vertexSize);
+}
+
+
+
+void Mesh::Reload() const {
+  glNamedBufferSubData(VBO, offset, bufferSize, vertices);
 }
 
 
@@ -994,9 +1012,26 @@ void Pumpkin_ApplyStaticBuffer() {
 }
 
 
+
+void* Mesh_GetMeshVertices(Mesh* mesh) {
+  pNullCheck(mesh, nullptr);
+  return mesh->vertices;
+}
+
+
+
+void Mesh_Reload(Mesh* mesh) {
+  pNullCheck(mesh);
+  if (!mesh->dynamic) {
+    return;
+  }
+
+  glNamedBufferSubData(mesh->VBO, 0, mesh->bufferSize, mesh->vertices);
+}
+
 // --------------------------------------------------
 // --------------------------------------------------
-// LoadedModelMesh
+// Mesh
 
 
 
@@ -1006,7 +1041,7 @@ void Pumpkin_ApplyStaticBuffer() {
 // --------------------------------------------------
 // --------------------------------------------------
 
-Model* Pumpkin_RegisterModel(std::string const& name) {
+Model* Pumpkin_RegisterModel(std::string const& name, void(*setup)()) {
   pPumpkinCheck(nullptr);
 
 #ifdef PUMPKIN_ROLL_DEV
@@ -1029,6 +1064,7 @@ Model* Pumpkin_RegisterModel(std::string const& name) {
 
   ret.first->second = model;
   model->name = name;
+  model->setup = setup;
 
   return model;
 }
@@ -1086,7 +1122,7 @@ PropertyHolder* Model_GetProperties(Model* model) {
 // --------------------------------------------------
 // --------------------------------------------------
 
-Shader* Pumpkin_RegisterShader(std::string const& name, ShaderInfo* startInfos, int count) {
+Shader* Pumpkin_RegisterShader(std::string const& name, ShaderInfo* startInfos, int count, void(*setup)()) {
   pPumpkinCheck(nullptr);
 
 #ifdef PUMPKIN_ROLL_DEV
@@ -1121,6 +1157,7 @@ Shader* Pumpkin_RegisterShader(std::string const& name, ShaderInfo* startInfos, 
   ret.first->second = tShader;
   tShader->name = name;
   tShader->Reload();
+  tShader->setup = setup;
 
   return tShader;
 }
@@ -1318,6 +1355,10 @@ void DeleteObject(Object* obj) {
   pObjDefInt(obj, i);
   delete(i->name);
   if (i->model) i->model->RemoveObject(obj);
+
+  for (auto& callbacks : pObjExt(obj)->deleteCallbacks) {
+    callbacks.first(obj, callbacks.second);
+  }
 
   auto ext = pObjInt(obj)->external;
 
