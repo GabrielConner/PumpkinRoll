@@ -34,12 +34,12 @@ void _windowResizedCallback(GLFWwindow* glWindow, int Width, int Height) {
     return;
   }
 
-  Window* window = windowToWindowMap[glWindow];
+  Window* primaryWindow = windowToWindowMap[glWindow];
 
-  window->width = Width;
-  window->height = Height;
-  window->aspectRatio = (double)Width / Height;
-  window->valid = false;
+  primaryWindow->width = Width;
+  primaryWindow->height = Height;
+  primaryWindow->aspectRatio = (double)Width / Height;
+  primaryWindow->valid = false;
 }
 
 
@@ -48,9 +48,9 @@ void _mouseScrollCallback(GLFWwindow* glWindow, double xoffset, double yoffset) 
     return;
   }
 
-  Window* window = windowToWindowMap[glWindow];
-  window->mouseScrollX = xoffset;
-  window->mouseScrollY = yoffset;
+  Window* primaryWindow = windowToWindowMap[glWindow];
+  primaryWindow->mouseScrollX = xoffset;
+  primaryWindow->mouseScrollY = yoffset;
 }
 
 
@@ -59,9 +59,9 @@ void _charCallback(GLFWwindow* glWindow, unsigned int codepoint) {
     return;
   }
 
-  Window* window = windowToWindowMap[glWindow];
-  if (window->readFunction != nullptr) {
-    window->readFunction(window, codepoint);
+  Window* primaryWindow = windowToWindowMap[glWindow];
+  if (primaryWindow->readFunction != nullptr) {
+    primaryWindow->readFunction(primaryWindow, codepoint);
   }
 }
 
@@ -71,16 +71,16 @@ void _keyCallback(GLFWwindow* glWindow, int Key, int Scancode, int Action, int M
     return;
   }
 
-  Window* window = windowToWindowMap[glWindow];
+  Window* primaryWindow = windowToWindowMap[glWindow];
 
   int res = 0;
-  if (window->blockUntil == nullptr || (res = window->blockUntil(window, Key, Action, Mods)) != 0) {
+  if (primaryWindow->blockUntil == nullptr || (res = primaryWindow->blockUntil(primaryWindow, Key, Action, Mods)) != 0) {
     if (res == UNBLOCK) {
-      window->blockUntil = nullptr;
+      primaryWindow->blockUntil = nullptr;
     }
 
 
-    InputInfo& info = window->keyMapping[Key];
+    InputInfo& info = primaryWindow->keyMapping[Key];
     info.mods = Mods;
 
     if (Action == GLFW_PRESS) {
@@ -102,9 +102,9 @@ void _closeCallback(GLFWwindow* glWindow) {
     return;
   }
 
-  Window* window = windowToWindowMap[glWindow];
+  Window* primaryWindow = windowToWindowMap[glWindow];
 
-  window->shouldClose = true;
+  primaryWindow->shouldClose = true;
 }
 
 
@@ -113,15 +113,15 @@ void _mouseCallback(GLFWwindow* glWindow, int Button, int Action, int Mods) {
     return;
   }
 
-  Window* window = windowToWindowMap[glWindow];
+  Window* primaryWindow = windowToWindowMap[glWindow];
 
   int res = 0;
-  if (window->blockUntil == nullptr || (res = window->blockUntil(window, Button, Action, Mods)) != 0) {
+  if (primaryWindow->blockUntil == nullptr || (res = primaryWindow->blockUntil(primaryWindow, Button, Action, Mods)) != 0) {
     if (res == UNBLOCK) {
-      window->blockUntil = nullptr;
+      primaryWindow->blockUntil = nullptr;
     }
 
-    InputInfo& info = window->keyMapping[Button];
+    InputInfo& info = primaryWindow->keyMapping[Button];
     info.mods = Mods;
 
     if (Action == GLFW_PRESS) {
@@ -142,19 +142,21 @@ void _mouseMoveCallback(GLFWwindow* glWindow, double xPos, double yPos) {
     return;
   }
 
-  Window* window = windowToWindowMap[glWindow];
+  Window* primaryWindow = windowToWindowMap[glWindow];
 
-  window->realMouseX = xPos;
-  window->realMouseY = yPos;
-
-  if (!window->mouseMovedSinceReset) {
-    window->oldMouseX = window->mouseX;
-    window->oldMouseY = window->mouseY;
-    window->mouseMovedSinceReset = true;
+  if (!primaryWindow->mouseMovedSinceReset) {
+    primaryWindow->oldMouseX = primaryWindow->mouseX;
+    primaryWindow->oldMouseY = primaryWindow->mouseY;
+    primaryWindow->oldRealMouseX = primaryWindow->realMouseX;
+    primaryWindow->oldRealMouseY = primaryWindow->realMouseY;
+    primaryWindow->mouseMovedSinceReset = true;
   }
 
-  window->mouseX = (2 * xPos / window->width) - 1;
-  window->mouseY = -((2 * yPos / window->height) - 1);
+  primaryWindow->realMouseX = xPos;
+  primaryWindow->realMouseY = yPos;
+
+  primaryWindow->mouseX = (2 * xPos / primaryWindow->width) - 1;
+  primaryWindow->mouseY = -((2 * yPos / primaryWindow->height) - 1);
 }
 
 
@@ -163,12 +165,12 @@ void _mouseEnterCallback(GLFWwindow* glWindow, int Entered) {
     return;
   }
 
-  Window* window = windowToWindowMap[glWindow];
+  Window* primaryWindow = windowToWindowMap[glWindow];
 
   if (Entered == GLFW_TRUE) {
-    window->mouseOver = true;
+    primaryWindow->mouseOver = true;
   } else {
-    window->mouseOver = false;
+    primaryWindow->mouseOver = false;
   }
 }
 
@@ -178,12 +180,12 @@ void _windowFocusCallback(GLFWwindow* glWindow, int Focused) {
     return;
   }
 
-  Window* window = windowToWindowMap[glWindow];
+  Window* primaryWindow = windowToWindowMap[glWindow];
 
   if (Focused == GLFW_TRUE) {
-    window->hasFocus = true;
+    primaryWindow->hasFocus = true;
   } else {
-    window->hasFocus = false;
+    primaryWindow->hasFocus = false;
   }
 }
 
@@ -193,12 +195,12 @@ void _windowMaximizeCallback(GLFWwindow* glWindow, int Maximized) {
     return;
   }
 
-  Window* window = windowToWindowMap[glWindow];
+  Window* primaryWindow = windowToWindowMap[glWindow];
 
   if (Maximized == GLFW_TRUE) {
-    window->maximized = true;
+    primaryWindow->maximized = true;
   } else {
-    window->maximized = false;
+    primaryWindow->maximized = false;
   }
 }
 
@@ -208,12 +210,12 @@ void _windowIconifyCallback(GLFWwindow* glWindow, int Iconified) {
     return;
   }
 
-  Window* window = windowToWindowMap[glWindow];
+  Window* primaryWindow = windowToWindowMap[glWindow];
 
   if (Iconified == GLFW_TRUE) {
-    window->visible = false;
+    primaryWindow->visible = false;
   } else {
-    window->visible = true;
+    primaryWindow->visible = true;
   }
 }
 
@@ -383,6 +385,14 @@ DVector2
 ::pPack::DVector2
 #endif
 Window::GetRealMousePosition() const { return { realMouseX, realMouseY }; }
+
+
+#ifndef _PPM_VECTOR
+DVector2
+#else
+::pPack::DVector2
+#endif
+Window::GetDeltaRealMousePosition() const { return {realMouseY - oldRealMouseY, realMouseX - oldRealMouseX}; }
 
 
 

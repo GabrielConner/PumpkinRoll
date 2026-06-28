@@ -25,6 +25,9 @@ API void Pumpkin_PrintError(PrintLevel level, char const* file, char const* msg)
 API double* Pumpkin_DeltaTime();
 API double* Pumpkin_TotalTime();
 
+API void Pumpkin_StartMemoryIgnoreBlock();
+API void Pumpkin_EndMemoryIgnoreBlock();
+
 
 // Object
 // --------------------------------------------------

@@ -3,6 +3,7 @@
 
 #include "pPack/fileInterface.h"
 #include "pPack/vector.h"
+#include "pPack/windowManager.h"
 #include "glad/glad.h"
 
 #include <algorithm>
@@ -113,6 +114,12 @@ struct RuntimeSettings {
 
 
 
+struct ScriptUpdateInfo {
+  double deltaTime = 0;
+  double totalTime = 0;
+  ::pPack::Window* window = nullptr;
+};
+
 
 
 
@@ -181,7 +188,7 @@ struct FormatStartInfo {
 
 struct Script {
   virtual void Start(Object* obj) {}
-  virtual void Update(Object* obj, double deltaTime, double totalTime) {}
+  virtual void Update(Object* obj, ScriptUpdateInfo const& info) {}
   virtual void End(Object* obj) {}
 };
 
@@ -209,6 +216,34 @@ struct Mesh;
 struct Model;
 struct Shader;
 struct PropertyHolder;
+
+
+
+
+/*************************************************************************/
+/*************************************************************************/
+/*                                                                       */
+/*                           S C R I P T S                               */
+/*                                                                       */
+/*************************************************************************/
+/*************************************************************************/
+
+
+
+struct PumpkinRoll__CameraFreeMovement : Script {
+private:
+  ::pPack::Vector3 cameraRotateOffset;
+  ::pPack::Vector2 cameraRealMouseZero;
+  bool movingAround = false;
+
+public:
+  int toggleKey = 1;
+  float moveSpeed = 3.0f;
+  float cameraSpeed = 1.0f / 7.0f;
+
+  void Update(Object* obj, ScriptUpdateInfo const& info) override;
+};
+
 
 }; // namespace pumpkin
 

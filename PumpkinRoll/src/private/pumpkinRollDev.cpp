@@ -9,7 +9,12 @@
 #include "private/pumpkinRoll.h"
 #include "private/camera.h"
 #include "private/devSaveData.h"
+#include "private/fileManager.h"
 
+#include "glm/common.hpp"
+#include "glm/ext.hpp"
+
+#include "pPack/shaderHandling.h"
 #include "pPack/windowManager.h"
 
 #include <string>
@@ -52,7 +57,7 @@ void ListScripts();
 void ListOwnedScripts();
 void ListCameras();
 
-inline bool ToNumberFromAscii(int& i) { i -= 48; return i < 0 || i > 9; }
+inline bool AsciiToNumber(int& i) { i -= 48; return i < 0 || i > 9; }
 void AddError(std::string const& msg);
 
 
@@ -145,6 +150,12 @@ struct HoldShader : Ask {
 };
 
 
+struct HoldCamera : Ask {
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+};
+
+
 struct SelectObject : Ask {
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
@@ -174,6 +185,7 @@ struct SelectShader : Ask {
 
 
 struct SelectCamera : Ask {
+  Camera* cam = nullptr;
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
   void Set() override;
@@ -304,6 +316,7 @@ struct Data {
   Shader* selectedShader = nullptr;
   Mesh* selectedMesh = nullptr;
   Transform* selectedTransform = nullptr;
+  Camera* holdingCamera = nullptr;
 
   Property* holdingProperty = nullptr;
   PropertyHolder* holdingPropertyHolder = nullptr;
@@ -329,6 +342,8 @@ struct Data {
 
 
   Camera devCamera = Camera();
+  Vector2 cameraRealMouseZero = Vector2();
+  Vector3 cameraRotateOffset = Vector3();
 
   Pumpkin* pumpkin = nullptr;
   Ask* ask = nullptr;
@@ -350,12 +365,15 @@ struct Data {
 
   float jumpDistance = 3.0f;
   float moveSpeed = 1.5f;
-  float cameraSpeed = 70.0f;
+  float cameraSpeed = 1.0f / 7.f;
 
   std::string savedSaveFile = "";
 
 
   std::unordered_map<size_t, Object*> runtimeObjects = std::unordered_map<size_t, Object*>();
+
+  unsigned int devShader;
+  unsigned int devVAO, devVBO;
 
 
 
@@ -519,6 +537,34 @@ void StartDevelopment() {
   StartCamera(&data->devCamera);
 
   data->devCamera.transform.position.z = 5;
+
+
+  const char* vertLoc = "shaders/pumpkinDev.vert";
+  const char* fragLoc = "shaders/pumpkinDev.frag";
+
+  ShaderCreateInfo infos[] = {ShaderCreateInfo(&vertLoc, 1, GL_VERTEX_SHADER), ShaderCreateInfo(&fragLoc, 1, GL_FRAGMENT_SHADER)};
+
+  data->devShader = ShaderHandler::CreateShader(infos, 2, Pumpkin_OpenFileFunc, nullptr, Pumpkin_CloseFileFunc);
+
+  glGenVertexArrays(1, &data->devVAO);
+  glBindVertexArray(data->devVAO);
+
+  float largeSquare[] = {
+    -50.f, -50.f,
+    -50.f, 50.f,
+    50.f, -50.f,
+    50.f, 50.f
+  };
+
+  glGenBuffers(1, &data->devVBO);
+  glBindBuffer(GL_ARRAY_BUFFER, data->devVBO);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(largeSquare), largeSquare, GL_STATIC_DRAW);
+
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
+
+  glBindVertexArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 
@@ -536,10 +582,10 @@ void UpdateDevelopment() {
   assert(data != nullptr);
   assert(data->ask != nullptr);
 
-  auto window = data->pumpkin->primaryWindow;
+  auto primaryWindow = data->pumpkin->primaryWindow;
 
-  if (window) {
-    InputInfo escape = window->GetInput(GLFW_KEY_ESCAPE);
+  if (primaryWindow) {
+    InputInfo escape = primaryWindow->GetInput(GLFW_KEY_ESCAPE);
     if (escape.pressed && escape.mods & GLFW_MOD_SHIFT) {
       StopProgram();
       data->saveData.Push(data->pumpkin, data->runtimeObjects);
@@ -558,16 +604,16 @@ void UpdateDevelopment() {
   UpdateCamera(&data->devCamera);
 
 
-  if (window && window->GetInput(GLFW_KEY_B).pressed) { // Can be used by prompts for special stuff, just a hack for now
+  if (primaryWindow && primaryWindow->GetInput(GLFW_KEY_B).pressed) { // Can be used by prompts for special stuff, just a hack for now
     data->ask->Prompt(0, data->line);
   }
 
 
   // Development camera moving
   if (data->inDevCamera) {
-    if (!window) goto leaveDevCameraStuff;
+    if (!primaryWindow) goto leaveDevCameraStuff;
 
-    if (window->GetInput(GLFW_KEY_F).pressed) {
+    if (primaryWindow->GetInput(GLFW_KEY_F).pressed) {
       if (data->holdingObject) {
         if (data->lookAtObject) {
           Object_RemoveDeleteCallback(data->lookAtObject, LookAtObjectDelete, 0);
@@ -589,61 +635,79 @@ void UpdateDevelopment() {
     // Get camera basis[esis?]
     auto camForward = *Camera_Forward(&data->devCamera);
     auto camRight = *Camera_Right(&data->devCamera);
-    auto camUp = Vector3::Cross(camRight, camForward);
 
-    if (window->GetInput(GLFW_MOUSE_BUTTON_2).pressed) window->SetCursorInputMode(GLFW_CURSOR_DISABLED);
+    if (primaryWindow->GetInput(GLFW_MOUSE_BUTTON_2).pressed) {
+      primaryWindow->SetCursorInputMode(GLFW_CURSOR_DISABLED);
+      data->cameraRotateOffset = data->devCamera.transform.rotation;
+      data->cameraRealMouseZero = primaryWindow->GetRealMousePosition().ConvertTo<float>();
+    }
 
-    if (window->GetInput(GLFW_KEY_LEFT_SHIFT).held) {
-      
+    if (primaryWindow->GetInput(GLFW_KEY_LEFT_SHIFT).held) {
+
       // Easy enough
       camForward *= 3;
       camRight *= 3;
-      camUp *= 3;
     }
 
     // Acceleration
-    if (window->GetInput(GLFW_KEY_M).held) {
+    if (primaryWindow->GetInput(GLFW_KEY_M).held) {
       data->moveSpeed += 2 * data->pumpkin->deltaTime;
     }
-    if (window->GetInput(GLFW_KEY_N).held) {
+    if (primaryWindow->GetInput(GLFW_KEY_N).held) {
       data->moveSpeed -= 2 * data->pumpkin->deltaTime;
     }
 
-    if (window->GetInput(GLFW_MOUSE_BUTTON_2).held) {
-      if (window->GetInput(GLFW_KEY_W).held) {
+    if (primaryWindow->GetInput(GLFW_MOUSE_BUTTON_2).held) {
+      if (primaryWindow->GetInput(GLFW_KEY_W).held) {
         data->devCamera.transform.position += camForward * data->pumpkin->deltaTime * data->moveSpeed;
       }
-      if (window->GetInput(GLFW_KEY_S).held) {
+      if (primaryWindow->GetInput(GLFW_KEY_S).held) {
         data->devCamera.transform.position -= camForward * data->pumpkin->deltaTime * data->moveSpeed;
       }
-      if (window->GetInput(GLFW_KEY_A).held) {
+      if (primaryWindow->GetInput(GLFW_KEY_A).held) {
         data->devCamera.transform.position -= camRight * data->pumpkin->deltaTime * data->moveSpeed;
       }
-      if (window->GetInput(GLFW_KEY_D).held) {
+      if (primaryWindow->GetInput(GLFW_KEY_D).held) {
         data->devCamera.transform.position += camRight * data->pumpkin->deltaTime * data->moveSpeed;
       }
-      if (window->GetInput(GLFW_KEY_Q).held) {
-        data->devCamera.transform.position -= camUp * data->pumpkin->deltaTime * data->moveSpeed;
+      if (primaryWindow->GetInput(GLFW_KEY_Q).held) {
+        data->devCamera.transform.position -= _UP * data->pumpkin->deltaTime * data->moveSpeed;
       }
-      if (window->GetInput(GLFW_KEY_E).held) {
-        data->devCamera.transform.position += camUp * data->pumpkin->deltaTime * data->moveSpeed;
+      if (primaryWindow->GetInput(GLFW_KEY_E).held) {
+        data->devCamera.transform.position += _UP * data->pumpkin->deltaTime * data->moveSpeed;
       }
 
 
       // Snappy movement
-      data->devCamera.transform.position += camForward * window->GetMouseScrollY() * data->jumpDistance;
+      data->devCamera.transform.position += camForward * primaryWindow->GetMouseScrollY() * data->jumpDistance;
 
 
-      // Discord mod
-      auto dM = window->GetDeltaMousePosition().ConvertTo<float>();
+      // Using by pixels instead of relative to avoid aspect ratio entirely
+      auto rP = primaryWindow->GetRealMousePosition().ConvertTo<float>();
+      auto dM = rP - data->cameraRealMouseZero;
 
-      data->devCamera.transform.rotation += Vector3(dM.y, -dM.x * window->GetAspectRatio(), 0) * data->cameraSpeed;
+
+      Vector3 newRotation = Vector3(-dM.y, -dM.x, 0) * data->cameraSpeed + data->cameraRotateOffset;
+
+      if (newRotation.x > 89.9f) {
+        data->cameraRotateOffset.x = 89.f;
+        data->cameraRealMouseZero.y = rP.y;
+        newRotation.x = 89.f;
+      } else if (newRotation.x < -89.9f) {
+        data->cameraRotateOffset.x = -89.f;
+        data->cameraRealMouseZero.y = rP.y;
+        newRotation.x = -89.f;
+      }
 
       // Weird stuff happens when crossing the -90 or 90 boundry
-      data->devCamera.transform.rotation.x = std::clamp(data->devCamera.transform.rotation.x, -89.9f, 89.9f);
+      data->devCamera.transform.rotation.x = newRotation.x;
+
+      // Makes me feel better having them in a specific range, even though it probably doesn't do much
+      // Locks to [0-360) range
+      data->devCamera.transform.rotation.y = (newRotation.y - 360.f * std::floor(newRotation.y / 360.f));
     }
 
-    if (window->GetInput(GLFW_MOUSE_BUTTON_2).released) window->SetCursorInputMode(GLFW_CURSOR_NORMAL);
+    if (primaryWindow->GetInput(GLFW_MOUSE_BUTTON_2).released) primaryWindow->SetCursorInputMode(GLFW_CURSOR_NORMAL);
 
   }
 leaveDevCameraStuff:
@@ -799,7 +863,37 @@ void EndDevelopmentProgram() {
   data->saveData.Delete();
   data->startSaveData.Delete();
 
+  glDeleteProgram(data->devShader);
+  glDeleteVertexArrays(1, &data->devVAO);
+  glDeleteBuffers(1, &data->devVBO);
+
   delete(data);
+}
+
+
+
+void RenderDevelopment() {
+  assert(data);
+  assert(data->pumpkin);
+
+  Camera* cam = data->pumpkin->primaryCamera;
+  if (!cam) return;
+
+  ShaderHandler::SetCurrentShader(data->devShader);
+
+  glBindVertexArray(data->devVAO);
+
+  glm::mat4 view = glm::mat4(1);
+  pCamDefInt(cam, i);
+  Vector3 forward = i->lookAt ? *i->lookAt - cam->transform.position : i->forward;
+  view = glm::lookAt(glm::vec3(0, cam->transform.position.y,0), glm::vec3(forward.x, forward.y + cam->transform.position.y, forward.z), glm::vec3(_UP.x, _UP.y, _UP.z));
+
+
+  ShaderHandler::SetMat4("proj", (float*)&cam->proj);
+  ShaderHandler::SetMat4("view", glm::value_ptr(view));
+  ShaderHandler::SetVector3("move", cam->transform.position);
+
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
 }; // namespace pumpkin_private
@@ -843,7 +937,7 @@ void MainMenu::Prompt(int i, std::string const& line) {
   assert(data);
   assert(data->pumpkin);
 
-  if (ToNumberFromAscii(i)) return;
+  if (AsciiToNumber(i)) return;
 
   switch (i) {
     case 0:  // Run
@@ -885,7 +979,7 @@ void MainMenu::Prompt(int i, std::string const& line) {
 
 
 void MainMenu::Question(std::string const& line) {
-  std::cout << "0. Run\n1. Create object\n2. Select object\n3. Select model\n4. Select shader\n5. Set view camera\n6. Build\n7. Reload shaders\n8. Save\n9. Load";
+  std::cout << "0. Run\n1. Create object\n2. Select object\n3. Select model\n4. Select shader\n5. Select camera\n6. Build\n7. Reload shaders\n8. Save\n9. Load";
 }
 
 // **************************************************
@@ -1104,7 +1198,7 @@ void HoldObject::Prompt(int i, std::string const& line) {
   }
 
 
-  if (ToNumberFromAscii(i)) return;
+  if (AsciiToNumber(i)) return;
 
   switch (i) {
     case 0: // Delete object
@@ -1140,6 +1234,18 @@ void HoldObject::Prompt(int i, std::string const& line) {
       elemPtr = (float*)&data->holdingObject->transform.rotation;
       data->updateAsk = true;
       break;
+
+    case 7:
+      if (data->pumpkin->primaryCamera = &data->devCamera) {
+        data->holdingObject->transform.position = data->devCamera.transform.position;
+      }
+      break;
+
+    case 8:
+      if (data->pumpkin->primaryCamera = &data->devCamera) {
+        data->holdingObject->transform.rotation = data->devCamera.transform.rotation;
+      }
+      break;
   }
 }
 
@@ -1169,7 +1275,11 @@ void HoldObject::Question(std::string const& line) {
     return;
   }
   
-  std::cout << "0. Delete object\n1. Set object model\n2. Add script\n3. Remove script\n4. Position\n5. Scale\n6. Rotation";
+  std::cout << "0. Delete object\n1. Set object model\n2. Add script\n3. Remove script\n4. Position\n5. Scale\n6. Rotation\n";
+
+  if (data->pumpkin->primaryCamera = &data->devCamera) {
+    std::cout << "7. Position to dev\n8. Rotation to dev\n";
+  }
 }
 
 // **************************************************
@@ -1188,7 +1298,7 @@ void HoldModel::Prompt(int i, std::string const& line) {
   assert(data);
   assert(data->holdingModel);
 
-  if (ToNumberFromAscii(i)) return;
+  if (AsciiToNumber(i)) return;
 
   switch (i) {
     case 0: // Set  mesh
@@ -1225,7 +1335,7 @@ void HoldShader::Prompt(int i, std::string const& line) {
   assert(data);
   assert(data->holdingShader);
 
-  if (ToNumberFromAscii(i)) return;
+  if (AsciiToNumber(i)) return;
 
 
   // I couldn't think of anything else to put in here
@@ -1337,6 +1447,10 @@ void SelectModel::Question(std::string const& line) {
 
   if (data->display) {
     ListModels();
+  }
+
+  if (data->holdingObject && pObjInt(data->holdingObject)->model != nullptr) {
+    std::cout << "[MODEL : " << pObjInt(data->holdingObject)->model->name << "]\n\n";
   }
 
   std::string str = (data->cycle && data->currentModel != data->pumpkin->registeredModels.end()) ? data->currentModel->second->name : line;
@@ -1481,6 +1595,21 @@ void SelectShader::Set() {
 // **************************************************
 
 void SelectCamera::Prompt(int i, std::string const& line) {
+  if (cam) {
+    if (AsciiToNumber(i)) return;
+
+    if (i == 0) {
+      Pumpkin_SetPrimaryCamera(cam);
+      data->SetAsk(&data->mainMenu);
+    } else if (i == 1) {
+      data->startSaveData.primaryCamera = pObjInt(cam)->name;
+      data->SetAsk(&data->mainMenu);
+    }
+
+    return;
+  }
+
+
   if (data->pumpkin->primaryWindow && data->pumpkin->primaryWindow->GetInput(GLFW_KEY_B).pressed) {
     data->SetAsk(&data->mainMenu);
     Pumpkin_SetPrimaryCamera(&data->devCamera);
@@ -1494,13 +1623,11 @@ void SelectCamera::Prompt(int i, std::string const& line) {
       return;
     }
 
-    Camera* cam = Pumpkin_GetCamera(str);
-    if (cam) {
-      Pumpkin_SetPrimaryCamera(cam);
-    } else {
+    cam = Pumpkin_GetCamera(str);
+    if (!cam) {
       AddError("Failed to find camera");
     }
-    data->SetAsk(&data->mainMenu);
+    data->updateAsk = true;
     return;
   }
 
@@ -1509,18 +1636,24 @@ void SelectCamera::Prompt(int i, std::string const& line) {
 
 
 void SelectCamera::Question(std::string const& line) {
+  if (cam) {
+    std::cout << "0. Set as view camera\n1. Set as primary camera\n";
+    return;
+  }
+
   if (data->display) {
     ListCameras();
   }
   
   std::string str = (data->cycle && data->currentCamera != data->pumpkin->registeredCameras.end()) ? pObjInt(data->currentCamera->second)->name : line;
-  std::cout << "Enter camera name to set as view camera or empty to go back\n[Press B in window to use dev camera]\n>>" << str;
+  std::cout << "Enter camera name to select or empty to go back\n[Press B in window to set as view]\n>>" << str;
 }
 
 
 void SelectCamera::Set() {
   assert(data);
 
+  cam = nullptr;
   data->forward = CameraForward;
   data->back = CameraBack;
   data->currentCamera = data->pumpkin->registeredCameras.begin();
@@ -1599,7 +1732,7 @@ void HoldProperty::Prompt(int i, std::string const& line) {
   }
 
 
-  if (ToNumberFromAscii(i)) return;
+  if (AsciiToNumber(i)) return;
 
   switch (i) {
     case 0: // Change
@@ -1770,7 +1903,7 @@ void CreateProperty::Prompt(int i, std::string const& line) {
     return;
   }
 
-  if (ToNumberFromAscii(i) || i > 5) return;
+  if (AsciiToNumber(i) || i > 5) return;
   
   if (!PropertyHolder_AddProperty(data->holdingPropertyHolder, name, nullptr, (VariableType)i)) {
     AddError("Failed to add property");
@@ -1808,7 +1941,7 @@ void CreateProperty::Set() {
 void PropertyChanger::Prompt(int i, std::string const& line) {
   assert(data);
 
-  if (ToNumberFromAscii(i)) return;
+  if (AsciiToNumber(i)) return;
 
   switch (i) {
     case 0: // Select property
@@ -1843,7 +1976,7 @@ void ReloadShaders::Prompt(int i, std::string const& line) {
   assert(data);
 
   if (!option) {
-    if (ToNumberFromAscii(i)) return;
+    if (AsciiToNumber(i)) return;
     switch (i) {
       case 0: // Reload all
         for (auto& shader : data->pumpkin->registeredShaders) {
@@ -1975,6 +2108,7 @@ void LoadSave::Prompt(int i, std::string const& line) {
     }
 
     data->saveData.Load(str);
+    data->startSaveData.primaryCamera = data->saveData.primaryCamera;
     data->saveData.Push(data->pumpkin, data->runtimeObjects);
     data->savedSaveFile = str;
     data->SetAsk(&data->mainMenu);

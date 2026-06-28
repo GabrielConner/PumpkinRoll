@@ -10,6 +10,8 @@ void DevelopmentLogAfterStart();
 void UpdateDevelopment();
 void EndDevelopmentProgram();
 
+void RenderDevelopment();
+
 }; // namespace pumpkin_private
 
 #endif

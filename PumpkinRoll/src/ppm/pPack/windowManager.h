@@ -6,21 +6,10 @@
 #include <string>
 #include <map>
 
-
-#ifdef PUMPKIN_ROLL_LIB
-#define API __declspec(dllexport)
-#else
-#define API __declspec(dllimport)
-#endif
-
-
 // Intellisense is happy with this
 #if _PPM_VECTOR == 1
-
 #include "pPack/vector.h"
-
 #else
-
 struct IVector2 {
   int x;
   int y;
@@ -30,8 +19,15 @@ struct DVector2 {
   double x;
   double y;
 };
-
 #endif
+
+
+#ifdef PUMPKIN_ROLL_LIB
+#define API __declspec(dllexport)
+#else
+#define API __declspec(dllimport)
+#endif
+
 
 
 namespace pPack {
@@ -79,6 +75,9 @@ class Window {
 
   std::map<int, InputInfo> keyMapping;
   std::map<int, InputInfo> mouseMapping;
+
+  double oldRealMouseX;
+  double oldRealMouseY;
 
   double realMouseX;
   double realMouseY;
@@ -183,6 +182,13 @@ public:
     API GetRealMousePosition() const;
 
 
+#ifndef _PPM_VECTOR
+  DVector2
+#else
+  ::pPack::DVector2
+#endif  
+    API GetDeltaRealMousePosition() const;
+
 
   API void Open(int Width, int Height, std::string Title, WindowCreateHint* Hints, int HintCount);
   API void Close();
@@ -224,5 +230,6 @@ API GLFWglproc(*GetGLFWProcAddress())(char const*);
 
 }; // namespace pPack
 
+#undef API
 
 #endif

@@ -58,6 +58,8 @@ Pumpkin* pumpkinData = nullptr;
 
 #ifdef PUMPKIN_ROLL_DEV
 _CrtMemState crtMemState;
+_CrtMemState memIgnoreBlock;
+_CrtMemState memIgnoreDiff;
 #endif
 
 
@@ -67,7 +69,7 @@ if (!mesh) { \
   pError("Failed to create " #name " mesh"); \
   return StartReturn::ERROR; \
 } \
-Model* model = Pumpkin_RegisterModel("PumpkinRoll_" #name "Model", nullptr); \
+Model* model = Pumpkin_RegisterModel("PumpkinRoll__" #name "Model", nullptr); \
 if (!model) { \
   pError("Failed to create " #name  " model"); \
   return StartReturn::ERROR; \
@@ -81,6 +83,8 @@ if (!Model_SetMesh(model, mesh)) { \
   return StartReturn::ERROR; \
 }
 
+
+ScriptAllocateFunction(PumpkinRoll__CameraFreeMovement);
 }; // namespace
 
 
@@ -101,7 +105,8 @@ namespace pumpkin {
 StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void (*devLoad)()) {
 
 #ifdef PUMPKIN_ROLL_DEV
-  _CrtMemCheckpoint(&crtMemState);
+  _CrtMemCheckpoint(&crtMemState); // prtodo add something to allow offsetting/ignoring something that would cause difference at the end
+  memset(&memIgnoreDiff, 0, sizeof(_CrtMemState));
 #endif
 
 
@@ -120,10 +125,6 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void
   // Create program data
   pumpkinData = new Pumpkin();
 
-#ifdef PUMPKIN_ROLL_DEV
-  StartDevelopment();
-#endif
-
 
   // GLFW
 /*  if (!glfwInit()) {
@@ -139,7 +140,7 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void
   */
   InitLibGen();
 
-  // Open main window
+  // Open main primaryWindow
   WindowCreateHint hints[] = {
         WindowCreateHint(GLFW_RESIZABLE, start.resizable),
         WindowCreateHint(GLFW_CONTEXT_VERSION_MAJOR, 4),
@@ -156,7 +157,7 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void
   mainWindow->SetAsContext();
   mainWindow->SetSwapInterval(1);
 
-  // Register window
+  // Register primaryWindow
   if (!pumpkin_private::RegisterWindow("pumpkin_roll__primary_window", mainWindow)) {
     pError("Failed to register primary window");
     delete(pumpkinData);
@@ -191,6 +192,11 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void
     return StartReturn::FAILURE;
   }
 
+
+#ifdef PUMPKIN_ROLL_DEV
+  StartDevelopment();
+#endif
+
   // END OF FAILURE ZONE
 
 
@@ -198,6 +204,9 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void
     if (devLoad) devLoad();
   }
 
+  glEnable(GL_BLEND);
+  glEnable(GL_DEPTH_TEST);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 
 
@@ -272,6 +281,10 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void
 
   Pumpkin_ApplyStaticBuffer();
 
+
+  // Scripts
+  RegisterScript(AllocatePumpkinRoll__CameraFreeMovement, PumpkinRoll__CameraFreeMovement);
+
   return StartReturn::SUCCESS;
 }
 
@@ -291,7 +304,7 @@ void Pumpkin_Update() {
   RunProgram();
 #endif
 
-  // Loop until the main window is closed
+  // Loop until the main primaryWindow is closed
   while (!pumpkinData->primaryWindow->ShouldClose()) {
     pumpkinData->deltaTime = singleton.GetDeltaTime();
     pumpkinData->totalTime = singleton.GetTotalTime();
@@ -299,7 +312,7 @@ void Pumpkin_Update() {
     GLFWPollEvents();
 
     glClearColor(runtime.backgroundColor.x, runtime.backgroundColor.y, runtime.backgroundColor.z, runtime.backgroundColor.w);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glFinish();
 
     for (auto& cam : pumpkinData->registeredCameras) {
@@ -310,9 +323,14 @@ void Pumpkin_Update() {
     if (pumpkinData->running) {
 #endif
 
+      ScriptUpdateInfo scriptUpdateInfo;
+      scriptUpdateInfo.deltaTime = pumpkinData->deltaTime;
+      scriptUpdateInfo.totalTime = pumpkinData->totalTime;
+      scriptUpdateInfo.window = pumpkinData->primaryWindow;
+
       for (auto& obj : pumpkinData->registeredObjects) {
         for (auto& script : pObjInt(obj.second)->external->scripts) {
-          script.second.script->Update(obj.second, pumpkinData->deltaTime, pumpkinData->totalTime);
+          script.second.script->Update(obj.second, scriptUpdateInfo);
         }
       }
 
@@ -331,7 +349,10 @@ void Pumpkin_Update() {
     }
 
 #ifdef PUMPKIN_ROLL_DEV
-  UpdateDevelopment();
+    if (pumpkinData->running) {
+      RenderDevelopment();
+    }
+    UpdateDevelopment();
 #endif
 
     pumpkinData->primaryWindow->Swap();
@@ -349,9 +370,9 @@ void Pumpkin_End() {
   pPumpkinCheck();
 
   // Delete all registered items
-  for (auto& window : pumpkinData->registeredWindows) {
-    window.second->Close();
-    delete(window.second);
+  for (auto& primaryWindow : pumpkinData->registeredWindows) {
+    primaryWindow.second->Close();
+    delete(primaryWindow.second);
   }
   for (auto& obj : pumpkinData->registeredObjects) {
     ::pumpkin_private::DeleteObject(obj.second);
@@ -397,6 +418,7 @@ void Pumpkin_End() {
   _CrtMemState crtEndState;
   _CrtMemState crtDiffState;
   _CrtMemCheckpoint(&crtEndState);
+  _CrtMemDifference(&crtEndState, &memIgnoreDiff, &crtEndState);
   if (_CrtMemDifference(&crtDiffState, &crtMemState, &crtEndState)) {
     std::cerr << "\n\n\n****MEMORY LEAK****\n";
   }
@@ -436,6 +458,32 @@ double* Pumpkin_DeltaTime() {
 double* Pumpkin_TotalTime() {
   pPumpkinCheck(0);
   return &pumpkinData->totalTime;
+}
+
+
+
+
+void Pumpkin_StartMemoryIgnoreBlock() {
+#ifndef PUMPKIN_ROLL_DEV
+  return;
+#else
+  _CrtMemCheckpoint(&memIgnoreBlock);
+#endif
+}
+
+
+
+void Pumpkin_EndMemoryIgnoreBlock() {
+#ifndef PUMPKIN_ROLL_DEV
+  return;
+#else
+  _CrtMemState memIgnoreEnd;
+  _CrtMemState ignoreDiff;
+  _CrtMemCheckpoint(&memIgnoreEnd);
+  _CrtMemDifference(&ignoreDiff, &memIgnoreBlock, &memIgnoreEnd);
+
+  _CrtMemDifference(&memIgnoreDiff, &memIgnoreDiff, &ignoreDiff);
+#endif
 }
 
 
@@ -1239,6 +1287,101 @@ char const* Pumpkin_GetScriptName(Script* script) {
 // --------------------------------------------------
 // Script
 
+
+
+
+
+
+// PumpkinRoll__CameraFreeMovement
+// --------------------------------------------------
+// --------------------------------------------------
+
+void PumpkinRoll__CameraFreeMovement::Update(Object* obj, ScriptUpdateInfo const& info) {
+
+  Camera* cam = dynamic_cast<Camera*>(obj);
+  if (!cam) return;
+
+  auto camForward = *Camera_Forward(cam);
+  auto camRight = *Camera_Right(cam);
+
+  if (info.window->GetInput(toggleKey).pressed) {
+    movingAround = !movingAround;
+
+    if (movingAround) {
+      info.window->SetCursorInputMode(GLFW_CURSOR_DISABLED);
+      cameraRotateOffset = obj->transform.rotation;
+      cameraRealMouseZero = info.window->GetRealMousePosition().ConvertTo<float>();
+    } else {
+      info.window->SetCursorInputMode(GLFW_CURSOR_NORMAL);
+    }
+  }
+
+  if (info.window->GetInput(GLFW_KEY_LEFT_SHIFT).held) {
+
+    // Easy enough
+    camForward *= 3;
+    camRight *= 3;
+  }
+
+  // Acceleration
+  if (info.window->GetInput(GLFW_KEY_M).held) {
+    moveSpeed += 2 * info.deltaTime;
+  }
+  if (info.window->GetInput(GLFW_KEY_N).held) {
+    moveSpeed -= 2 * info.deltaTime;
+  }
+
+  if (movingAround) {
+    if (info.window->GetInput(GLFW_KEY_W).held) {
+      obj->transform.position += camForward * info.deltaTime * moveSpeed;
+    }
+    if (info.window->GetInput(GLFW_KEY_S).held) {
+      obj->transform.position -= camForward * info.deltaTime * moveSpeed;
+    }
+    if (info.window->GetInput(GLFW_KEY_A).held) {
+      obj->transform.position -= camRight * info.deltaTime * moveSpeed;
+    }
+    if (info.window->GetInput(GLFW_KEY_D).held) {
+      obj->transform.position += camRight * info.deltaTime * moveSpeed;
+    }
+    if (info.window->GetInput(GLFW_KEY_Q).held) {
+      obj->transform.position -= _UP * info.deltaTime * moveSpeed;
+    }
+    if (info.window->GetInput(GLFW_KEY_E).held) {
+      obj->transform.position += _UP * info.deltaTime * moveSpeed;
+    }
+
+
+    // Using by pixels instead of relative to avoid aspect ratio entirely
+    auto rP = info.window->GetRealMousePosition().ConvertTo<float>();
+    auto dM = rP - cameraRealMouseZero;
+
+
+    Vector3 newRotation = Vector3(-dM.y, -dM.x, 0) * cameraSpeed + cameraRotateOffset;
+
+    if (newRotation.x > 89.9f) {
+      cameraRotateOffset.x = 89.f;
+      cameraRealMouseZero.y = rP.y;
+      newRotation.x = 89.f;
+    } else if (newRotation.x < -89.9f) {
+      cameraRotateOffset.x = -89.f;
+      cameraRealMouseZero.y = rP.y;
+      newRotation.x = -89.f;
+    }
+
+    // Weird stuff happens when crossing the -90 or 90 boundry
+    obj->transform.rotation.x = newRotation.x;
+
+    // Makes me feel better having them in a specific range, even though it probably doesn't do much
+    // Locks to [0-360) range
+    obj->transform.rotation.y = (newRotation.y - 360.f * std::floor(newRotation.y / 360.f));
+
+  }
+}
+
+// --------------------------------------------------
+// --------------------------------------------------
+// PumpkinRoll__CameraFreeMovement
 
 
 }; // namespace pumpkin

@@ -56,6 +56,7 @@ typedef void (*CloseFileFunc)(FileHandle& handle);
 API bool DefaultFileRead(std::string const& location, bool relative, bool binary, FileHandle& handle);
 inline void DefaultFileClose(FileHandle& handle) { free(handle.data); handle.data = nullptr; }
 
+#undef API
 
 }; // namespace pPack
 

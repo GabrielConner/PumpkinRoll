@@ -49,5 +49,6 @@ public:
 
 }; // namespace pPack
 
+#undef API
 
 #endif

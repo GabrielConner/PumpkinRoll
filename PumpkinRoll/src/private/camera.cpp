@@ -40,7 +40,7 @@ void UpdateCamera(Camera* camera) {
     i->forward.z = -cos(r.x) * cos(r.y);
   }
 
-  i->right = Vector3::Cross(i->forward, _UP);
+  i->right = Vector3::Cross(i->forward, _UP).Normal();
 }
 
 }; // namespace pumpkin_private

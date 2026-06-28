@@ -1050,4 +1050,6 @@ struct std::formatter<::pPack::IVector4, char> {
   }
 };
 
+#undef API
+
 #endif

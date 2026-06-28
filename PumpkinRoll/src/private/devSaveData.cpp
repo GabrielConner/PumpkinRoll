@@ -506,9 +506,14 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
   #endif
 
 
-  std::chrono::time_point now{std::chrono::system_clock::now()};
-  std::chrono::year_month_day ymd{std::chrono::floor<std::chrono::days>(now)};
-  WriteLine(std::format("/*\n*\n*\n* Pumpkin Roll Build File\n* Built {:%F} {:%r}\n*\n*/\n", ymd, now));
+
+  auto now = std::chrono::system_clock::now();
+
+  Pumpkin_StartMemoryIgnoreBlock();
+  auto local = std::chrono::zoned_time{std::chrono::current_zone(), now}; // TZDB singleton gets loaded with 'current_zone'; needs to be ignored by memory leak check
+  Pumpkin_EndMemoryIgnoreBlock();
+
+  WriteLine(std::format("/*\n*\n*\n* Pumpkin Roll Build File\n* Built {:%F %I:%M %p}\n*\n*/\n", local));
 
   WriteLine("#include \"pumpkin/types.h\"");
   WriteLine("#include \"pumpkinFunctions.h\"");
@@ -597,7 +602,7 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
 
 
   for (auto& save : cameraSaves) {
-    std::string cameraName = std::format("camera_{:}", save.first);
+    std::string cameraName = std::format("object_{:}", save.first); // uses object name since derived from object
     auto cmpSave = compare.cameraSaves.find(save.first);
 
     std::ostringstream camStream;
@@ -609,7 +614,7 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
       Build_CameraEnd(stream, save);
     }
   }
-  WriteLine(std::format("Pumpkin_SetPrimaryCamera(Pumpkin_GetCamera({:}));", compare.primaryCamera));
+  WriteLine(std::format("Pumpkin_SetPrimaryCamera(Pumpkin_GetCamera({:?}));", compare.primaryCamera));
 
 
 
@@ -933,7 +938,7 @@ void CopyPropertyHolder(PropertyHolder& from, PropertyHolder& to) {
 
     void* data = malloc(SizeOfType(prop.type));
     if (data == nullptr) {
-      throw std::bad_alloc();
+      return;
     }
     memcpy(data, prop.prop, prop.typeSize);
 
