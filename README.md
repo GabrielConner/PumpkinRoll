@@ -25,7 +25,7 @@ Pumpkin Pie is available Windows 7 and above [needs testing].  Can be ported to 
 
 ## Compiling
 
-To setup the source I recommened first using the related prod file in the [release](https://github.com/GabrielConner/PumpkinRoll/releases) you want.  There is a bunch of settings that would make creating from new slow, and unless bored I won't be making a (C)MAKE file(s).
+To setup the source the prod zipped files in [release](https://github.com/GabrielConner/PumpkinRoll/releases) can be used for all the visual studio and ppm files.  There is a bunch of settings that would make creating from new slow, and unless bored I won't be making a (C)MAKE file(s).
 
 Compiled on Visual C++ (2026) but should be available for earlier.  Clang can also be used but does have some problems with the `ScriptAllocateFunction` macro.  Other compilers are untested.
 
