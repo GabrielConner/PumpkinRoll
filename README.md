@@ -4,11 +4,13 @@
 
 Pumpkin Pie is a basic framework for running a 3D single-scene project.  It can be switched into development which turns it into a console app for creating the scene, and managing basic settings.
 
+To switch into development mode use the `-d` command line argument
+
 While in the development mode the scene can be saved to a `*.pmpknrl` file for reloading into development.  The scene can be built into a `*.pmpknrl.cpp` file for compiling directly into the project, for creating the release version.
 
 After creating the build file a function with the signature `int SceneBuild()` should be called right before `Pumpkin_Update()` is called.  This should be commented out and the `*.pmpknrl` development file should be used if anything needs to be updated then rebuilt. 
 
- While in debug mode the built file will contain new lines to help format, these are removed while in release.
+While in debug mode the built file will contain new lines to help format, these are removed while in release.
 
 #### The default controls for the development camera and the `PumpkinRoll__CameraFreeMovement` script are
 
@@ -71,3 +73,11 @@ A camera should always be created as they cannot be created within the developme
 All available functions, past `Load`/`End`, are found in `pumpkinFunctions.h` and some virtual overridable functions in `pumpkin/types.h`
 
 `pumpkin/pumpkinRoll.h` contains macros for registering scripts, a quick script allocate function, and error printing.
+
+## Project structure
+
+Based on the prebuilt binaries; There are a total of 6 dlls.  4 for debug and release compiled with/without development enabled and 2 for debug and release library.
+
+The `pumpkinRoll*.dll` files do not have related `*.lib` files as they are automatically loaded from within `pumpkinRoll.cpp` based on build mode and command line arguments.
+
+The `pumpkinLibGen*.dll` files do have related `*.lib` and should be linked into their respective build types.
