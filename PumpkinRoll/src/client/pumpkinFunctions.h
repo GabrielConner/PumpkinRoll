@@ -1,7 +1,7 @@
 /*
 *
 * Function Declarations Header
-* Built 2026-06-26 10:03 PM
+* Built 2026-06-28 04:22 PM
 *
 */
 
@@ -14,9 +14,10 @@
 typedef void* (*PROCADDRESSFUNC)(char const* addr);
 
 #include "pumpkin/types.h"
+#include <vector>
 namespace pumpkin {
 
-typedef StartReturn (APIENTRYP FPPUMPKIN_INIT)(StartSettings const& start, int argv, char** argc, void (*devLoad)());
+typedef StartReturn (APIENTRYP FPPUMPKIN_INIT)(StartSettings const& start, int argc, char** argv, void (*devLoad)());
 typedef void (APIENTRYP FPPUMPKIN_UPDATE)();
 typedef void (APIENTRYP FPPUMPKIN_END)();
 typedef RuntimeSettings* (APIENTRYP FPPUMPKIN_GETRUNTIME)();
@@ -24,16 +25,21 @@ typedef std::string (APIENTRYP FPPUMPKIN_EXECUTABLELOCATION)();
 typedef void (APIENTRYP FPPUMPKIN_PRINTERROR)(PrintLevel level, char const* file, char const* msg);
 typedef double* (APIENTRYP FPPUMPKIN_DELTATIME)();
 typedef double* (APIENTRYP FPPUMPKIN_TOTALTIME)();
+typedef void (APIENTRYP FPPUMPKIN_STARTMEMORYIGNOREBLOCK)();
+typedef void (APIENTRYP FPPUMPKIN_ENDMEMORYIGNOREBLOCK)();
 typedef Object* (APIENTRYP FPPUMPKIN_REGISTEROBJECT)(std::string const& name);
 typedef Object* (APIENTRYP FPPUMPKIN_GETOBJECT)(std::string const& name);
 typedef bool (APIENTRYP FPPUMPKIN_DELETEOBJECT)(std::string const& name);
 typedef char const* (APIENTRYP FPOBJECT_GETNAME)(Object const* object);
 typedef bool (APIENTRYP FPOBJECT_SETMODEL)(Object* object, Model* model);
+typedef Model* (APIENTRYP FPOBJECT_GETMODEL)(Object* object);
 typedef bool (APIENTRYP FPOBJECT_ADDSCRIPT)(Object* object, std::string const& name);
 typedef Script* (APIENTRYP FPOBJECT_GETSCRIPT)(Object* object, std::string const& name);
 typedef bool (APIENTRYP FPOBJECT_REMOVESCRIPT)(Object* object, std::string const& name);
+typedef std::vector<Script*>&& (APIENTRYP FPOBJECT_GETALLSCRIPTS)(Object* object);
 typedef void (APIENTRYP FPOBJECT_ADDDELETECALLBACK)(Object* object, ObjectDeleteCallback ptrFunc, int id);
 typedef void (APIENTRYP FPOBJECT_REMOVEDELETECALLBACK)(Object* object, ObjectDeleteCallback ptrFunc, int id);
+typedef Object* (APIENTRYP FPOBJECT_DUPLICATE)(Object* object, std::string const& name);
 typedef void (APIENTRYP FPTRANSFORM_GENERATEMODEL)(Transform transform, MatrixWrapper& store);
 typedef Camera* (APIENTRYP FPPUMPKIN_REGISTERCAMERA)(std::string const& name);
 typedef Camera* (APIENTRYP FPPUMPKIN_GETCAMERA)(std::string const& name);
@@ -52,12 +58,17 @@ typedef Mesh* (APIENTRYP FPPUMPKIN_GETMESH)(std::string const& name);
 typedef GLuint (APIENTRYP FPPUMPKIN_REGISTERFORMAT)(std::string const& name, FormatStartInfo const* const formatStartInfo, GLuint count, bool autoOffset);
 typedef GLuint (APIENTRYP FPPUMPKIN_GETFORMAT)(std::string const& name);
 typedef void (APIENTRYP FPPUMPKIN_APPLYSTATICBUFFER)();
-typedef void* (APIENTRYP FPMESH_GETMESHVERTICES)(Mesh* mesh);
+typedef MeshInfo (APIENTRYP FPMESH_GETINFO)(Mesh* mesh);
 typedef void (APIENTRYP FPMESH_RELOAD)(Mesh* mesh);
+typedef std::string (APIENTRYP FPMESH_GETNAME)(Mesh* mesh);
+typedef Mesh* (APIENTRYP FPMESH_DUPLICATEASDYNAMIC)(Mesh* mesh, std::string const& name);
 typedef Model* (APIENTRYP FPPUMPKIN_REGISTERMODEL)(std::string const& name, void(*setup)());
 typedef Model* (APIENTRYP FPPUMPKIN_GETMODEL)(std::string const& name);
 typedef bool (APIENTRYP FPMODEL_SETSHADER)(Model* model, Shader* shader);
 typedef bool (APIENTRYP FPMODEL_SETMESH)(Model* model, Mesh* mesh);
+typedef Shader* (APIENTRYP FPMODEL_GETSHADER)(Model* model);
+typedef Mesh* (APIENTRYP FPMODEL_GETMESH)(Model* model);
+typedef std::string (APIENTRYP FPMODEL_GETNAME)(Model* model);
 typedef PropertyHolder* (APIENTRYP FPMODEL_GETPROPERTIES)(Model* shader);
 typedef Shader* (APIENTRYP FPPUMPKIN_REGISTERSHADER)(std::string const& name, ShaderInfo* startInfos, int count, void(*setup)());
 typedef Shader* (APIENTRYP FPPUMPKIN_GETSHADER)(std::string const& name);
@@ -89,16 +100,21 @@ APIGET FPPUMPKIN_EXECUTABLELOCATION Pumpkin_ExecutableLocation;
 APIGET FPPUMPKIN_PRINTERROR Pumpkin_PrintError;
 APIGET FPPUMPKIN_DELTATIME Pumpkin_DeltaTime;
 APIGET FPPUMPKIN_TOTALTIME Pumpkin_TotalTime;
+APIGET FPPUMPKIN_STARTMEMORYIGNOREBLOCK Pumpkin_StartMemoryIgnoreBlock;
+APIGET FPPUMPKIN_ENDMEMORYIGNOREBLOCK Pumpkin_EndMemoryIgnoreBlock;
 APIGET FPPUMPKIN_REGISTEROBJECT Pumpkin_RegisterObject;
 APIGET FPPUMPKIN_GETOBJECT Pumpkin_GetObject;
 APIGET FPPUMPKIN_DELETEOBJECT Pumpkin_DeleteObject;
 APIGET FPOBJECT_GETNAME Object_GetName;
 APIGET FPOBJECT_SETMODEL Object_SetModel;
+APIGET FPOBJECT_GETMODEL Object_GetModel;
 APIGET FPOBJECT_ADDSCRIPT Object_AddScript;
 APIGET FPOBJECT_GETSCRIPT Object_GetScript;
 APIGET FPOBJECT_REMOVESCRIPT Object_RemoveScript;
+APIGET FPOBJECT_GETALLSCRIPTS Object_GetAllScripts;
 APIGET FPOBJECT_ADDDELETECALLBACK Object_AddDeleteCallback;
 APIGET FPOBJECT_REMOVEDELETECALLBACK Object_RemoveDeleteCallback;
+APIGET FPOBJECT_DUPLICATE Object_Duplicate;
 APIGET FPTRANSFORM_GENERATEMODEL Transform_GenerateModel;
 APIGET FPPUMPKIN_REGISTERCAMERA Pumpkin_RegisterCamera;
 APIGET FPPUMPKIN_GETCAMERA Pumpkin_GetCamera;
@@ -117,12 +133,17 @@ APIGET FPPUMPKIN_GETMESH Pumpkin_GetMesh;
 APIGET FPPUMPKIN_REGISTERFORMAT Pumpkin_RegisterFormat;
 APIGET FPPUMPKIN_GETFORMAT Pumpkin_GetFormat;
 APIGET FPPUMPKIN_APPLYSTATICBUFFER Pumpkin_ApplyStaticBuffer;
-APIGET FPMESH_GETMESHVERTICES Mesh_GetMeshVertices;
+APIGET FPMESH_GETINFO Mesh_GetInfo;
 APIGET FPMESH_RELOAD Mesh_Reload;
+APIGET FPMESH_GETNAME Mesh_GetName;
+APIGET FPMESH_DUPLICATEASDYNAMIC Mesh_DuplicateAsDynamic;
 APIGET FPPUMPKIN_REGISTERMODEL Pumpkin_RegisterModel;
 APIGET FPPUMPKIN_GETMODEL Pumpkin_GetModel;
 APIGET FPMODEL_SETSHADER Model_SetShader;
 APIGET FPMODEL_SETMESH Model_SetMesh;
+APIGET FPMODEL_GETSHADER Model_GetShader;
+APIGET FPMODEL_GETMESH Model_GetMesh;
+APIGET FPMODEL_GETNAME Model_GetName;
 APIGET FPMODEL_GETPROPERTIES Model_GetProperties;
 APIGET FPPUMPKIN_REGISTERSHADER Pumpkin_RegisterShader;
 APIGET FPPUMPKIN_GETSHADER Pumpkin_GetShader;

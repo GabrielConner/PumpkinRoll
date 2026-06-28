@@ -121,6 +121,14 @@ struct ScriptUpdateInfo {
 };
 
 
+struct MeshInfo {
+  void* vertices = nullptr;
+  size_t vertexCount = 0;
+  size_t vertexSize = 0;
+  size_t bufferSize = 0;
+  unsigned int format;
+  bool dynamic = false;
+};
 
 
 
@@ -136,7 +144,6 @@ struct ScriptUpdateInfo {
 
 struct ShaderInfo {
   std::vector<std::string> shaders = std::vector<std::string>();
-  unsigned int shaderCount = 0;
   unsigned int type = 0;
 };
 
@@ -190,6 +197,8 @@ struct Script {
   virtual void Start(Object* obj) {}
   virtual void Update(Object* obj, ScriptUpdateInfo const& info) {}
   virtual void End(Object* obj) {}
+
+  virtual void ShaderUpdate(Object* obj) {}
 };
 
 

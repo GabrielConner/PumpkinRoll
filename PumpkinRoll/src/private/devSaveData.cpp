@@ -25,7 +25,11 @@ void CopyPropertyHolder(PropertyHolder& from, PropertyHolder& to);
 std::string ReadString(std::ifstream& stream);
 
 
+#ifdef PUMPKIN_ROLL_DEV
 #define WriteLine(line) stream << line << '\n'
+#else
+#define WriteLine(line) stream << line
+#endif
 
 
 #define WriteProperties \
@@ -196,14 +200,14 @@ void SaveData::Pull(Pumpkin* pumpkin, std::unordered_map<size_t, Object*> const&
 
 
 
-void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runtimeObjects) {
+void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runtimeObjects, SaveData const& compare) {
   assert(pumpkin);
 
   Pumpkin_SetPrimaryCamera(nullptr);
 
   for (int i = 0; i < pumpkin->registeredObjects.size(); i++) {
     auto ref = std::next(pumpkin->registeredObjects.begin(), i);
-    if (runtimeObjects.contains(_STRING_HASHER(pObjInt(ref->second)->name)) || dynamic_cast<Camera*>(ref->second)) {
+    if ((!runtimeObjects.contains(_STRING_HASHER(pObjInt(ref->second)->name)) && !compare.objectSaves.contains(_STRING_HASHER(pObjInt(ref->second)->name))) || dynamic_cast<Camera*>(ref->second)) {
       ::pumpkin::Pumpkin_DeleteObject(pObjInt(ref->second)->name);
       i--;
       continue;
@@ -407,7 +411,6 @@ bool SaveData::Load(std::string const& name) {
       for (uint32_t fileIndex = 0; fileIndex < fileCount; fileIndex++) {
         startInfo.shaders.push_back(ReadString(stream)); // Shader path location
       }
-      startInfo.shaderCount = startInfo.shaders.size();
       ReadStream(&variableHolder, 4); // Type of shader
       startInfo.type = variableHolder;
 
@@ -618,7 +621,8 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
 
 
 
-  WriteLine("return 0;\n}");
+  WriteLine("return 0;");
+  WriteLine("}");
 
   stream.flush();
 
@@ -636,7 +640,8 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
 namespace {
 
 void Build_CameraHeader(std::ostream& stream, std::string const& cameraName, std::pair<size_t, CameraSaveData> const& save) {
-  WriteLine(std::format("\n// Camera {:}", save.second.objectInfo.name));
+  WriteLine("");
+  WriteLine(std::format("// Camera {:}", save.second.objectInfo.name));
   WriteLine("// --------------------------------------------------");
   WriteLine(std::format("Camera* {:} = Pumpkin_GetCamera({:?});", cameraName, save.second.objectInfo.name));
   WriteLine(std::format("if ({:}) {{", cameraName));
@@ -691,7 +696,8 @@ void Build_Camera(std::ostream& stream, std::string const& cameraName, std::pair
 void Build_CameraEnd(std::ostream& stream, std::pair<size_t, CameraSaveData> const& save) {
   WriteLine("}");
   WriteLine("// --------------------------------------------------");
-  WriteLine(std::format("// Camera {:}\n", save.second.objectInfo.name));
+  WriteLine(std::format("// Camera {:}", save.second.objectInfo.name));
+  WriteLine("");
 }
 
 
@@ -748,14 +754,16 @@ void Build_Object(std::ostream& stream, std::string const& objectName, std::pair
 void Build_ObjectEnd(std::ostream& stream, std::pair<size_t, ObjectSaveData> const& save) {
   WriteLine("}");
   WriteLine("// --------------------------------------------------");
-  WriteLine(std::format("// Object {:}\n", save.second.name));
+  WriteLine(std::format("// Object {:}", save.second.name));
+  WriteLine("");
 }
 
 
 
 
 void Build_ModelHeader(std::ostream& stream, std::string const& modelName, std::pair<size_t, ModelSaveData> const& save) {
-  WriteLine(std::format("\n// Model {:}", save.second.name));
+  WriteLine("");
+  WriteLine(std::format("// Model {:}", save.second.name));
   WriteLine("// --------------------------------------------------");
   WriteLine(std::format("Model* {:} = Pumpkin_GetModel({:?});", modelName, save.second.name));
   WriteLine(std::format("if ({:}) {{", modelName));
@@ -765,7 +773,8 @@ void Build_ModelHeader(std::ostream& stream, std::string const& modelName, std::
 void Build_ModelEnd(std::ostream& stream, std::pair<size_t, ModelSaveData> const& save) {
   WriteLine("}");
   WriteLine("// --------------------------------------------------");
-  WriteLine(std::format("// Model {:}\n", save.second.name));
+  WriteLine(std::format("// Model {:}", save.second.name));
+  WriteLine("");
 }
 
 
@@ -775,12 +784,12 @@ void Build_ModelGetProperties(std::ostream& stream, std::string const& modelName
 
 
 void Build_ModelSetShader(std::ostream& stream, std::string const& modelName, std::string const& shaderName) {
-  WriteLine(std::format("Model_SetShader({:}, Pumpkin_GetShader({:}));", modelName, shaderName));
+  WriteLine(std::format("Model_SetShader({:}, Pumpkin_GetShader({:?}));", modelName, shaderName));
 }
 
 
 void Build_ModelSetMesh(std::ostream& stream, std::string const& modelName, std::string const& meshName) {
-  WriteLine(std::format("Model_SetMesh({:}, Pumpkin_GetMesh({:}));", modelName, meshName));
+  WriteLine(std::format("Model_SetMesh({:}, Pumpkin_GetMesh({:?}));", modelName, meshName));
 }
 
 
@@ -788,7 +797,8 @@ void Build_ModelSetMesh(std::ostream& stream, std::string const& modelName, std:
 
 
 void Build_ShaderHeader(std::ostream& stream, std::string const& shaderName, std::pair<size_t, ShaderSaveData> const& save) {
-  WriteLine(std::format("\n// Shader {:}", save.second.name));
+  WriteLine("");
+  WriteLine(std::format("// Shader {:}", save.second.name));
   WriteLine("// --------------------------------------------------");
   WriteLine(std::format("Shader* {:} = Pumpkin_GetShader({:?});", shaderName, save.second.name));
   WriteLine(std::format("if ({:}) {{", shaderName));
@@ -798,7 +808,8 @@ void Build_ShaderHeader(std::ostream& stream, std::string const& shaderName, std
 void Build_ShaderEnd(std::ostream& stream, std::pair<size_t, ShaderSaveData> const& save) {
   WriteLine("}");
   WriteLine("// --------------------------------------------------");
-  WriteLine(std::format("// Shader {:}\n", save.second.name));
+  WriteLine(std::format("// Shader {:}", save.second.name));
+  WriteLine("");
 }
 
 
@@ -811,7 +822,8 @@ void Build_ShaderGetProperties(std::ostream& stream, std::string const& shaderNa
 
 
 void Build_PropertiesHeader(std::ostream& stream) {
-  WriteLine("\n// Properties");
+  WriteLine("");
+  WriteLine("// Properties");
   WriteLine("// ----------");
 }
 
@@ -883,7 +895,8 @@ void Build_Properties(std::ostream& stream, PropertyHolder const& properties, Pr
 
   if (didSomething) {
     WriteLine("// ----------");
-    WriteLine("// Properties\n");
+    WriteLine("// Properties");
+    WriteLine("");
   }
 }
 

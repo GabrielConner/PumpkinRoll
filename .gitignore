@@ -1,7 +1,7 @@
 *.ppm_psave
 *pmpknrl*
 main.cpp
-
+*.zip
 pumpkinBuild/
 
 srcExt/

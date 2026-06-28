@@ -60,7 +60,7 @@ struct SaveData {
 
 
   void Pull(Pumpkin* pumpkin, std::unordered_map<size_t, ::pumpkin::Object*> const& runtimeObjects);
-  void Push(Pumpkin* pumpkin, std::unordered_map<size_t, ::pumpkin::Object*>& runtimeObjects);
+  void Push(Pumpkin* pumpkin, std::unordered_map<size_t, ::pumpkin::Object*>& runtimeObjects, SaveData const& compare);
 
   // Saves the current pulled data, make sure to pull right before save to get latest
   void Save(std::string const& name, std::string const& defaultPrimaryCamera);

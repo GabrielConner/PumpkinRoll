@@ -75,11 +75,11 @@ void Shader::Reload() {
   // Ignore the warnings, it works
   ShaderCreateInfo* infos = new ShaderCreateInfo[startInfos.size()];
   for (int i = 0; i < startInfos.size(); i++) {
-    infos[i].shaders = new char const*[startInfos[i].shaderCount];
-    for (int j = 0; j < startInfos[i].shaderCount; j++) {
+    infos[i].shaders = new char const*[startInfos[i].shaders.size()];
+    for (int j = 0; j < startInfos[i].shaders.size(); j++) {
       infos[i].shaders[j] = startInfos[i].shaders[j].data();
     }
-    infos[i].shaderCount = startInfos[i].shaderCount;
+    infos[i].shaderCount = startInfos[i].shaders.size();
     infos[i].type = startInfos[i].type;
   }
 

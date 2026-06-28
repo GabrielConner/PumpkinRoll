@@ -1,7 +1,7 @@
 /*
 *
 * Function Declarations Source
-* Built 2026-06-26 10:03 PM
+* Built 2026-06-28 04:22 PM
 *
 */
 
@@ -17,16 +17,21 @@ FPPUMPKIN_EXECUTABLELOCATION Pumpkin_ExecutableLocation = NULL;
 FPPUMPKIN_PRINTERROR Pumpkin_PrintError = NULL;
 FPPUMPKIN_DELTATIME Pumpkin_DeltaTime = NULL;
 FPPUMPKIN_TOTALTIME Pumpkin_TotalTime = NULL;
+FPPUMPKIN_STARTMEMORYIGNOREBLOCK Pumpkin_StartMemoryIgnoreBlock = NULL;
+FPPUMPKIN_ENDMEMORYIGNOREBLOCK Pumpkin_EndMemoryIgnoreBlock = NULL;
 FPPUMPKIN_REGISTEROBJECT Pumpkin_RegisterObject = NULL;
 FPPUMPKIN_GETOBJECT Pumpkin_GetObject = NULL;
 FPPUMPKIN_DELETEOBJECT Pumpkin_DeleteObject = NULL;
 FPOBJECT_GETNAME Object_GetName = NULL;
 FPOBJECT_SETMODEL Object_SetModel = NULL;
+FPOBJECT_GETMODEL Object_GetModel = NULL;
 FPOBJECT_ADDSCRIPT Object_AddScript = NULL;
 FPOBJECT_GETSCRIPT Object_GetScript = NULL;
 FPOBJECT_REMOVESCRIPT Object_RemoveScript = NULL;
+FPOBJECT_GETALLSCRIPTS Object_GetAllScripts = NULL;
 FPOBJECT_ADDDELETECALLBACK Object_AddDeleteCallback = NULL;
 FPOBJECT_REMOVEDELETECALLBACK Object_RemoveDeleteCallback = NULL;
+FPOBJECT_DUPLICATE Object_Duplicate = NULL;
 FPTRANSFORM_GENERATEMODEL Transform_GenerateModel = NULL;
 FPPUMPKIN_REGISTERCAMERA Pumpkin_RegisterCamera = NULL;
 FPPUMPKIN_GETCAMERA Pumpkin_GetCamera = NULL;
@@ -45,12 +50,17 @@ FPPUMPKIN_GETMESH Pumpkin_GetMesh = NULL;
 FPPUMPKIN_REGISTERFORMAT Pumpkin_RegisterFormat = NULL;
 FPPUMPKIN_GETFORMAT Pumpkin_GetFormat = NULL;
 FPPUMPKIN_APPLYSTATICBUFFER Pumpkin_ApplyStaticBuffer = NULL;
-FPMESH_GETMESHVERTICES Mesh_GetMeshVertices = NULL;
+FPMESH_GETINFO Mesh_GetInfo = NULL;
 FPMESH_RELOAD Mesh_Reload = NULL;
+FPMESH_GETNAME Mesh_GetName = NULL;
+FPMESH_DUPLICATEASDYNAMIC Mesh_DuplicateAsDynamic = NULL;
 FPPUMPKIN_REGISTERMODEL Pumpkin_RegisterModel = NULL;
 FPPUMPKIN_GETMODEL Pumpkin_GetModel = NULL;
 FPMODEL_SETSHADER Model_SetShader = NULL;
 FPMODEL_SETMESH Model_SetMesh = NULL;
+FPMODEL_GETSHADER Model_GetShader = NULL;
+FPMODEL_GETMESH Model_GetMesh = NULL;
+FPMODEL_GETNAME Model_GetName = NULL;
 FPMODEL_GETPROPERTIES Model_GetProperties = NULL;
 FPPUMPKIN_REGISTERSHADER Pumpkin_RegisterShader = NULL;
 FPPUMPKIN_GETSHADER Pumpkin_GetShader = NULL;
@@ -82,16 +92,21 @@ bool LoadFunctions(PROCADDRESSFUNC proc) {
   Pumpkin_PrintError = (FPPUMPKIN_PRINTERROR)proc("Pumpkin_PrintError"); if (!Pumpkin_PrintError) return false;
   Pumpkin_DeltaTime = (FPPUMPKIN_DELTATIME)proc("Pumpkin_DeltaTime"); if (!Pumpkin_DeltaTime) return false;
   Pumpkin_TotalTime = (FPPUMPKIN_TOTALTIME)proc("Pumpkin_TotalTime"); if (!Pumpkin_TotalTime) return false;
+  Pumpkin_StartMemoryIgnoreBlock = (FPPUMPKIN_STARTMEMORYIGNOREBLOCK)proc("Pumpkin_StartMemoryIgnoreBlock"); if (!Pumpkin_StartMemoryIgnoreBlock) return false;
+  Pumpkin_EndMemoryIgnoreBlock = (FPPUMPKIN_ENDMEMORYIGNOREBLOCK)proc("Pumpkin_EndMemoryIgnoreBlock"); if (!Pumpkin_EndMemoryIgnoreBlock) return false;
   Pumpkin_RegisterObject = (FPPUMPKIN_REGISTEROBJECT)proc("Pumpkin_RegisterObject"); if (!Pumpkin_RegisterObject) return false;
   Pumpkin_GetObject = (FPPUMPKIN_GETOBJECT)proc("Pumpkin_GetObject"); if (!Pumpkin_GetObject) return false;
   Pumpkin_DeleteObject = (FPPUMPKIN_DELETEOBJECT)proc("Pumpkin_DeleteObject"); if (!Pumpkin_DeleteObject) return false;
   Object_GetName = (FPOBJECT_GETNAME)proc("Object_GetName"); if (!Object_GetName) return false;
   Object_SetModel = (FPOBJECT_SETMODEL)proc("Object_SetModel"); if (!Object_SetModel) return false;
+  Object_GetModel = (FPOBJECT_GETMODEL)proc("Object_GetModel"); if (!Object_GetModel) return false;
   Object_AddScript = (FPOBJECT_ADDSCRIPT)proc("Object_AddScript"); if (!Object_AddScript) return false;
   Object_GetScript = (FPOBJECT_GETSCRIPT)proc("Object_GetScript"); if (!Object_GetScript) return false;
   Object_RemoveScript = (FPOBJECT_REMOVESCRIPT)proc("Object_RemoveScript"); if (!Object_RemoveScript) return false;
+  Object_GetAllScripts = (FPOBJECT_GETALLSCRIPTS)proc("Object_GetAllScripts"); if (!Object_GetAllScripts) return false;
   Object_AddDeleteCallback = (FPOBJECT_ADDDELETECALLBACK)proc("Object_AddDeleteCallback"); if (!Object_AddDeleteCallback) return false;
   Object_RemoveDeleteCallback = (FPOBJECT_REMOVEDELETECALLBACK)proc("Object_RemoveDeleteCallback"); if (!Object_RemoveDeleteCallback) return false;
+  Object_Duplicate = (FPOBJECT_DUPLICATE)proc("Object_Duplicate"); if (!Object_Duplicate) return false;
   Transform_GenerateModel = (FPTRANSFORM_GENERATEMODEL)proc("Transform_GenerateModel"); if (!Transform_GenerateModel) return false;
   Pumpkin_RegisterCamera = (FPPUMPKIN_REGISTERCAMERA)proc("Pumpkin_RegisterCamera"); if (!Pumpkin_RegisterCamera) return false;
   Pumpkin_GetCamera = (FPPUMPKIN_GETCAMERA)proc("Pumpkin_GetCamera"); if (!Pumpkin_GetCamera) return false;
@@ -110,12 +125,17 @@ bool LoadFunctions(PROCADDRESSFUNC proc) {
   Pumpkin_RegisterFormat = (FPPUMPKIN_REGISTERFORMAT)proc("Pumpkin_RegisterFormat"); if (!Pumpkin_RegisterFormat) return false;
   Pumpkin_GetFormat = (FPPUMPKIN_GETFORMAT)proc("Pumpkin_GetFormat"); if (!Pumpkin_GetFormat) return false;
   Pumpkin_ApplyStaticBuffer = (FPPUMPKIN_APPLYSTATICBUFFER)proc("Pumpkin_ApplyStaticBuffer"); if (!Pumpkin_ApplyStaticBuffer) return false;
-  Mesh_GetMeshVertices = (FPMESH_GETMESHVERTICES)proc("Mesh_GetMeshVertices"); if (!Mesh_GetMeshVertices) return false;
+  Mesh_GetInfo = (FPMESH_GETINFO)proc("Mesh_GetInfo"); if (!Mesh_GetInfo) return false;
   Mesh_Reload = (FPMESH_RELOAD)proc("Mesh_Reload"); if (!Mesh_Reload) return false;
+  Mesh_GetName = (FPMESH_GETNAME)proc("Mesh_GetName"); if (!Mesh_GetName) return false;
+  Mesh_DuplicateAsDynamic = (FPMESH_DUPLICATEASDYNAMIC)proc("Mesh_DuplicateAsDynamic"); if (!Mesh_DuplicateAsDynamic) return false;
   Pumpkin_RegisterModel = (FPPUMPKIN_REGISTERMODEL)proc("Pumpkin_RegisterModel"); if (!Pumpkin_RegisterModel) return false;
   Pumpkin_GetModel = (FPPUMPKIN_GETMODEL)proc("Pumpkin_GetModel"); if (!Pumpkin_GetModel) return false;
   Model_SetShader = (FPMODEL_SETSHADER)proc("Model_SetShader"); if (!Model_SetShader) return false;
   Model_SetMesh = (FPMODEL_SETMESH)proc("Model_SetMesh"); if (!Model_SetMesh) return false;
+  Model_GetShader = (FPMODEL_GETSHADER)proc("Model_GetShader"); if (!Model_GetShader) return false;
+  Model_GetMesh = (FPMODEL_GETMESH)proc("Model_GetMesh"); if (!Model_GetMesh) return false;
+  Model_GetName = (FPMODEL_GETNAME)proc("Model_GetName"); if (!Model_GetName) return false;
   Model_GetProperties = (FPMODEL_GETPROPERTIES)proc("Model_GetProperties"); if (!Model_GetProperties) return false;
   Pumpkin_RegisterShader = (FPPUMPKIN_REGISTERSHADER)proc("Pumpkin_RegisterShader"); if (!Pumpkin_RegisterShader) return false;
   Pumpkin_GetShader = (FPPUMPKIN_GETSHADER)proc("Pumpkin_GetShader"); if (!Pumpkin_GetShader) return false;

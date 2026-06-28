@@ -41,6 +41,10 @@ void Model::RenderAll() {
 
     ShaderHandler::SetMat4("model", (float*)&mat);
     
+    for (auto& script : pObjExt(obj)->scripts) {
+      script.second.script->ShaderUpdate(obj);
+    }
+
     glDrawArrays(GL_TRIANGLES, 0, mesh->vertexCount);
   }
 }

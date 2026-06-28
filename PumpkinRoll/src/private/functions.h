@@ -3,6 +3,8 @@
 
 #include "pumpkin/types.h"
 
+#include <vector>
+
 namespace pumpkin {
 extern "C" {
 
@@ -39,12 +41,16 @@ API bool Pumpkin_DeleteObject(std::string const& name);
 
 API char const* Object_GetName(Object const* object);
 API bool Object_SetModel(Object* object, Model* model);
+API Model* Object_GetModel(Object* object);
 API bool Object_AddScript(Object* object, std::string const& name);
 API Script* Object_GetScript(Object* object, std::string const& name);
 API bool Object_RemoveScript(Object* object, std::string const& name);
+API std::vector<Script*>&& Object_GetAllScripts(Object* object);
 
 API void Object_AddDeleteCallback(Object* object, ObjectDeleteCallback ptrFunc, int id);
 API void Object_RemoveDeleteCallback(Object* object, ObjectDeleteCallback ptrFunc, int id);
+
+API Object* Object_Duplicate(Object* object, std::string const& name);
 
 // --------------------------------------------------
 // --------------------------------------------------
@@ -105,8 +111,11 @@ API GLuint Pumpkin_GetFormat(std::string const& name);
 
 API void Pumpkin_ApplyStaticBuffer();
 
-API void* Mesh_GetMeshVertices(Mesh* mesh);
+API MeshInfo Mesh_GetInfo(Mesh* mesh);
 API void Mesh_Reload(Mesh* mesh);
+
+API std::string Mesh_GetName(Mesh* mesh);
+API Mesh* Mesh_DuplicateAsDynamic(Mesh* mesh, std::string const& name);
 
 // --------------------------------------------------
 // --------------------------------------------------
@@ -123,6 +132,11 @@ API Model* Pumpkin_GetModel(std::string const& name);
 
 API bool Model_SetShader(Model* model, Shader* shader);
 API bool Model_SetMesh(Model* model, Mesh* mesh);
+
+API Shader* Model_GetShader(Model* model);
+API Mesh* Model_GetMesh(Model* model);
+
+API std::string Model_GetName(Model* model);
 
 API PropertyHolder* Model_GetProperties(Model* shader);
 

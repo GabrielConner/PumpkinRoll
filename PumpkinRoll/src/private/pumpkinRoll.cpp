@@ -92,7 +92,8 @@ ScriptAllocateFunction(PumpkinRoll__CameraFreeMovement);
 namespace pumpkin_private {
 
 // Load the LibGen managing functions
-__declspec(dllimport) bool InitLibGen();
+__declspec(dllimport) bool LibGenInitGLFW();
+__declspec(dllimport) bool LibGenInitGLAD();
 __declspec(dllimport) void EndLibGen();
 
 }; // namespace pumpkin_private
@@ -105,7 +106,7 @@ namespace pumpkin {
 StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void (*devLoad)()) {
 
 #ifdef PUMPKIN_ROLL_DEV
-  _CrtMemCheckpoint(&crtMemState); // prtodo add something to allow offsetting/ignoring something that would cause difference at the end
+  _CrtMemCheckpoint(&crtMemState);
   memset(&memIgnoreDiff, 0, sizeof(_CrtMemState));
 #endif
 
@@ -117,7 +118,7 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void
   // Can be start/stopped
   // Can't be start then started
   if (pumpkinData != nullptr) {
-    pError("PumpkinRoll already initialized");
+    Pumpkin_PrintError(PrintLevel::ERROR, 0, "PumpkinRoll already initialized");
     return StartReturn::FAILURE;
   }
 
@@ -138,7 +139,10 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void
 
     GLFW is only added here for the macros and types, not functions
   */
-  InitLibGen();
+  if (!LibGenInitGLFW()) {
+    Pumpkin_PrintError(PrintLevel::ERROR, 0, "Failed to load pumpkin library");
+    return StartReturn::FAILURE;
+  }
 
   // Open main primaryWindow
   WindowCreateHint hints[] = {
@@ -149,7 +153,7 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void
   Window* mainWindow = new Window();
   mainWindow->Open(start.width, start.height, start.title, hints, sizeof(hints) / sizeof(WindowCreateHint));
   if (!mainWindow->IsOpen()) {
-    pError("Failed to open primary window");
+    Pumpkin_PrintError(PrintLevel::ERROR, 0, "Failed to open primary window");
     delete(pumpkinData);
     delete(mainWindow);
     return StartReturn::FAILURE;
@@ -159,16 +163,21 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void
 
   // Register primaryWindow
   if (!pumpkin_private::RegisterWindow("pumpkin_roll__primary_window", mainWindow)) {
-    pError("Failed to register primary window");
+    Pumpkin_PrintError(PrintLevel::ERROR, 0, "Failed to register primary window");
     delete(pumpkinData);
     delete(mainWindow);
     return StartReturn::FAILURE;
   }
   pumpkinData->primaryWindow = mainWindow;
 
+  if (!LibGenInitGLAD()) {
+    Pumpkin_PrintError(PrintLevel::ERROR, 0, "Failed to load pumpkin library GLAD");
+    return StartReturn::FAILURE;
+  }
+
   // Start OpenGL
   if (!gladLoadGLLoader((GLADloadproc)GetGLFWProcAddress())) {
-    pError("Failed to load OpenGL");
+    Pumpkin_PrintError(PrintLevel::ERROR, 0, "Failed to load OpenGL");
     delete(pumpkinData);
     delete(mainWindow);
     return StartReturn::FAILURE;
@@ -179,14 +188,14 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void
   memset(fileName, 0, sizeof(fileName));
   DWORD ret = GetModuleFileNameA(NULL, fileName, 512);
   if (!ret || GetLastError()) {
-    pWarn("Failed to retrieve executable path");
+    Pumpkin_PrintError(PrintLevel::ERROR, 0, "Failed to retrieve executable path");
   } else {
     pumpkinData->exePath = std::filesystem::path(fileName).parent_path().concat("\\").lexically_normal().string();
   }
 
 
   if (!FileManagerStart()) {
-    pError("Failed to start file manager");
+    Pumpkin_PrintError(PrintLevel::ERROR, 0, "Failed to start file manager");
     delete(pumpkinData);
     delete(mainWindow);
     return StartReturn::FAILURE;
@@ -214,10 +223,10 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void
 
 
   // Shader
-  char const* vertLocs = "shaders/pumpkinDefault.vert";
-  char const* fragLocs = "shaders/pumpkinDefault.frag";
+  char const* vertLocs = "shaders/pumpkin/pumpkinDefault.vert";
+  char const* fragLocs = "shaders/pumpkin/pumpkinDefault.frag";
 
-  ShaderInfo shaderCreateInfos[] = {ShaderInfo({vertLocs}, 1, GL_VERTEX_SHADER), ShaderInfo({fragLocs}, 1, GL_FRAGMENT_SHADER)};
+  ShaderInfo shaderCreateInfos[] = {ShaderInfo({vertLocs}, GL_VERTEX_SHADER), ShaderInfo({fragLocs}, GL_FRAGMENT_SHADER)};
 
   Shader* shader = Pumpkin_RegisterShader("PumpkinRoll__DefaultShader", shaderCreateInfos, sizeof(shaderCreateInfos) / sizeof(ShaderInfo), nullptr);
   if (!shader) {
@@ -349,7 +358,7 @@ void Pumpkin_Update() {
     }
 
 #ifdef PUMPKIN_ROLL_DEV
-    if (pumpkinData->running) {
+    if (!pumpkinData->running) {
       RenderDevelopment();
     }
     UpdateDevelopment();
@@ -368,6 +377,12 @@ void Pumpkin_Update() {
 
 void Pumpkin_End() {
   pPumpkinCheck();
+
+#ifdef PUMPKIN_ROLL_DEV
+  EndDevelopmentProgram();
+#else
+  StopProgram();
+#endif
 
   // Delete all registered items
   for (auto& primaryWindow : pumpkinData->registeredWindows) {
@@ -394,12 +409,6 @@ void Pumpkin_End() {
   }
 
   glDeleteBuffers(1, &pumpkinData->globalVBO);
-
-#ifdef PUMPKIN_ROLL_DEV
-  EndDevelopmentProgram();
-#else
-  StopProgram();
-#endif
 
   FileManagerEnd();
 
@@ -583,6 +592,11 @@ bool Object_SetModel(Object* object, Model* model) {
 }
 
 
+Model* Object_GetModel(Object* object) {
+  pNullCheck(object, nullptr);
+  return pObjInt(object)->model;
+}
+
 
 bool Object_AddScript(Object* object, std::string const& name) {
   pNullCheck(object, false);
@@ -639,6 +653,19 @@ bool Object_RemoveScript(Object* object, std::string const& name) {
 
 
 
+std::vector<Script*>&& Object_GetAllScripts(Object* object) {
+  pNullCheck(object, {});
+
+  std::vector<Script*> scrList = std::vector<Script*>();
+  for (auto& scr : pObjExt(object)->scripts) {
+    scrList.push_back(scr.second.script);
+  }
+
+  return std::move(scrList);
+}
+
+
+
 void Object_AddDeleteCallback(Object* object, ObjectDeleteCallback ptrFunc, int id) {
   pNullCheck(object);
   pObjExt(object)->deleteCallbacks.insert({ptrFunc, id});
@@ -649,6 +676,34 @@ void Object_AddDeleteCallback(Object* object, ObjectDeleteCallback ptrFunc, int 
 void Object_RemoveDeleteCallback(Object* object, ObjectDeleteCallback ptrFunc, int id) {
   pNullCheck(object);
   pObjExt(object)->deleteCallbacks.erase({ptrFunc, id});
+}
+
+
+
+Object* Object_Duplicate(Object* object, std::string const& name) {
+  pNullCheck(object, nullptr);
+  if (dynamic_cast<Camera*>(object)) {
+    pWarn("Cannot duplicate cameras");
+    return nullptr;
+  }
+
+  Object* ret = Pumpkin_RegisterObject(name);
+  if (!ret) {
+    return nullptr;
+  }
+  ret->transform = object->transform;
+  ret->developmentObject = object->developmentObject;
+
+  pObjDefInt(object, oI);
+  pObjDefExt(object, oE);
+
+  Object_SetModel(ret, oI->model);
+
+  for (auto& scr : oE->scripts) {
+    Object_AddScript(ret, scr.second.name);
+  }
+
+  return ret;
 }
 
 // --------------------------------------------------
@@ -1061,9 +1116,18 @@ void Pumpkin_ApplyStaticBuffer() {
 
 
 
-void* Mesh_GetMeshVertices(Mesh* mesh) {
-  pNullCheck(mesh, nullptr);
-  return mesh->vertices;
+MeshInfo Mesh_GetInfo(Mesh* mesh) {
+  pNullCheck(mesh, {});
+
+  MeshInfo info;
+  info.vertices = mesh->vertices;
+  info.vertexCount = mesh->vertexCount;
+  info.vertexSize = mesh->vertexSize;
+  info.bufferSize = mesh->bufferSize;
+  info.format = mesh->format;
+  info.dynamic = mesh->dynamic;
+
+  return info;
 }
 
 
@@ -1075,6 +1139,22 @@ void Mesh_Reload(Mesh* mesh) {
   }
 
   glNamedBufferSubData(mesh->VBO, 0, mesh->bufferSize, mesh->vertices);
+}
+
+
+
+std::string Mesh_GetName(Mesh* mesh) {
+  pNullCheck(mesh, "");
+
+  return mesh->name;
+}
+
+
+
+Mesh* Mesh_DuplicateAsDynamic(Mesh* mesh, std::string const& name) {
+  pNullCheck(mesh, nullptr);
+
+  return Pumpkin_RegisterMesh(name, mesh->vertices, mesh->vertexSize, mesh->vertexCount, true, mesh->format);
 }
 
 // --------------------------------------------------
@@ -1149,6 +1229,24 @@ bool Model_SetMesh(Model* model, Mesh* mesh) {
   
   model->mesh = mesh;
   return true;
+}
+
+
+Shader* Model_GetShader(Model* model) {
+  pNullCheck(model, nullptr);
+  return model->shader;
+}
+
+
+Mesh* Model_GetMesh(Model* model) {
+  pNullCheck(model, nullptr);
+  return model->mesh;
+}
+
+
+std::string Model_GetName(Model* model) {
+  pNullCheck(model, "");
+  return model->name;
 }
 
 

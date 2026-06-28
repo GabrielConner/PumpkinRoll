@@ -264,6 +264,11 @@ struct BuildPumpkin : Ask {
 };
 
 
+struct DuplicateObject : Ask { 
+  void Prompt(int i, std::string const& line) override;
+  void Question(std::string const& line) override;
+};
+
 
 // Return data to go backs
 struct DataHistorySlice {
@@ -304,6 +309,7 @@ struct Data {
   CreateSave createSave;
   LoadSave loadSave;
   BuildPumpkin buildPumpkin;
+  DuplicateObject duplicateObject;
 
   std::string line = "";
   std::string newPropertyName = "";
@@ -539,8 +545,8 @@ void StartDevelopment() {
   data->devCamera.transform.position.z = 5;
 
 
-  const char* vertLoc = "shaders/pumpkinDev.vert";
-  const char* fragLoc = "shaders/pumpkinDev.frag";
+  const char* vertLoc = "shaders/private/pumpkin/pumpkinDev.vert";
+  const char* fragLoc = "shaders/private/pumpkin/pumpkinDev.frag";
 
   ShaderCreateInfo infos[] = {ShaderCreateInfo(&vertLoc, 1, GL_VERTEX_SHADER), ShaderCreateInfo(&fragLoc, 1, GL_FRAGMENT_SHADER)};
 
@@ -572,7 +578,7 @@ void DevelopmentLogAfterStart() {
   assert(data);
   assert(data->pumpkin);
 
-  data->startSaveData.Pull(data->pumpkin, {});
+  data->startSaveData.Pull(data->pumpkin, data->runtimeObjects);
 
   Pumpkin_SetPrimaryCamera(&data->devCamera);
 }
@@ -584,11 +590,11 @@ void UpdateDevelopment() {
 
   auto primaryWindow = data->pumpkin->primaryWindow;
 
-  if (primaryWindow) {
+  if (primaryWindow && data->pumpkin->running) {
     InputInfo escape = primaryWindow->GetInput(GLFW_KEY_ESCAPE);
     if (escape.pressed && escape.mods & GLFW_MOD_SHIFT) {
       StopProgram();
-      data->saveData.Push(data->pumpkin, data->runtimeObjects);
+      data->saveData.Push(data->pumpkin, data->runtimeObjects, data->startSaveData);
       data->updateAsk = true;
       Pumpkin_SetPrimaryCamera(&data->devCamera);
     }
@@ -1234,15 +1240,18 @@ void HoldObject::Prompt(int i, std::string const& line) {
       elemPtr = (float*)&data->holdingObject->transform.rotation;
       data->updateAsk = true;
       break;
+    case 7: // Duplicate
+      data->SetAsk(&data->duplicateObject);
+      break;
 
-    case 7:
-      if (data->pumpkin->primaryCamera = &data->devCamera) {
+    case 8: // Position to dev
+      if (data->pumpkin->primaryCamera == &data->devCamera) {
         data->holdingObject->transform.position = data->devCamera.transform.position;
       }
       break;
 
-    case 8:
-      if (data->pumpkin->primaryCamera = &data->devCamera) {
+    case 9: // Rotation to dev
+      if (data->pumpkin->primaryCamera == &data->devCamera) {
         data->holdingObject->transform.rotation = data->devCamera.transform.rotation;
       }
       break;
@@ -1275,10 +1284,10 @@ void HoldObject::Question(std::string const& line) {
     return;
   }
   
-  std::cout << "0. Delete object\n1. Set object model\n2. Add script\n3. Remove script\n4. Position\n5. Scale\n6. Rotation\n";
+  std::cout << "0. Delete object\n1. Set object model\n2. Add script\n3. Remove script\n4. Position\n5. Scale\n6. Rotation\n7. Duplicate\n";
 
-  if (data->pumpkin->primaryCamera = &data->devCamera) {
-    std::cout << "7. Position to dev\n8. Rotation to dev\n";
+  if (data->pumpkin->primaryCamera == &data->devCamera) {
+    std::cout << "8. Position to dev\n9. Rotation to dev\n";
   }
 }
 
@@ -2109,7 +2118,7 @@ void LoadSave::Prompt(int i, std::string const& line) {
 
     data->saveData.Load(str);
     data->startSaveData.primaryCamera = data->saveData.primaryCamera;
-    data->saveData.Push(data->pumpkin, data->runtimeObjects);
+    data->saveData.Push(data->pumpkin, data->runtimeObjects, data->startSaveData);
     data->savedSaveFile = str;
     data->SetAsk(&data->mainMenu);
   }
@@ -2198,6 +2207,37 @@ void BuildPumpkin::Question(std::string const& line) {
 // **************************************************
 // BuildPumpkin
 
+
+
+// DuplicateObject
+// **************************************************
+// **************************************************
+
+void DuplicateObject::Prompt(int i, std::string const& line) {
+  assert(data);
+
+  if (i == '\n' || i == '\r') {
+    if (line.size() == 0) {
+      data->ResetAsk();
+      return;
+    }
+
+    data->holdingObject = Object_Duplicate(data->holdingObject, line);
+    data->ResetAsk();
+    return;
+  }
+
+  data->updateAsk = true;
+}
+
+
+void DuplicateObject::Question(std::string const& line) {
+  std::cout << "Enter name to duplicate object to\n>>" << line;
+}
+
+// **************************************************
+// **************************************************
+// DuplicateObject
 
 
 
