@@ -33,6 +33,8 @@ Compiled on Visual C++ (2026) but should be available for earlier.  Clang can al
 
 Highly recommened to not self build but use prebuilt binaries found in [release](https://github.com/GabrielConner/PumpkinRoll/releases)
 
+[GLFW](https://www.glfw.org/), [GLAD](https://glad.dav1d.de/), and [GLM](https://github.com/g-truc/glm) are required to compile
+
 ## Creating a project
 
 The basic structure of a project should follow 
@@ -81,3 +83,16 @@ Based on the prebuilt binaries; There are a total of 6 dlls.  4 for debug and re
 The `pumpkinRoll*.dll` files do not have related `*.lib` files as they are automatically loaded from within `pumpkinRoll.cpp` based on build mode and command line arguments.
 
 The `pumpkinLibGen*.dll` files do have related `*.lib` and should be linked into their respective build types.
+
+[GLFW](https://www.glfw.org/) and [GLAD](https://glad.dav1d.de/) are required (for the moment) within the project to work as well.  Just for the macros and typedefs so I'll try and get them out.
+
+## All external projects used
+
+* [GLFW](https://www.glfw.org/)
+* [GLAD](https://glad.dav1d.de/)
+* [GLM](https://github.com/g-truc/glm)
+* [Assimp](https://www.assimp.org/) (used in process of generating `private/rawMeshes.h`)
+
+## Self made projects used to help build
+* [PPM](https://github.com/GabrielConner/PersonalPackageManager)
+* [Utility](https://github.com/GabrielConner/Utility) (no specific utility/utilities used)
