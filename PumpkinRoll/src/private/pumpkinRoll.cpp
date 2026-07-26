@@ -328,14 +328,14 @@ void Pumpkin_Update() {
       UpdateCamera(cam.second);
     }
 
+    ScriptUpdateInfo scriptUpdateInfo;
+    scriptUpdateInfo.deltaTime = pumpkinData->deltaTime;
+    scriptUpdateInfo.totalTime = pumpkinData->totalTime;
+    scriptUpdateInfo.window = pumpkinData->primaryWindow;
+
 #ifdef PUMPKIN_ROLL_DEV
     if (pumpkinData->running) {
 #endif
-
-      ScriptUpdateInfo scriptUpdateInfo;
-      scriptUpdateInfo.deltaTime = pumpkinData->deltaTime;
-      scriptUpdateInfo.totalTime = pumpkinData->totalTime;
-      scriptUpdateInfo.window = pumpkinData->primaryWindow;
 
       for (auto& obj : pumpkinData->registeredObjects) {
         for (auto& script : pObjInt(obj.second)->external->scripts) {
@@ -353,7 +353,7 @@ void Pumpkin_Update() {
       Camera_GenerateView(pumpkinData->primaryCamera);
 
       for (auto& shader : pumpkinData->registeredShaders) {
-        shader.second->RenderAll();
+        if (shader.second->enabled) shader.second->RenderAll();
       }
     }
 
@@ -361,7 +361,7 @@ void Pumpkin_Update() {
     if (!pumpkinData->running) {
       RenderDevelopment();
     }
-    UpdateDevelopment();
+    UpdateDevelopment(scriptUpdateInfo);
 #endif
 
     pumpkinData->primaryWindow->Swap();
@@ -566,10 +566,6 @@ char const* Object_GetName(Object const* object) {
 
 bool Object_SetModel(Object* object, Model* model) {
   pNullCheck(object, false);
-
-  #ifndef PUMPKIN_ROLL_DEV
-  if (object->developmentObject) return false;
-  #endif
   pObjDefInt(object, i);
 
   if (!model) {
@@ -599,6 +595,7 @@ Model* Object_GetModel(Object* object) {
 
 
 bool Object_AddScript(Object* object, std::string const& name) {
+  pPumpkinCheck(false);
   pNullCheck(object, false);
 
   Script* script = Pumpkin_CreateScript(name);
@@ -614,6 +611,11 @@ bool Object_AddScript(Object* object, std::string const& name) {
     return false;
   }
 
+
+  if (pumpkinData->running) { // Start script if the program is already running when it is added
+    script->Start(object);
+  }
+
   return true;
 }
 
@@ -625,7 +627,7 @@ Script* Object_GetScript(Object* object, std::string const& name) {
   pObjDefExt(object, ext);
   
   auto find = ext->scripts.find(_STRING_HASHER(name));
-  if (find != ext->scripts.end()) { 
+  if (find == ext->scripts.end()) { 
     pWarn("Script does not exist with name on object");
     return nullptr;
   }
@@ -692,7 +694,6 @@ Object* Object_Duplicate(Object* object, std::string const& name) {
     return nullptr;
   }
   ret->transform = object->transform;
-  ret->developmentObject = object->developmentObject;
 
   pObjDefInt(object, oI);
   pObjDefExt(object, oE);
@@ -747,6 +748,8 @@ Camera* Pumpkin_RegisterCamera(std::string const& name) {
     pWarn("Invalid camera name");
     return nullptr;
   }
+
+  // prtodo deleting a camera does not remove from registeredCameras within Pumpkin_DeleteObject
 
   auto ret = pumpkinData->registeredCameras.insert({_STRING_HASHER(name), nullptr});
   if (!ret.second) {
@@ -1496,9 +1499,7 @@ namespace pumpkin_private {
 void RunProgram() {
   assert(pumpkinData);
 
-#ifdef PUMPKIN_ROLL_DEV
   pumpkinData->running = true;
-#endif
 
   for (auto& obj : pumpkinData->registeredObjects) {
     for (auto& script : pObjInt(obj.second)->external->scripts) {
@@ -1512,9 +1513,7 @@ void RunProgram() {
 void StopProgram() {
   assert(pumpkinData);
 
-#ifdef PUMPKIN_ROLL_DEV
   pumpkinData->running = false;
-#endif
 
   for (auto& obj : pumpkinData->registeredObjects) {
     for (auto& script : pObjInt(obj.second)->external->scripts) {

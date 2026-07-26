@@ -69,6 +69,16 @@ void Shader::RemoveModel(Model* model) {
 
 
 
+void Shader::DevelopmentMode() {
+#ifdef PUMPKIN_ROLL_DEV
+  enabled = true;
+#else
+  enabled = false;
+#endif
+}
+
+
+
 void Shader::Reload() {
   glDeleteProgram(shader);
 

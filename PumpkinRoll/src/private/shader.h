@@ -17,12 +17,15 @@ struct Shader {
   PropertyHolder properties;
   std::set<Model*> models = std::set<Model*>();
   std::string name = "";
+  bool enabled = true;
 
   void (*setup)() = nullptr;
 
-  void RenderAll();  
+  void RenderAll();
   bool AddModel(Model* model);
   void RemoveModel(Model* model);
+
+  void DevelopmentMode();
 
   void Reload();
 

@@ -33,9 +33,7 @@ struct Pumpkin {
   double deltaTime = 0;
   double totalTime = 0;
 
-  #ifdef PUMPKIN_ROLL_DEV
   bool running = false;
-  #endif
 
   ::pumpkin::RuntimeSettings runtime = ::pumpkin::RuntimeSettings();
 };

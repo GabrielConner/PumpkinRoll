@@ -59,6 +59,8 @@ void ListCameras();
 
 inline bool AsciiToNumber(int& i) { i -= 48; return i < 0 || i > 9; }
 void AddError(std::string const& msg);
+void LookAtObjectDelete(Object* obj, int id);
+void ClearScreen();
 
 
 void ModelForward();
@@ -88,7 +90,6 @@ void SaveBack();
 void CameraForward();
 void CameraBack();
 
-void LookAtObjectDelete(Object* obj, int id);
 
 
 /*************************************************************************/
@@ -112,7 +113,8 @@ struct AddScript : Ask {
 };
 
 
-struct RemoveScript : Ask {
+struct SelectScript : Ask {
+  Script* script = nullptr;
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
   void Set() override;
@@ -145,12 +147,6 @@ struct HoldModel : Ask {
 
 
 struct HoldShader : Ask {
-  void Prompt(int i, std::string const& line) override;
-  void Question(std::string const& line) override;
-};
-
-
-struct HoldCamera : Ask {
   void Prompt(int i, std::string const& line) override;
   void Question(std::string const& line) override;
 };
@@ -291,7 +287,7 @@ struct DataHistorySlice {
 struct Data {
   MainMenu mainMenu;
   AddScript addScript;
-  RemoveScript removeScript;
+  SelectScript selectScript;
   CreateObject createObject;
   HoldObject holdObject;
   HoldModel holdModel;
@@ -329,6 +325,8 @@ struct Data {
 
   Object* lookAtObject = nullptr;
 
+  Script* developmentScript = nullptr;
+
   SaveData startSaveData;
   SaveData saveData;
 
@@ -362,6 +360,8 @@ struct Data {
 
   bool inDevCamera = true;
 
+  bool runningStatus = true;
+
   bool cycle = false;
   bool display = false;
   bool updateAsk = true;
@@ -378,8 +378,8 @@ struct Data {
 
   std::unordered_map<size_t, Object*> runtimeObjects = std::unordered_map<size_t, Object*>();
 
-  unsigned int devShader;
-  unsigned int devVAO, devVBO;
+  unsigned int devShader = 0;
+  unsigned int devVAO = 0, devVBO = 0;
 
 
 
@@ -584,24 +584,41 @@ void DevelopmentLogAfterStart() {
 }
 
 
-void UpdateDevelopment() {
+void UpdateDevelopment(ScriptUpdateInfo const& info) {
   assert(data != nullptr);
   assert(data->ask != nullptr);
 
-  auto primaryWindow = data->pumpkin->primaryWindow;
+  bool runningStatus = true;
 
-  if (primaryWindow && data->pumpkin->running) {
-    InputInfo escape = primaryWindow->GetInput(GLFW_KEY_ESCAPE);
+  if (info.window && data->pumpkin->running) { // Running the program
+    runningStatus = false;
+    InputInfo escape = info.window->GetInput(GLFW_KEY_ESCAPE);
     if (escape.pressed && escape.mods & GLFW_MOD_SHIFT) {
       StopProgram();
       data->saveData.Push(data->pumpkin, data->runtimeObjects, data->startSaveData);
-      data->updateAsk = true;
       Pumpkin_SetPrimaryCamera(&data->devCamera);
     }
   }
 
+  if (info.window && data->developmentScript) { // Updating a script, so it can update properties and stuff
+    runningStatus = false;
+    InputInfo escape = info.window->GetInput(GLFW_KEY_ESCAPE);
+    if (escape.pressed && escape.mods & GLFW_MOD_SHIFT) {
+      data->developmentScript = nullptr;
+    } else
+      data->developmentScript->DevelopmentUpdate(data->holdingObject, info);
+  }
+
+  if (runningStatus != data->runningStatus) { // Whenever changing run mode reset the cursor mode
+    info.window->SetCursorInputMode(GLFW_CURSOR_NORMAL);
+    data->updateAsk = true;
+  }
+
 
   if (data->pumpkin->running) {
+    return;
+  }
+  if (data->developmentScript) {
     return;
   }
 
@@ -610,16 +627,16 @@ void UpdateDevelopment() {
   UpdateCamera(&data->devCamera);
 
 
-  if (primaryWindow && primaryWindow->GetInput(GLFW_KEY_B).pressed) { // Can be used by prompts for special stuff, just a hack for now
+  if (info.window && info.window->GetInput(GLFW_KEY_B).pressed) { // Can be used by prompts for special stuff, just a hack for now
     data->ask->Prompt(0, data->line);
   }
 
 
   // Development camera moving
   if (data->inDevCamera) {
-    if (!primaryWindow) goto leaveDevCameraStuff;
+    if (!info.window) goto leaveDevCameraStuff;
 
-    if (primaryWindow->GetInput(GLFW_KEY_F).pressed) {
+    if (info.window->GetInput(GLFW_KEY_F).pressed) {
       if (data->holdingObject) {
         if (data->lookAtObject) {
           Object_RemoveDeleteCallback(data->lookAtObject, LookAtObjectDelete, 0);
@@ -642,13 +659,13 @@ void UpdateDevelopment() {
     auto camForward = *Camera_Forward(&data->devCamera);
     auto camRight = *Camera_Right(&data->devCamera);
 
-    if (primaryWindow->GetInput(GLFW_MOUSE_BUTTON_2).pressed) {
-      primaryWindow->SetCursorInputMode(GLFW_CURSOR_DISABLED);
+    if (info.window->GetInput(GLFW_MOUSE_BUTTON_2).pressed) {
+      info.window->SetCursorInputMode(GLFW_CURSOR_DISABLED);
       data->cameraRotateOffset = data->devCamera.transform.rotation;
-      data->cameraRealMouseZero = primaryWindow->GetRealMousePosition().ConvertTo<float>();
+      data->cameraRealMouseZero = info.window->GetRealMousePosition().ConvertTo<float>();
     }
 
-    if (primaryWindow->GetInput(GLFW_KEY_LEFT_SHIFT).held) {
+    if (info.window->GetInput(GLFW_KEY_LEFT_SHIFT).held) {
 
       // Easy enough
       camForward *= 3;
@@ -656,40 +673,40 @@ void UpdateDevelopment() {
     }
 
     // Acceleration
-    if (primaryWindow->GetInput(GLFW_KEY_M).held) {
+    if (info.window->GetInput(GLFW_KEY_M).held) {
       data->moveSpeed += 2 * data->pumpkin->deltaTime;
     }
-    if (primaryWindow->GetInput(GLFW_KEY_N).held) {
+    if (info.window->GetInput(GLFW_KEY_N).held) {
       data->moveSpeed -= 2 * data->pumpkin->deltaTime;
     }
 
-    if (primaryWindow->GetInput(GLFW_MOUSE_BUTTON_2).held) {
-      if (primaryWindow->GetInput(GLFW_KEY_W).held) {
+    if (info.window->GetInput(GLFW_MOUSE_BUTTON_2).held) {
+      if (info.window->GetInput(GLFW_KEY_W).held) {
         data->devCamera.transform.position += camForward * data->pumpkin->deltaTime * data->moveSpeed;
       }
-      if (primaryWindow->GetInput(GLFW_KEY_S).held) {
+      if (info.window->GetInput(GLFW_KEY_S).held) {
         data->devCamera.transform.position -= camForward * data->pumpkin->deltaTime * data->moveSpeed;
       }
-      if (primaryWindow->GetInput(GLFW_KEY_A).held) {
+      if (info.window->GetInput(GLFW_KEY_A).held) {
         data->devCamera.transform.position -= camRight * data->pumpkin->deltaTime * data->moveSpeed;
       }
-      if (primaryWindow->GetInput(GLFW_KEY_D).held) {
+      if (info.window->GetInput(GLFW_KEY_D).held) {
         data->devCamera.transform.position += camRight * data->pumpkin->deltaTime * data->moveSpeed;
       }
-      if (primaryWindow->GetInput(GLFW_KEY_Q).held) {
+      if (info.window->GetInput(GLFW_KEY_Q).held) {
         data->devCamera.transform.position -= _UP * data->pumpkin->deltaTime * data->moveSpeed;
       }
-      if (primaryWindow->GetInput(GLFW_KEY_E).held) {
+      if (info.window->GetInput(GLFW_KEY_E).held) {
         data->devCamera.transform.position += _UP * data->pumpkin->deltaTime * data->moveSpeed;
       }
 
 
       // Snappy movement
-      data->devCamera.transform.position += camForward * primaryWindow->GetMouseScrollY() * data->jumpDistance;
+      data->devCamera.transform.position += camForward * info.window->GetMouseScrollY() * data->jumpDistance;
 
 
       // Using by pixels instead of relative to avoid aspect ratio entirely
-      auto rP = primaryWindow->GetRealMousePosition().ConvertTo<float>();
+      auto rP = info.window->GetRealMousePosition().ConvertTo<float>();
       auto dM = rP - data->cameraRealMouseZero;
 
 
@@ -713,7 +730,7 @@ void UpdateDevelopment() {
       data->devCamera.transform.rotation.y = (newRotation.y - 360.f * std::floor(newRotation.y / 360.f));
     }
 
-    if (primaryWindow->GetInput(GLFW_MOUSE_BUTTON_2).released) primaryWindow->SetCursorInputMode(GLFW_CURSOR_NORMAL);
+    if (info.window->GetInput(GLFW_MOUSE_BUTTON_2).released) info.window->SetCursorInputMode(GLFW_CURSOR_NORMAL);
 
   }
 leaveDevCameraStuff:
@@ -755,12 +772,8 @@ leaveDevCameraStuff:
     SetConsoleCursorPosition(hStdout, dest);*/
 
 
-    // idc if it's slow and unsafe
-    #ifdef _WIN32
-    system("cls");
-    #else
-    system("clear");
-    #endif
+    
+    ClearScreen();
 
 
     // Some keybinds, not all just the ones for console
@@ -809,26 +822,26 @@ leaveDevCameraStuff:
       // Get special keys
       ret = _getch_nolock();
       switch (ret) {
-        case _UP_ARROW:
+        case _PR_UP_ARROW:
           data->messages.clear();
           data->updateAsk = true;
           break;
-        case _RIGHT_ARROW:
+        case _PR_RIGHT_ARROW:
           data->GoBack();
           break;
-        case _LEFT_ARROW:
+        case _PR_LEFT_ARROW:
           data->SetAsk(&data->mainMenu);
           data->ResetHold();
           break;
-        case _PAGE_UP:
+        case _PR_PAGE_UP:
           if (data->forward) data->forward();
           data->updateAsk = true;
           break;
-        case _PAGE_DOWN:
+        case _PR_PAGE_DOWN:
           if (data->back) data->back();
           data->updateAsk = true;
           break;
-        case _HOME:
+        case _PR_HOME:
           data->cycle = !data->cycle;
           data->updateAsk = true;
           break;
@@ -837,17 +850,17 @@ leaveDevCameraStuff:
       return;
     }
     // escape isn't a special key 
-    if (ret == _ESCAPE) {
+    if (ret == _PR_ESCAPE) {
       data->display = !data->display;
       data->updateAsk = true;
       continue;
     }
 
     // Is graphical key, ask prompt decides to reset with new key input or not
-    if (std::isgraph(ret)) data->line += (char)ret;
+    if (std::isgraph(ret) || ret == _PR_SPACE) data->line += (char)ret;
 
     // Implicit capture for creating a line
-    if (ret == _BACKSPACE) {
+    if (ret == _PR_BACKSPACE) {
       if (data->line.size() != 0) {
         data->line.erase(data->line.size() - 1);
       }
@@ -950,7 +963,7 @@ void MainMenu::Prompt(int i, std::string const& line) {
       Pumpkin_SetPrimaryCamera(Pumpkin_GetCamera(data->startSaveData.primaryCamera));
       data->saveData.Pull(data->pumpkin, data->runtimeObjects);
       RunProgram();
-      system("cls");
+      ClearScreen();
       std::cout << "SHIFT+ESCAPE to end\n";
       break;
     case 1: // Create object
@@ -1039,8 +1052,10 @@ void AddScript::Set() {
 
   data->currentProgramScript = data->pumpkin->registeredScripts.begin();
 
-  data->forward = ScriptForward;
-  data->back = ScriptBack;
+  if (data->pumpkin->registeredScripts.size() != 0) {
+    data->forward = ScriptForward;
+    data->back = ScriptBack;
+  }
 }
 
 // **************************************************
@@ -1055,9 +1070,31 @@ void AddScript::Set() {
 // **************************************************
 // **************************************************
 
-void RemoveScript::Prompt(int i, std::string const& line) {
+void SelectScript::Prompt(int i, std::string const& line) {
   assert(data);
   assert(data->holdingObject);
+
+  if (script) {
+    if (AsciiToNumber(i)) return;
+
+    switch (i) {
+      case 0: // Activate development
+        data->developmentScript = script;
+        ClearScreen();
+        std::cout << "SHIFT+ESCAPE to end\n";
+
+        break;
+
+      case 1: // Remove from object
+        if (!Object_RemoveScript(data->holdingObject, Pumpkin_GetScriptName(script))) {
+          AddError("Failed to remove script");
+        }
+        data->SetAsk(&data->holdObject, false);
+        break;
+    }
+
+    return;
+  }
 
   if (i == '\r' || i == '\n') {
     std::string str = (data->cycle && data->currentObjectScript != pObjExt(data->holdingObject)->scripts.end()) ? data->currentObjectScript->second.name : line;
@@ -1066,36 +1103,45 @@ void RemoveScript::Prompt(int i, std::string const& line) {
       return;
     }
 
-    if (!Object_RemoveScript(data->holdingObject, str)) {
-      AddError("Failed to remove script from object");
-    }
+    script = Object_GetScript(data->holdingObject, str);
+    if (!script) {
+      AddError("Failed to find script");
+      data->SetAsk(&data->holdObject, false);
 
-    data->ResetAsk();
+    }
   }
 
   data->updateAsk = true;
 }
 
 
-void RemoveScript::Question(std::string const& line) {
+void SelectScript::Question(std::string const& line) {
   assert(data);
+
+  if (script) {
+    std::cout << "0. Activate development for script\n1. Remove from object";
+    return;
+  }
+
   if (data->display) {
     ListOwnedScripts();
   }
-
   std::string str = (data->cycle && data->currentObjectScript != pObjExt(data->holdingObject)->scripts.end()) ? data->currentObjectScript->second.name : line;
-  std::cout << "Enter name of script to remove or empty to return\n>>" << str;
+  std::cout << "Enter name of script to select or empty to return\n>>" << str;
 }
 
 
-void RemoveScript::Set() {
+void SelectScript::Set() {
   assert(data);
   assert(data->holdingObject);
 
+  script = nullptr;
   data->currentObjectScript = pObjExt(data->holdingObject)->scripts.begin();
 
-  data->forward = ScriptOwnedForward;
-  data->back = ScriptOwnedBack;
+  if (pObjExt(data->holdingObject)->scripts.size() != 0) {
+    data->forward = ScriptOwnedForward;
+    data->back = ScriptOwnedBack;
+  }
 }
 
 // **************************************************
@@ -1173,8 +1219,8 @@ void HoldObject::Prompt(int i, std::string const& line) {
 
     i = std::tolower(i);
 
-    if (i == 'w' || i == 's' || i == 'a' || i == 'd' || i == _BACKSPACE) {
-      if (i == _BACKSPACE) {
+    if (i == 'w' || i == 's' || i == 'a' || i == 'd' || i == _PR_BACKSPACE) {
+      if (i == _PR_BACKSPACE) {
         if (!builtString.empty()) builtString.pop_back();
         data->updateAsk = true;
         return;
@@ -1220,7 +1266,7 @@ void HoldObject::Prompt(int i, std::string const& line) {
       data->SetAsk(&data->addScript);
       break;
     case 3: // Remove script 
-      data->SetAsk(&data->removeScript);
+      data->SetAsk(&data->selectScript);
       break;
     case 4: // Position
       name = "Position";
@@ -1284,7 +1330,7 @@ void HoldObject::Question(std::string const& line) {
     return;
   }
   
-  std::cout << "0. Delete object\n1. Set object model\n2. Add script\n3. Remove script\n4. Position\n5. Scale\n6. Rotation\n7. Duplicate\n";
+  std::cout << "0. Delete object\n1. Set object model\n2. Add script\n3. Select script\n4. Position\n5. Scale\n6. Rotation\n7. Duplicate\n";
 
   if (data->pumpkin->primaryCamera == &data->devCamera) {
     std::cout << "8. Position to dev\n9. Rotation to dev\n";
@@ -1663,8 +1709,11 @@ void SelectCamera::Set() {
   assert(data);
 
   cam = nullptr;
-  data->forward = CameraForward;
-  data->back = CameraBack;
+
+  if (data->pumpkin->registeredCameras.size() != 0) {
+    data->forward = CameraForward;
+    data->back = CameraBack;
+  }
   data->currentCamera = data->pumpkin->registeredCameras.begin();
 }
 
@@ -1703,8 +1752,8 @@ void HoldProperty::Prompt(int i, std::string const& line) {
     i = std::tolower(i);
 
 
-    if (i == 'w' || i == 's' || i == 'a' || i == 'd' || i == _BACKSPACE) {
-      if (i == _BACKSPACE) {
+    if (i == 'w' || i == 's' || i == 'a' || i == 'd' || i == _PR_BACKSPACE) {
+      if (i == _PR_BACKSPACE) {
         if (!builtString.empty()) builtString.pop_back();
         data->updateAsk = true;
         return;
@@ -2400,6 +2449,16 @@ void LookAtObjectDelete(Object* obj, int id) {
 
 
 
+void ClearScreen() {
+
+  // idc if it's slow and unsafe
+
+#ifdef _WIN32
+  system("cls");
+#else
+  system("clear"); // Does the stupid placing line breaks thing on mac
+#endif
+}
 
 
 /*************************************************************************/

@@ -121,6 +121,15 @@ struct ScriptUpdateInfo {
 };
 
 
+
+struct ScriptPropertySaveData {
+  size_t index = 0;
+  size_t size = 0;
+  void* data = 0;
+};
+
+
+
 struct MeshInfo {
   void* vertices = nullptr;
   size_t vertexCount = 0;
@@ -154,7 +163,6 @@ struct Object {
   Line internal[6] = {0};
 
   Transform transform = Transform();
-  bool developmentObject = false;
 
   virtual ~Object() {}
 };
@@ -197,6 +205,18 @@ struct Script {
   virtual void Start(Object* obj) {}
   virtual void Update(Object* obj, ScriptUpdateInfo const& info) {}
   virtual void End(Object* obj) {}
+
+
+  virtual void DevelopmentUpdate(Object* obj, ScriptUpdateInfo const& info) {}
+
+  // PRTODO implement
+  //void SaveProperty(size_t index, size_t size, void* data);
+
+  // prTodo implement
+  // SaveProperties should allow script to add properties to be saved within any object, as either raw binary or a string
+  // LoadProperties will allow for properties to be loaded, loader returns null at end and returns either raw binary or a string
+  virtual void SaveProperties() {}
+  virtual void LoadProperties(ScriptPropertySaveData(*loader)()) {}
 
   virtual void ShaderUpdate(Object* obj) {}
 };

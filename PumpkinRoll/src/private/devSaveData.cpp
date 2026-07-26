@@ -205,15 +205,16 @@ void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runti
 
   Pumpkin_SetPrimaryCamera(nullptr);
 
-  for (int i = 0; i < pumpkin->registeredObjects.size(); i++) {
-    auto ref = std::next(pumpkin->registeredObjects.begin(), i);
-    if ((!runtimeObjects.contains(_STRING_HASHER(pObjInt(ref->second)->name)) && !compare.objectSaves.contains(_STRING_HASHER(pObjInt(ref->second)->name))) || dynamic_cast<Camera*>(ref->second)) {
+  while (!pumpkin->registeredObjects.empty()) { // Delete all objects and cameras
+    auto ref = std::next(pumpkin->registeredObjects.begin(), 0);
+    ::pumpkin::Pumpkin_DeleteObject(pObjInt(ref->second)->name);
+/*    if ((!runtimeObjects.contains(_STRING_HASHER(pObjInt(ref->second)->name)) && !compare.objectSaves.contains(_STRING_HASHER(pObjInt(ref->second)->name))) || dynamic_cast<Camera*>(ref->second)) {
       ::pumpkin::Pumpkin_DeleteObject(pObjInt(ref->second)->name);
       i--;
       continue;
-    }
+    }*/
   }
-  pumpkin->registeredCameras.clear();
+  pumpkin->registeredCameras.clear(); // prtodo I knew there was a problem and fixed it with a bandaid
 
 
   for (auto& saveP : shaderSaves) {
@@ -272,13 +273,7 @@ void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runti
     auto& save = saveP.second;
 
     Object* object = nullptr;
-    if (save.runtime) {
-      object = Pumpkin_RegisterObject(save.name);
-    } else {
-      object = Pumpkin_GetObject(save.name);
-      if (object)
-        ClearScripts(object);
-    }
+    object = Pumpkin_RegisterObject(save.name);
     if (!object) continue;
 
     if ((!pObjInt(object)->model && save.model.size() != 0) || (pObjInt(object)->model && pObjInt(object)->model->name != save.model)) {

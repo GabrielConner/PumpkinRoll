@@ -3,11 +3,15 @@
 #ifndef PUMPKIN_ROLL_PRIVATE_PUMPKIN_ROLL_DEV_H
 #define PUMPKIN_ROLL_PRIVATE_PUMPKIN_ROLL_DEV_H
 
+namespace pumpkin {
+  struct ScriptUpdateInfo;
+}
+
 namespace pumpkin_private {
 
 void StartDevelopment();
 void DevelopmentLogAfterStart();
-void UpdateDevelopment();
+void UpdateDevelopment(::pumpkin::ScriptUpdateInfo const& info);
 void EndDevelopmentProgram();
 
 void RenderDevelopment();
