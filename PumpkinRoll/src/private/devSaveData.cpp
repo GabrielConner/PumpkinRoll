@@ -7,6 +7,7 @@
 #include "private/mesh.h"
 
 #include <filesystem>
+#include <sstream>
 #include <fstream>
 #include <format>
 #include <chrono>
@@ -19,10 +20,11 @@ using namespace ::pumpkin_private;
 
 namespace {
 
-void CopyObject(Object* obj, ObjectSaveData& data);
+void CopyObjectToSave(Object* obj, ObjectSaveData& data);
 void CopyPropertyHolder(PropertyHolder& from, PropertyHolder& to);
 
-std::string ReadString(std::ifstream& stream);
+std::string ReadString(std::istream& stream);
+inline bool ReadStream(std::istream& stream, void* output, size_t size);
 
 
 #ifdef PUMPKIN_ROLL_DEV
@@ -30,71 +32,6 @@ std::string ReadString(std::ifstream& stream);
 #else
 #define WriteLine(line) stream << line
 #endif
-
-
-#define WriteProperties \
-variableHolder = static_cast<uint32_t>(save.properties.properties.size()); \
-stream.write((char*)&variableHolder, 4); \
-for (auto& propP : save.properties) { \
-  auto& prop = propP.second; \
-  \
-  stream.write(prop.name.c_str(), prop.name.size() + 1); \
-  variableHolder = static_cast<uint32_t>(prop.type); \
-  stream.write((char*)&variableHolder, 4); \
-  stream.write((char*)prop.prop, prop.typeSize); \
-}
-
-
-#define WriteObject \
-stream.write((char*)&object.runtime, 1); \
-stream.write((char*)&object.transform, sizeof(Transform)); \
-stream.write(object.model.c_str(), object.model.size() + 1); \
-variableHolder = static_cast<uint32_t>(object.scripts.size()); \
-stream.write((char*)&variableHolder, 4); \
-for (std::string const& script : object.scripts) { \
-  stream.write(script.c_str(), script.size() + 1); \
-}
-
-
-
-#define ReadStream(output, size)  \
-stream.read((char*)output, size); \
-if (!stream.good() || stream.gcount() < size) { stream.close(); Delete(); return false; }
-
-
-
-
-#define ReadProperties \
-uint32_t propertyCount; \
-ReadStream(&propertyCount, 4); \
-for (int propertyIndex = 0; propertyIndex < propertyCount; propertyIndex++) { \
-  Property property; \
-  property.name = ReadString(stream); \
-  ReadStream(&variableHolder, 4); \
-  property.type = static_cast<VariableType>(variableHolder); \
-  size_t size = SizeOfType(property.type); \
-  if (size == 0) { \
-    stream.close(); \
-    Delete(); \
-    return false; \
-  } \
-  property.prop = malloc(size); \
-  property.typeSize = size; \
-  ReadStream(property.prop, size); \
-  save.properties.properties.insert({_STRING_HASHER(property.name), property}); \
-}
-
-
-
-#define ReadObject \
-ReadStream(&object.runtime, 1); \
-ReadStream(&object.transform, sizeof(Transform)); \
-object.model = ReadString(stream); \
-uint32_t scriptCount; \
-ReadStream(&scriptCount, 4); \
-for (uint32_t scriptIndex = 0; scriptIndex < scriptCount; scriptIndex++) { \
-  object.scripts.insert(ReadString(stream)); \
-}
 
 
 
@@ -137,7 +74,6 @@ void SaveData::Pull(Pumpkin* pumpkin, std::unordered_map<size_t, Object*> const&
     ShaderSaveData save;
     CopyPropertyHolder(shader->properties, save.properties);
     save.name = shader->name;
-    save.startInfos = shader->startInfos;
 
     shaderSaves.insert({_STRING_HASHER(save.name), save});
   }
@@ -167,7 +103,7 @@ void SaveData::Pull(Pumpkin* pumpkin, std::unordered_map<size_t, Object*> const&
     save.near = camera->near;
     save.perspective = camera->perspective;
 
-    CopyObject(camera, save.objectInfo);
+    CopyObjectToSave(camera, save.objectInfo);
 
     cameraSaves.insert({_STRING_HASHER(save.objectInfo.name), save});
   }
@@ -185,7 +121,7 @@ void SaveData::Pull(Pumpkin* pumpkin, std::unordered_map<size_t, Object*> const&
 
 
     ObjectSaveData save;
-    CopyObject(object, save);
+    CopyObjectToSave(object, save);
     if (runtimeObjects.contains(_STRING_HASHER(save.name))) {
       save.runtime = true;
     } else {
@@ -200,7 +136,7 @@ void SaveData::Pull(Pumpkin* pumpkin, std::unordered_map<size_t, Object*> const&
 
 
 
-void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runtimeObjects, SaveData const& compare) {
+void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runtimeObjects) {
   assert(pumpkin);
 
   Pumpkin_SetPrimaryCamera(nullptr);
@@ -217,7 +153,7 @@ void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runti
   pumpkin->registeredCameras.clear(); // prtodo I knew there was a problem and fixed it with a bandaid
 
 
-  for (auto& saveP : shaderSaves) {
+  for (auto& saveP : shaderSaves) { // Shaders
     auto& save = saveP.second;
 
     Shader* shader = Pumpkin_GetShader(save.name);
@@ -226,12 +162,10 @@ void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runti
     }
 
     CopyPropertyHolder(save.properties, shader->properties);
-    shader->startInfos = save.startInfos;
-    shader->Reload();
   }
 
 
-  for (auto& saveP : modelSaves) {
+  for (auto& saveP : modelSaves) { // Models
     auto& save = saveP.second;
 
     Model* model = Pumpkin_GetModel(save.name);
@@ -245,7 +179,7 @@ void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runti
   }
 
 
-  for (auto& saveP : cameraSaves) {
+  for (auto& saveP : cameraSaves) { // Cameras
     auto& save = saveP.second;
 
     auto camera = Pumpkin_RegisterCamera(save.objectInfo.name);
@@ -260,8 +194,11 @@ void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runti
     camera->near = save.near;
     camera->perspective = save.perspective;
 
-    for (std::string const& script : save.objectInfo.scripts) {
-      Object_AddScript(camera, script);
+    for (auto const& script : save.objectInfo.scripts) {
+      Script* scr = Object_AddScript(camera, script.second.name);
+      if (scr) {
+        scr->LoadProperties(script.second.properties);
+      }
     }
     camera->transform = save.objectInfo.transform;
   }
@@ -269,7 +206,7 @@ void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runti
 
 
 
-  for (auto& saveP : objectSaves) {
+  for (auto& saveP : objectSaves) { // Objects
     auto& save = saveP.second;
 
     Object* object = nullptr;
@@ -281,8 +218,11 @@ void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runti
     }
 
     ClearScripts(object);
-    for (std::string const& script : save.scripts) {
-      Object_AddScript(object, script);
+    for (auto const& script : save.scripts) {
+      Script* scr = Object_AddScript(object, script.second.name);
+      if (scr) {
+        scr->LoadProperties(script.second.properties);
+      }
     }
     object->transform = save.transform;
     if (save.runtime) {
@@ -294,7 +234,7 @@ void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runti
 
 
 
-void SaveData::Save(std::string const& name, std::string const& defaultPrimaryCamera) {
+void SaveData::Save(std::string const& name, std::string const& defaultPrimaryCamera, SaveData const& compare) {
   std::string relative = Pumpkin_ToRelativePath(name + _DEV_SAVE_FILE);
   std::ofstream stream(relative, std::ios::binary | std::ios::trunc);
 
@@ -306,41 +246,48 @@ void SaveData::Save(std::string const& name, std::string const& defaultPrimaryCa
 
 
   uint32_t variableHolder;
+  std::ostringstream tempStream; 
 
 
-  variableHolder = static_cast<uint32_t>(shaderSaves.size());
-  stream.write((char*)&variableHolder, 4); // Number of shaders
+  uint32_t writtenShaders = 0;
   for (auto& shaderP : shaderSaves) {
     auto& save = shaderP.second;
-    stream.write(save.name.c_str(), save.name.size() + 1); // Name of shader
 
-    variableHolder = static_cast<uint32_t>(save.startInfos.size());
-    stream.write((char*)&variableHolder, 4); // Number of linked shaders
-    for (ShaderInfo const& info : save.startInfos) {
-      variableHolder = static_cast<uint32_t>(info.shaders.size());
-      stream.write((char*)&variableHolder, 4); // Number of files in shader
-      for (std::string const& shader : info.shaders) {
-        stream.write(shader.c_str(), shader.size() + 1); // Shader path location
-      }
+    auto const& cmp = compare.shaderSaves.find(shaderP.first);
+    if (cmp != compare.shaderSaves.end() && save.properties == cmp->second.properties) continue;
 
-      variableHolder = static_cast<uint32_t>(info.type);
-      stream.write((char*)&variableHolder, 4); // Type of shader
-    }
-
-    WriteProperties;
+    tempStream.write(save.name.c_str(), save.name.size() + 1); // Name of shader
+    WriteProperties(tempStream, save.properties);
+    writtenShaders++;
   }
+  stream.write((char*)&writtenShaders, 4); // Number of shaders
+  stream << std::move(tempStream).str();
+  tempStream.str() = std::string();
+  
+  
 
-
-  variableHolder = static_cast<uint32_t>(modelSaves.size());
-  stream.write((char*)&variableHolder, 4); // Number of models
+  uint32_t writtenModels = 0;
   for (auto& modelP : modelSaves) {
     auto& save = modelP.second;
-    stream.write(save.name.c_str(), save.name.size() + 1); // Name of model
-    stream.write(save.shader.c_str(), save.shader.size() + 1); // Shader name
-    stream.write(save.mesh.c_str(), save.mesh.size() + 1); // LoadedModelMesh name
 
-    WriteProperties;
+    auto const& cmp = compare.modelSaves.find(modelP.first);
+    if (cmp != compare.modelSaves.end() && (
+      save.shader == cmp->second.shader  ||
+      save.mesh == cmp->second.mesh ||
+      save.properties == cmp->second.properties
+    )) continue;
+
+    tempStream.write(save.name.c_str(), save.name.size() + 1); // Name of model
+    tempStream.write(save.shader.c_str(), save.shader.size() + 1); // Shader name
+    tempStream.write(save.mesh.c_str(), save.mesh.size() + 1); // Mesh name
+
+    WriteProperties(tempStream, save.properties);
+    writtenModels++;
   }
+  stream.write((char*)&writtenModels, 4); // Number of models
+  stream << std::move(tempStream).str();
+  tempStream.str() = std::string();
+
 
 
   variableHolder = static_cast<uint32_t>(cameraSaves.size());
@@ -358,7 +305,7 @@ void SaveData::Save(std::string const& name, std::string const& defaultPrimaryCa
 
 
     auto& object = save.objectInfo;
-    WriteObject;
+    WriteObject(stream, object);
   }
 
 
@@ -368,7 +315,7 @@ void SaveData::Save(std::string const& name, std::string const& defaultPrimaryCa
     auto& object = objectP.second;
 
     stream.write(object.name.c_str(), object.name.size() + 1); // Name of object
-    WriteObject;
+    WriteObject(stream, object);
   }
 
   stream.write(defaultPrimaryCamera.c_str(), defaultPrimaryCamera.size() + 1); // Primary camera
@@ -393,58 +340,44 @@ bool SaveData::Load(std::string const& name) {
   uint32_t variableHolder;
 
   uint32_t shaderCount;
-  ReadStream(&shaderCount, 4); // Number of shaders
+  ReadStream(stream, &shaderCount, 4); // Number of shaders
   for (uint32_t shaderIndex = 0; shaderIndex < shaderCount; shaderIndex++) {
     ShaderSaveData save;
     save.name = ReadString(stream); // Name of shader
-    uint32_t startInfoCount;
-    ReadStream(&startInfoCount, 4); // Number of linked shaders
-    for (uint32_t startInfoIndex = 0; startInfoIndex < startInfoCount; startInfoIndex++) {
-      ShaderInfo startInfo;
-      uint32_t fileCount;
-      ReadStream(&fileCount, 4); // Number of files in shader
-      for (uint32_t fileIndex = 0; fileIndex < fileCount; fileIndex++) {
-        startInfo.shaders.push_back(ReadString(stream)); // Shader path location
-      }
-      ReadStream(&variableHolder, 4); // Type of shader
-      startInfo.type = variableHolder;
-
-      save.startInfos.push_back(startInfo);
-    }
-    ReadProperties;
+    if (!ReadProperties(stream, save.properties)) continue;
 
     shaderSaves.insert({_STRING_HASHER(save.name), save});
   };
 
 
   uint32_t modelCount;
-  ReadStream(&modelCount, 4); // Number of models
+  ReadStream(stream, &modelCount, 4); // Number of models
   for (uint32_t modelIndex = 0; modelIndex < modelCount; modelIndex++) {
     ModelSaveData save;
     save.name = ReadString(stream); // Name of model
     save.shader = ReadString(stream); // Shader name
     save.mesh = ReadString(stream); // LoadedModelMesh name
-    ReadProperties;
+    if (!ReadProperties(stream, save.properties)) continue;
 
     modelSaves.insert({_STRING_HASHER(save.name), save});
   }
 
 
   uint32_t cameraCount;
-  ReadStream(&cameraCount, 4); // Number of cameras
+  ReadStream(stream, &cameraCount, 4); // Number of cameras
   for (uint32_t cameraIndex = 0; cameraIndex < cameraCount; cameraIndex++) {
     CameraSaveData save;
     save.objectInfo.name = ReadString(stream); // Name of camera
 
-    ReadStream(&save.angleBased, 1);
-    ReadStream(&save.fov, 4);
-    ReadStream(&save.aspect, 4);
-    ReadStream(&save.near, 4);
-    ReadStream(&save.far, 4);
-    ReadStream(&save.perspective, 1);
+    ReadStream(stream, &save.angleBased, 1);
+    ReadStream(stream, &save.fov, 4);
+    ReadStream(stream, &save.aspect, 4);
+    ReadStream(stream, &save.near, 4);
+    ReadStream(stream, &save.far, 4);
+    ReadStream(stream, &save.perspective, 1);
 
     ObjectSaveData& object = save.objectInfo;
-    ReadObject;
+    if (!ReadObject(stream, object)) continue;
 
     cameraSaves.insert({_STRING_HASHER(save.objectInfo.name), save});
   }
@@ -452,11 +385,11 @@ bool SaveData::Load(std::string const& name) {
 
 
   uint32_t objectCount;
-  ReadStream(&objectCount, 4); // Number of objects
+  ReadStream(stream, &objectCount, 4); // Number of objects
   for (uint32_t objectIndex = 0; objectIndex < objectCount; objectIndex++) {
     ObjectSaveData object;
     object.name = ReadString(stream); // Name of object
-    ReadObject;
+    if (!ReadObject(stream, object)) continue;
 
     objectSaves.insert({_STRING_HASHER(object.name), object});
   }
@@ -474,13 +407,27 @@ bool SaveData::Load(std::string const& name) {
 
 void SaveData::Delete() {
   for (auto& elem : shaderSaves) {
-    for (auto& props : elem.second.properties) {
-      free(props.second.prop);
+    for (auto& prop : elem.second.properties) {
+      prop.second.Delete();
     }
   }
   for (auto& elem : modelSaves) {
-    for (auto& props : elem.second.properties) {
-      free(props.second.prop);
+    for (auto& prop : elem.second.properties) {
+      prop.second.Delete();
+    }
+  }
+  for (auto& elem : objectSaves) {
+    for (auto& script : elem.second.scripts) {
+      for (auto& prop : script.second.properties) {
+        prop.DeleteIfCreated();
+      }
+    }
+  }
+  for (auto& elem : cameraSaves) {
+    for (auto& script : elem.second.objectInfo.scripts) {
+      for (auto& prop : script.second.properties) {
+        prop.DeleteIfCreated();
+      }
     }
   }
 
@@ -508,6 +455,7 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
   auto now = std::chrono::system_clock::now();
 
   Pumpkin_StartMemoryIgnoreBlock();
+  // prtodo load tzdb beforehand to prevent this
   auto local = std::chrono::zoned_time{std::chrono::current_zone(), now}; // TZDB singleton gets loaded with 'current_zone'; needs to be ignored by memory leak check
   Pumpkin_EndMemoryIgnoreBlock();
 
@@ -623,7 +571,110 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
 
   #ifndef PUMPKIN_ROLL_FAUX_BUILD
   stream.close();
-  #endif
+#endif
+}
+
+
+
+void SaveData::WriteProperties(std::ostream& stream, PropertyHolder const& properties) {
+  uint32_t variableHolder = static_cast<uint32_t>(properties.properties.size());
+  stream.write((char*)&variableHolder, 4);
+
+  for (auto& propP : properties.properties) {
+    auto& prop = propP.second;
+    stream.write(prop.name.c_str(), prop.name.size() + 1);
+
+    variableHolder = static_cast<uint32_t>(prop.type);
+    stream.write((char*)&variableHolder, 4);
+    stream.write((char*)prop.prop, prop.typeSize);
+  }
+}
+
+
+
+bool SaveData::ReadProperties(std::istream& stream, PropertyHolder& properties) {
+  uint32_t propertyCount;
+  ReadStream(stream, &propertyCount, 4); // Property count
+
+  for (int propertyIndex = 0; propertyIndex < propertyCount; propertyIndex++) { // For all properties
+    Property property;
+    property.name = ReadString(stream); // Property name
+
+    uint32_t propertyType;
+    ReadStream(stream, &propertyType, 4); // Property type
+    property.type = static_cast<VariableType>(propertyType);
+
+    if (!property.Create()) continue;
+    size_t size = property.typeSize;
+
+    property.typeSize = size;
+    ReadStream(stream, property.prop, size); // Property data
+    properties.properties.insert({_STRING_HASHER(property.name), property});
+  }
+
+  return true;
+}
+
+
+
+void SaveData::WriteObject(std::ostream& stream, ObjectSaveData const& object) {
+  stream.write((char*)&object.runtime, 1);
+  stream.write((char*)&object.transform, sizeof(Transform));
+  stream.write(object.model.c_str(), object.model.size() + 1);
+  uint32_t variableHolder = static_cast<uint32_t>(object.scripts.size());
+  stream.write((char*)&variableHolder, 4);
+
+  for (auto const& scrPair : object.scripts) {
+    ScriptSaveData const& script = scrPair.second;
+
+    stream.write(script.name.c_str(), script.name.size() + 1);
+
+    variableHolder = static_cast<uint32_t>(script.properties.size());
+    stream.write((char*)&variableHolder, 4);
+
+    for (ScriptPropertySaveData const& prop : script.properties) {
+      variableHolder = static_cast<uint32_t>(prop.size);
+      stream.write((char*)&variableHolder, 4);
+      stream.write((char*)prop.data, variableHolder);
+    }
+  };
+}
+
+
+bool SaveData::ReadObject(std::istream& stream, ObjectSaveData& object) {
+  if (!ReadStream(stream, &object.runtime, 1)) { // This is the only one that could cause build errors if read wrong
+    return false;
+  }
+
+  ReadStream(stream, &object.transform, sizeof(Transform)); // Transform
+  object.model = ReadString(stream); // Model type
+
+  uint32_t scriptCount;
+  ReadStream(stream, &scriptCount, 4); // Script type
+
+  for (uint32_t scriptIndex = 0; scriptIndex < scriptCount; scriptIndex++) { // For all scripts
+    ScriptSaveData data = ScriptSaveData();
+    data.name = ReadString(stream); // Script name
+
+    uint32_t propertyCount;
+    ReadStream(stream, &propertyCount, 4);  // Script property count
+
+    for (uint32_t propertyIndex = 0; propertyIndex < propertyCount; propertyIndex++) { // For all properties
+      ScriptPropertySaveData propertySaveData;
+      
+      uint32_t propertySize = 0;
+      ReadStream(stream, &propertySize, 4); // Property data size
+      if (propertySize == 0) continue;
+
+      if (!propertySaveData.Create(propertySize)) continue; // Allocate
+      ReadStream(stream, propertySaveData.data, propertySize); // Property data
+
+      data.properties.push_back(propertySaveData);
+    }
+
+  }
+
+  return true;
 }
 
 
@@ -633,6 +684,7 @@ void SaveData::Build(std::string const& path, SaveData const& compare) {
 
 
 namespace {
+
 
 void Build_CameraHeader(std::ostream& stream, std::string const& cameraName, std::pair<size_t, CameraSaveData> const& save) {
   WriteLine("");
@@ -731,16 +783,16 @@ void Build_Object(std::ostream& stream, std::string const& objectName, std::pair
   }
 
   if (cmpSave != nullptr) {
-    for (std::string const& script : save.second.scripts) {
-      if (save.second.scripts.contains(script)) continue;
+    for (auto const& script : save.second.scripts) {
+      if (save.second.scripts.contains(script.first)) continue;
 
-      WriteLine(std::format("Object_RemoveScript({:}, {:?});", objectName, script));
+      WriteLine(std::format("Object_RemoveScript({:}, {:?});", objectName, script.second.name));
     }
   }
 
-  for (std::string const& script : save.second.scripts) {
-    if (cmpSave == nullptr || !cmpSave->second.scripts.contains(script)) {
-      WriteLine(std::format("Object_AddScript({:}, {:?});", objectName, script));
+  for (auto const& script : save.second.scripts) {
+    if (cmpSave == nullptr || !cmpSave->second.scripts.contains(script.first)) {
+      WriteLine(std::format("Object_AddScript({:}, {:?});", objectName, script.second.name));
     }
   }
 }
@@ -902,7 +954,7 @@ void Build_Properties(std::ostream& stream, PropertyHolder const& properties, Pr
 
 
 // My interpretation of the std::string template for ifstream formatted extract but with 0 as the delimiter
-std::string ReadString(std::ifstream& stream) {
+std::string ReadString(std::istream& stream) {
   std::string ret = std::string();
 
   int c = stream.get();
@@ -917,7 +969,18 @@ std::string ReadString(std::ifstream& stream) {
 }
 
 
-void CopyObject(Object* obj, ObjectSaveData& data) {
+bool ReadStream(std::istream& stream, void* output, size_t size) {
+  stream.read((char*)output, size);
+  if (!stream.good() || stream.gcount() < size) {
+    memset(output, 0, size); // Set to 0 for safety
+    return false;
+  }
+  return true;
+}
+
+
+
+void CopyObjectToSave(Object* obj, ObjectSaveData& data) {
   assert(obj);
 
   pObjDefInt(obj, i);
@@ -930,7 +993,18 @@ void CopyObject(Object* obj, ObjectSaveData& data) {
   for (auto& scriptP : e->scripts) {
     auto& script = scriptP.second;
 
-    data.scripts.insert(script.name);
+    ScriptSaveData scriptSave;
+    scriptSave.name = script.name;
+
+    for (auto& prop : script.script->SaveProperties()) {
+      ScriptPropertySaveData propSave;
+      if (!propSave.Create(prop.size)) continue;
+      memcpy(propSave.data, prop.data, prop.size);
+
+      scriptSave.properties.push_back(propSave);
+    }
+
+    data.scripts.insert({_STRING_HASHER(script.name), scriptSave});
   }
 }
 

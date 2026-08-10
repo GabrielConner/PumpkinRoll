@@ -3,6 +3,7 @@
 
 #include <unordered_map>
 #include <string>
+#include <algorithm>
 #include "pumpkin/types.h"
 
 namespace pumpkin_private {
@@ -19,13 +20,28 @@ struct Property {
   size_t typeSize = 0;
   ::pumpkin::VariableType type = VariableType::UNKNOWN;
 
-  void Delete() { free(prop); }
+  bool Create() {
+    Delete();
+    typeSize = ::pumpkin_private::SizeOfType(type);
+    if (typeSize == 0) return false;
+
+    prop = malloc(typeSize);
+    return prop;
+  }
+  void Delete() { free(prop); prop = nullptr; }
 
   Property() = default;
   Property(std::string Name, void* Prop, ::pumpkin::VariableType Type) : name(Name), prop(Prop), type(Type) {
     typeSize = ::pumpkin_private::SizeOfType(Type);
   }
 };
+
+
+inline bool operator ==(Property const& a, Property const& b) {
+  if (a.typeSize == 0 || !a.prop || !b.prop) return false;
+  return a.name == b.name && a.type == b.type && memcmp(a.prop, b.prop, a.typeSize);
+}
+
 
 
 
@@ -46,11 +62,16 @@ struct PropertyHolder {
   void DeleteAll();
 
 
+
   std::unordered_map<size_t, Property>::iterator begin() { return properties.begin(); }
   std::unordered_map<size_t, Property>::iterator end() { return properties.end(); }
 };
 
 
+inline bool operator ==(PropertyHolder const& a, PropertyHolder const& b) {
+  if (&a == &b) return true;
+  return std::equal(a.properties.begin(), a.properties.end(), b.properties.begin(), b.properties.end());
+}
 
 }; // namespace pumpkin
 

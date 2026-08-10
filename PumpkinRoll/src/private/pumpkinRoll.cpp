@@ -564,27 +564,25 @@ char const* Object_GetName(Object const* object) {
 
 
 
-bool Object_SetModel(Object* object, Model* model) {
-  pNullCheck(object, false);
+Model* Object_SetModel(Object* object, Model* model) {
+  pNullCheck(object, nullptr);
   pObjDefInt(object, i);
 
   if (!model) {
     if (i->model != nullptr) i->model->RemoveObject(object);
     i->model = nullptr;
-    return true;
+    return model;
   }
-
 
   if (!model->AddObject(object)) {
     pWarn("Failed to set object model");
-    return false;
+    return nullptr;
   }
 
   if (i->model != nullptr) i->model->RemoveObject(object);
-
   i->model = model;
 
-  return true;
+  return model;
 }
 
 
@@ -594,21 +592,21 @@ Model* Object_GetModel(Object* object) {
 }
 
 
-bool Object_AddScript(Object* object, std::string const& name) {
-  pPumpkinCheck(false);
-  pNullCheck(object, false);
+Script* Object_AddScript(Object* object, std::string const& name) {
+  pPumpkinCheck(nullptr);
+  pNullCheck(object, nullptr);
 
   Script* script = Pumpkin_CreateScript(name);
   if (script == nullptr) {
     pWarn("Failed to add script with name to object");
-    return false;
+    return nullptr;
   }
 
   auto ret = pObjExt(object)->scripts.insert({_STRING_HASHER(name), ScriptAddPair(script, name)});
   if (!ret.second) {
     delete(script);
     pWarn("Script already exists on object");
-    return false;
+    return nullptr;
   }
 
 
@@ -616,7 +614,7 @@ bool Object_AddScript(Object* object, std::string const& name) {
     script->Start(object);
   }
 
-  return true;
+  return script;
 }
 
 
@@ -1336,6 +1334,49 @@ PropertyHolder* Shader_GetProperties(Shader* shader) {
 
 
 
+// ScriptPropertySaveData
+// --------------------------------------------------
+// --------------------------------------------------
+
+void ScriptPropertySaveData::CopyTo(void* dst, size_t expSize) const {
+  if (data == nullptr || size == 0 || expSize != size) return;
+  memcpy(dst, data, size);
+}
+
+
+
+void ScriptPropertySaveData::Set(void* otherData, size_t nSize) {
+  DeleteIfCreated();
+  data = otherData;
+  size = nSize;
+}
+
+
+bool ScriptPropertySaveData::Create(size_t nSize) {
+  DeleteIfCreated();
+  data = malloc(nSize);
+  size = nSize;
+  selfCreated = !!data;
+  return data;
+}
+
+
+void ScriptPropertySaveData::DeleteIfCreated() {
+  if (selfCreated) {
+    free(data);
+    selfCreated = false;
+    data = nullptr;
+  }
+}
+
+// --------------------------------------------------
+// --------------------------------------------------
+// ScriptPropertySaveData
+
+
+
+
+
 // Script
 // --------------------------------------------------
 // --------------------------------------------------
@@ -1387,7 +1428,6 @@ char const* Pumpkin_GetScriptName(Script* script) {
 // --------------------------------------------------
 // --------------------------------------------------
 // Script
-
 
 
 

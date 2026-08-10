@@ -16,7 +16,6 @@ namespace pumpkin_private {
 
 struct ShaderSaveData {
   ::pumpkin::PropertyHolder properties;
-  std::vector<::pumpkin::ShaderInfo> startInfos;
   std::string name;
 };
 
@@ -27,11 +26,16 @@ struct ModelSaveData {
   std::string name;
 };
 
+struct ScriptSaveData {
+  std::string name;
+  std::vector<::pumpkin::ScriptPropertySaveData> properties;
+};
+
 struct ObjectSaveData {
   ::pumpkin::Transform transform;
   std::string name;
   std::string model;
-  std::set<std::string> scripts = std::set<std::string>();
+  std::unordered_map<size_t, ScriptSaveData> scripts = std::unordered_map<size_t, ScriptSaveData>();
   bool runtime;
 };
 
@@ -60,15 +64,21 @@ struct SaveData {
 
 
   void Pull(Pumpkin* pumpkin, std::unordered_map<size_t, ::pumpkin::Object*> const& runtimeObjects);
-  void Push(Pumpkin* pumpkin, std::unordered_map<size_t, ::pumpkin::Object*>& runtimeObjects, SaveData const& compare);
+  void Push(Pumpkin* pumpkin, std::unordered_map<size_t, ::pumpkin::Object*>& runtimeObjects);
 
   // Saves the current pulled data, make sure to pull right before save to get latest
-  void Save(std::string const& name, std::string const& defaultPrimaryCamera);
+  void Save(std::string const& name, std::string const& defaultPrimaryCamera, SaveData const& compare);
   bool Load(std::string const& name);
 
   void Delete();
 
   void Build(std::string const& path, SaveData const& compare);
+
+  void WriteProperties(std::ostream& stream, ::pumpkin::PropertyHolder const& properties);
+  bool ReadProperties(std::istream& stream, ::pumpkin::PropertyHolder& properties);
+
+  void WriteObject(std::ostream& stream, ObjectSaveData const& object);
+  bool ReadObject(std::istream& stream, ObjectSaveData& object);
 };
 
 }; // namespace pumpkin_private

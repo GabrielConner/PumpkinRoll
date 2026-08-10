@@ -595,7 +595,7 @@ void UpdateDevelopment(ScriptUpdateInfo const& info) {
     InputInfo escape = info.window->GetInput(GLFW_KEY_ESCAPE);
     if (escape.pressed && escape.mods & GLFW_MOD_SHIFT) {
       StopProgram();
-      data->saveData.Push(data->pumpkin, data->runtimeObjects, data->startSaveData);
+      data->saveData.Push(data->pumpkin, data->runtimeObjects);
       Pumpkin_SetPrimaryCamera(&data->devCamera);
     }
   }
@@ -2126,7 +2126,7 @@ void CreateSave::Prompt(int i, std::string const& line) {
 
     Pumpkin_SetPrimaryCamera(Pumpkin_GetCamera(data->startSaveData.primaryCamera));
     data->saveData.Pull(data->pumpkin, data->runtimeObjects);
-    data->saveData.Save(str, data->startSaveData.primaryCamera);
+    data->saveData.Save(str, data->startSaveData.primaryCamera, data->startSaveData);
     data->SetAsk(&data->mainMenu);
     Pumpkin_SetPrimaryCamera(&data->devCamera);
     return;
@@ -2167,7 +2167,7 @@ void LoadSave::Prompt(int i, std::string const& line) {
 
     data->saveData.Load(str);
     data->startSaveData.primaryCamera = data->saveData.primaryCamera;
-    data->saveData.Push(data->pumpkin, data->runtimeObjects, data->startSaveData);
+    data->saveData.Push(data->pumpkin, data->runtimeObjects);
     data->savedSaveFile = str;
     data->SetAsk(&data->mainMenu);
   }

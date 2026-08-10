@@ -40,9 +40,9 @@ API Object* Pumpkin_GetObject(std::string const& name);
 API bool Pumpkin_DeleteObject(std::string const& name);
 
 API char const* Object_GetName(Object const* object);
-API bool Object_SetModel(Object* object, Model* model);
+API Model* Object_SetModel(Object* object, Model* model);
 API Model* Object_GetModel(Object* object);
-API bool Object_AddScript(Object* object, std::string const& name);
+API Script* Object_AddScript(Object* object, std::string const& name);
 API Script* Object_GetScript(Object* object, std::string const& name);
 API bool Object_RemoveScript(Object* object, std::string const& name);
 API std::vector<Script*>&& Object_GetAllScripts(Object* object);
