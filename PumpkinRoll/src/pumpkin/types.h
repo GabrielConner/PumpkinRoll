@@ -127,10 +127,35 @@ struct ScriptPropertySaveData {
   void* data = 0;
 
 
-  void CopyTo(void* dst, size_t expSize) const;
-  void Set(void* otherData, size_t nSize);
-  bool Create(size_t nSize);
-  void DeleteIfCreated();
+  void CopyTo(void* dst, size_t expSize) const {
+    if (data == nullptr || size == 0 || expSize != size) return;
+    memcpy(dst, data, size);
+  }
+
+
+  void Set(void* otherData, size_t nSize) {
+    DeleteIfCreated();
+    data = otherData;
+    size = nSize;
+  }
+
+
+  bool Create(size_t nSize) {
+    DeleteIfCreated();
+    data = malloc(nSize);
+    size = nSize;
+    selfCreated = !!data;
+    return data;
+  }
+
+
+  void DeleteIfCreated() {
+    if (selfCreated) {
+      free(data);
+      selfCreated = false;
+      data = nullptr;
+    }
+  }
 
   ScriptPropertySaveData() = default;
   ScriptPropertySaveData(void* Data, size_t Size) : data(Data), size(Size) {}
@@ -151,11 +176,18 @@ struct MeshInfo {
 
 
 
+struct RayHitInfo {
+  Object* object; // If null access to other variables is UB
+  ::pPack::DVector3 position; // Always defined
+  ::pPack::DVector3 normal; // Always defined
+  double time;
+};
+
 
 /*************************************************************************/
 /*************************************************************************/
 /*                                                                       */
-/*                     O B J E C T   C L A S S E S                       */
+/*                           C L A S S E S                               */
 /*                                                                       */
 /*************************************************************************/
 /*************************************************************************/
@@ -233,6 +265,57 @@ struct FileData {
   bool shouldDelete = false;
 
   void Delete() { free(data); data = nullptr; size = 0; }
+};
+
+
+
+struct Ray {
+  ::pPack::DVector3 origin;
+  ::pPack::DVector3 direction;
+};
+
+
+
+struct Interval {
+  double min;
+  double max;
+};
+
+
+
+struct CollisionObject {
+  virtual bool Collide(Ray const& ray, Interval interval, RayHitInfo& hit) const { return false; }
+};
+
+
+
+struct CollisionTemplatePlane : CollisionObject {
+  ::pPack::DVector3 origin;
+  ::pPack::DVector3 u, v, n, w;
+  double D;
+};
+
+
+
+struct ExplodedObject {
+  std::vector<CollisionObject*> mesh;
+  Object* object;
+};
+
+
+struct ExplodedObjectList {
+  std::vector<ExplodedObject> list;
+
+  std::vector<ExplodedObject>::iterator begin() { return list.begin(); }
+  std::vector<ExplodedObject>::iterator end() { return list.end(); }
+
+  std::vector<ExplodedObject>::const_iterator begin() const { return list.begin(); }
+  std::vector<ExplodedObject>::const_iterator end() const { return list.end(); }
+
+  std::vector<ExplodedObject>::const_iterator cbegin() const { return list.cbegin(); }
+  std::vector<ExplodedObject>::const_iterator cend() const { return list.cend(); }
+
+  void push_back(ExplodedObject const& value) { list.push_back(value); }
 };
 
 

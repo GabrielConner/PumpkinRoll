@@ -1334,49 +1334,6 @@ PropertyHolder* Shader_GetProperties(Shader* shader) {
 
 
 
-// ScriptPropertySaveData
-// --------------------------------------------------
-// --------------------------------------------------
-
-void ScriptPropertySaveData::CopyTo(void* dst, size_t expSize) const {
-  if (data == nullptr || size == 0 || expSize != size) return;
-  memcpy(dst, data, size);
-}
-
-
-
-void ScriptPropertySaveData::Set(void* otherData, size_t nSize) {
-  DeleteIfCreated();
-  data = otherData;
-  size = nSize;
-}
-
-
-bool ScriptPropertySaveData::Create(size_t nSize) {
-  DeleteIfCreated();
-  data = malloc(nSize);
-  size = nSize;
-  selfCreated = !!data;
-  return data;
-}
-
-
-void ScriptPropertySaveData::DeleteIfCreated() {
-  if (selfCreated) {
-    free(data);
-    selfCreated = false;
-    data = nullptr;
-  }
-}
-
-// --------------------------------------------------
-// --------------------------------------------------
-// ScriptPropertySaveData
-
-
-
-
-
 // Script
 // --------------------------------------------------
 // --------------------------------------------------

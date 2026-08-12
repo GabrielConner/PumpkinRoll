@@ -31,6 +31,77 @@ API void Pumpkin_StartMemoryIgnoreBlock();
 API void Pumpkin_EndMemoryIgnoreBlock();
 
 
+API ExplodedObjectList Pumpkin_ExplodeAllObjects();
+API bool Pumpkin_CastRay(Ray const& ray, RayHitInfo& hit);
+API bool Pumpkin_CastRayInto(Ray const& ray, RayHitInfo& hit, ExplodedObjectList const& list);
+
+
+
+// Ray
+// --------------------------------------------------
+// --------------------------------------------------
+
+API ::pPack::DVector3 Ray_At(Ray const& ray, double time);
+
+// --------------------------------------------------
+// --------------------------------------------------
+// Ray
+
+
+
+// Interval
+// --------------------------------------------------
+// --------------------------------------------------
+
+API double Interval_Size(Interval const& interval);
+API Interval Interval_Expand(Interval const& interval, double delta);
+
+API bool Interval_Contains(Interval const& interval, double value);
+API double Interval_Clamp(Interval const& interval, double value);
+
+// --------------------------------------------------
+// --------------------------------------------------
+// Interval
+
+
+
+// CollisionTemplatePlane
+// --------------------------------------------------
+// --------------------------------------------------
+
+API void CollisionTemplatePlane_Construct(CollisionTemplatePlane& plane);
+API void CollisionTemplatePlane_MoveIntoCoordinateSpace(CollisionTemplatePlane const& plane, ::pPack::DVector3 point, ::pPack::DVector2& out);
+
+// --------------------------------------------------
+// --------------------------------------------------
+// CollisionTemplatePlane
+
+
+
+// ExplodedObject
+// --------------------------------------------------
+// --------------------------------------------------
+
+API void ExplodedObject_Delete(ExplodedObject& object);
+
+// --------------------------------------------------
+// --------------------------------------------------
+// ExplodedObject
+
+
+
+// ExplodedObjectList
+// --------------------------------------------------
+// --------------------------------------------------
+
+API void ExplodedObjectList_DeleteAll(ExplodedObjectList& list);
+
+// --------------------------------------------------
+// --------------------------------------------------
+// ExplodedObject
+
+
+
 // Object
 // --------------------------------------------------
 // --------------------------------------------------
@@ -213,5 +284,6 @@ API void Pumpkin_CloseFileFunc(::pPack::FileHandle& handle);
 }
 }; // namespace pumpkin
 
+#undef API
 
 #endif

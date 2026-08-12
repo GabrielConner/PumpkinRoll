@@ -3,6 +3,7 @@
 
 #include <string>
 #include "pPack/vector.h"
+#include "pumpkin/types.h"
 
 namespace pumpkin {
 
@@ -11,6 +12,8 @@ inline constexpr std::hash<std::string> _STRING_HASHER = std::hash<std::string>(
 inline constexpr double _PI = 3.1415926535897932384626433832795;
 inline constexpr double _DEG_TO_RAD = _PI / 180.0;
 inline constexpr double _RAD_TO_DEG = 180.0 / _PI;
+
+inline constexpr double _PR_DELTA = 1e-8;
 
 inline constexpr ::pPack::Vector3 _UP = {0, 1, 0};
 
@@ -24,8 +27,12 @@ inline constexpr char _PR_LEFT_ARROW = 0x4B;
 inline constexpr char _PR_RIGHT_ARROW = 0x4D;
 inline constexpr char _PR_PAGE_DOWN = 0x51;
 
+inline constexpr double _PR_INFINITY = std::numeric_limits<double>::infinity();
 
 inline constexpr char const* _DEV_SAVE_FILE = ".pmpknrl";
+
+inline constexpr ::pumpkin::Interval _PR_EMPTY_INTERVAL = {+_PR_INFINITY, -_PR_INFINITY};
+inline constexpr ::pumpkin::Interval _PR_UNIVERSE_INTERVAL = {-_PR_INFINITY, +_PR_INFINITY};
 
 
 }; // namespace pumpkin
