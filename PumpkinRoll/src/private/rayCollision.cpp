@@ -68,9 +68,11 @@ double Interval_Size(Interval const& interval) {
 
 
 
-Interval Interval_Expand(Interval const& interval, double delta) {
+void Interval_Expand(Interval& interval, double delta) {
   auto padding = delta / 2.0f;
-  return Interval(interval.min - padding, interval.max + padding);
+
+  interval.min -= padding;
+  interval.max += padding;
 }
 
 
@@ -90,6 +92,43 @@ double Interval_Clamp(Interval const& interval, double value) {
 // --------------------------------------------------
 // --------------------------------------------------
 // Interval
+
+
+
+
+
+// AABB
+// --------------------------------------------------
+// --------------------------------------------------
+
+AABB AABB_GenerateFromObjects(std::vector<CollisionObject> const& objects) {
+
+}
+
+
+
+AABB AABB_Combine(AABB const& a, AABB const& b) {
+  AABB ret;
+  ret.x = Interval()
+}
+
+
+
+void AABB_Expand(AABB& aabb, double delta) {
+  Interval_Expand(aabb.x, delta);
+  Interval_Expand(aabb.y, delta);
+  Interval_Expand(aabb.z, delta);
+}
+
+
+
+bool AABB_CollidesWith(AABB const& aabb, Ray const& ray, Interval const& interval) {
+  
+}
+
+// --------------------------------------------------
+// --------------------------------------------------
+// AABB
 
 
 

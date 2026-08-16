@@ -6,21 +6,6 @@
 #include <string>
 #include <map>
 
-// Intellisense is happy with this
-#if _PPM_VECTOR == 1
-#include "pPack/vector.h"
-#else
-struct IVector2 {
-  int x;
-  int y;
-};
-
-struct DVector2 {
-  double x;
-  double y;
-};
-#endif
-
 
 #ifdef PUMPKIN_ROLL_LIB
 #define API __declspec(dllexport)

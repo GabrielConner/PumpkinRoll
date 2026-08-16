@@ -54,14 +54,36 @@ API ::pPack::DVector3 Ray_At(Ray const& ray, double time);
 // --------------------------------------------------
 
 API double Interval_Size(Interval const& interval);
-API Interval Interval_Expand(Interval const& interval, double delta);
+API void Interval_Expand(Interval& interval, double delta);
 
 API bool Interval_Contains(Interval const& interval, double value);
 API double Interval_Clamp(Interval const& interval, double value);
 
+API Interval Interval_Combine(Interval const& a, Interval const& b);
+
 // --------------------------------------------------
 // --------------------------------------------------
 // Interval
+
+
+
+// AABB
+// --------------------------------------------------
+// --------------------------------------------------
+
+API AABB AABB_GenerateFromObjects(std::vector<CollisionObject> const& objects);
+API AABB AABB_GenerateFromIntervals(Interval const& X, Interval const& Y, Interval const& Z);
+API AABB AABB_Combine(AABB const& a, AABB const& b);
+
+API void AABB_Offset(AABB const& aabb, ::pPack::DVector3 offset);
+
+API void AABB_Expand(AABB& aabb, double delta);
+API bool AABB_CollidesWith(AABB const& aabb, Ray const& ray, Interval const& interval);
+
+// --------------------------------------------------
+// --------------------------------------------------
+// AABB
+
 
 
 

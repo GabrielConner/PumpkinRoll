@@ -4,7 +4,6 @@ main.cpp
 *.zip
 pumpkinBuild/
 
-srcExt/
 library/
 assimp-vc143-mt.dll
 *.slnx

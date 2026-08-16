@@ -11,6 +11,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <set>
+#include <forward_list>
 
 namespace pumpkin {
 
@@ -270,37 +271,51 @@ struct FileData {
 
 
 struct Ray {
-  ::pPack::DVector3 origin;
-  ::pPack::DVector3 direction;
+  ::pPack::DVector3 origin = 0;
+  ::pPack::DVector3 direction = 0;
 };
 
 
 
 struct Interval {
-  double min;
-  double max;
+  double min = 0;
+  double max = 0;
+};
+
+
+
+struct AABB {
+  Interval x, y, z;
+
+  AABB() = default;
 };
 
 
 
 struct CollisionObject {
   virtual bool Collide(Ray const& ray, Interval interval, RayHitInfo& hit) const { return false; }
+  virtual AABB GenerateAABB() { return AABB(); }
 };
 
 
 
 struct CollisionTemplatePlane : CollisionObject {
-  ::pPack::DVector3 origin;
-  ::pPack::DVector3 u, v, n, w;
-  double D;
+  ::pPack::DVector3 origin = 0;
+  ::pPack::DVector3 u = 0, v = 0, n = 0, w = 0;
+  double D = 0;
+
+  CollisionTemplatePlane() = default;
 };
 
 
 
 struct ExplodedObject {
-  std::vector<CollisionObject*> mesh;
-  Object* object;
+  std::forward_list<CollisionObject*> mesh;
+  Object* object = 0;
+
+  ExplodedObject() = default;
 };
+
 
 
 struct ExplodedObjectList {

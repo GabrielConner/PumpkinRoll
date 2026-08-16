@@ -1,7 +1,7 @@
 /*
 *
 * Function Declarations Header
-* Built 2026-06-28 04:22 PM
+* Built 2026-08-12 02:41 AM
 *
 */
 
@@ -27,13 +27,25 @@ typedef double* (APIENTRYP FPPUMPKIN_DELTATIME)();
 typedef double* (APIENTRYP FPPUMPKIN_TOTALTIME)();
 typedef void (APIENTRYP FPPUMPKIN_STARTMEMORYIGNOREBLOCK)();
 typedef void (APIENTRYP FPPUMPKIN_ENDMEMORYIGNOREBLOCK)();
+typedef ExplodedObjectList (APIENTRYP FPPUMPKIN_EXPLODEALLOBJECTS)();
+typedef bool (APIENTRYP FPPUMPKIN_CASTRAY)(Ray const& ray, RayHitInfo& hit);
+typedef bool (APIENTRYP FPPUMPKIN_CASTRAYINTO)(Ray const& ray, RayHitInfo& hit, ExplodedObjectList const& list);
+typedef ::pPack::DVector3 (APIENTRYP FPRAY_AT)(Ray const& ray, double time);
+typedef double (APIENTRYP FPINTERVAL_SIZE)(Interval const& interval);
+typedef Interval (APIENTRYP FPINTERVAL_EXPAND)(Interval const& interval, double delta);
+typedef bool (APIENTRYP FPINTERVAL_CONTAINS)(Interval const& interval, double value);
+typedef double (APIENTRYP FPINTERVAL_CLAMP)(Interval const& interval, double value);
+typedef void (APIENTRYP FPCOLLISIONTEMPLATEPLANE_CONSTRUCT)(CollisionTemplatePlane& plane);
+typedef void (APIENTRYP FPCOLLISIONTEMPLATEPLANE_MOVEINTOCOORDINATESPACE)(CollisionTemplatePlane const& plane, ::pPack::DVector3 point, ::pPack::DVector2& out);
+typedef void (APIENTRYP FPEXPLODEDOBJECT_DELETE)(ExplodedObject& object);
+typedef void (APIENTRYP FPEXPLODEDOBJECTLIST_DELETEALL)(ExplodedObjectList& list);
 typedef Object* (APIENTRYP FPPUMPKIN_REGISTEROBJECT)(std::string const& name);
 typedef Object* (APIENTRYP FPPUMPKIN_GETOBJECT)(std::string const& name);
 typedef bool (APIENTRYP FPPUMPKIN_DELETEOBJECT)(std::string const& name);
 typedef char const* (APIENTRYP FPOBJECT_GETNAME)(Object const* object);
-typedef bool (APIENTRYP FPOBJECT_SETMODEL)(Object* object, Model* model);
+typedef Model* (APIENTRYP FPOBJECT_SETMODEL)(Object* object, Model* model);
 typedef Model* (APIENTRYP FPOBJECT_GETMODEL)(Object* object);
-typedef bool (APIENTRYP FPOBJECT_ADDSCRIPT)(Object* object, std::string const& name);
+typedef Script* (APIENTRYP FPOBJECT_ADDSCRIPT)(Object* object, std::string const& name);
 typedef Script* (APIENTRYP FPOBJECT_GETSCRIPT)(Object* object, std::string const& name);
 typedef bool (APIENTRYP FPOBJECT_REMOVESCRIPT)(Object* object, std::string const& name);
 typedef std::vector<Script*>&& (APIENTRYP FPOBJECT_GETALLSCRIPTS)(Object* object);
@@ -102,6 +114,18 @@ APIGET FPPUMPKIN_DELTATIME Pumpkin_DeltaTime;
 APIGET FPPUMPKIN_TOTALTIME Pumpkin_TotalTime;
 APIGET FPPUMPKIN_STARTMEMORYIGNOREBLOCK Pumpkin_StartMemoryIgnoreBlock;
 APIGET FPPUMPKIN_ENDMEMORYIGNOREBLOCK Pumpkin_EndMemoryIgnoreBlock;
+APIGET FPPUMPKIN_EXPLODEALLOBJECTS Pumpkin_ExplodeAllObjects;
+APIGET FPPUMPKIN_CASTRAY Pumpkin_CastRay;
+APIGET FPPUMPKIN_CASTRAYINTO Pumpkin_CastRayInto;
+APIGET FPRAY_AT Ray_At;
+APIGET FPINTERVAL_SIZE Interval_Size;
+APIGET FPINTERVAL_EXPAND Interval_Expand;
+APIGET FPINTERVAL_CONTAINS Interval_Contains;
+APIGET FPINTERVAL_CLAMP Interval_Clamp;
+APIGET FPCOLLISIONTEMPLATEPLANE_CONSTRUCT CollisionTemplatePlane_Construct;
+APIGET FPCOLLISIONTEMPLATEPLANE_MOVEINTOCOORDINATESPACE CollisionTemplatePlane_MoveIntoCoordinateSpace;
+APIGET FPEXPLODEDOBJECT_DELETE ExplodedObject_Delete;
+APIGET FPEXPLODEDOBJECTLIST_DELETEALL ExplodedObjectList_DeleteAll;
 APIGET FPPUMPKIN_REGISTEROBJECT Pumpkin_RegisterObject;
 APIGET FPPUMPKIN_GETOBJECT Pumpkin_GetObject;
 APIGET FPPUMPKIN_DELETEOBJECT Pumpkin_DeleteObject;

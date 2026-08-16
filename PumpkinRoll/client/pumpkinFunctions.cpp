@@ -1,7 +1,7 @@
 /*
 *
 * Function Declarations Source
-* Built 2026-06-28 04:22 PM
+* Built 2026-08-12 02:41 AM
 *
 */
 
@@ -19,6 +19,18 @@ FPPUMPKIN_DELTATIME Pumpkin_DeltaTime = NULL;
 FPPUMPKIN_TOTALTIME Pumpkin_TotalTime = NULL;
 FPPUMPKIN_STARTMEMORYIGNOREBLOCK Pumpkin_StartMemoryIgnoreBlock = NULL;
 FPPUMPKIN_ENDMEMORYIGNOREBLOCK Pumpkin_EndMemoryIgnoreBlock = NULL;
+FPPUMPKIN_EXPLODEALLOBJECTS Pumpkin_ExplodeAllObjects = NULL;
+FPPUMPKIN_CASTRAY Pumpkin_CastRay = NULL;
+FPPUMPKIN_CASTRAYINTO Pumpkin_CastRayInto = NULL;
+FPRAY_AT Ray_At = NULL;
+FPINTERVAL_SIZE Interval_Size = NULL;
+FPINTERVAL_EXPAND Interval_Expand = NULL;
+FPINTERVAL_CONTAINS Interval_Contains = NULL;
+FPINTERVAL_CLAMP Interval_Clamp = NULL;
+FPCOLLISIONTEMPLATEPLANE_CONSTRUCT CollisionTemplatePlane_Construct = NULL;
+FPCOLLISIONTEMPLATEPLANE_MOVEINTOCOORDINATESPACE CollisionTemplatePlane_MoveIntoCoordinateSpace = NULL;
+FPEXPLODEDOBJECT_DELETE ExplodedObject_Delete = NULL;
+FPEXPLODEDOBJECTLIST_DELETEALL ExplodedObjectList_DeleteAll = NULL;
 FPPUMPKIN_REGISTEROBJECT Pumpkin_RegisterObject = NULL;
 FPPUMPKIN_GETOBJECT Pumpkin_GetObject = NULL;
 FPPUMPKIN_DELETEOBJECT Pumpkin_DeleteObject = NULL;
@@ -94,6 +106,18 @@ bool LoadFunctions(PROCADDRESSFUNC proc) {
   Pumpkin_TotalTime = (FPPUMPKIN_TOTALTIME)proc("Pumpkin_TotalTime"); if (!Pumpkin_TotalTime) return false;
   Pumpkin_StartMemoryIgnoreBlock = (FPPUMPKIN_STARTMEMORYIGNOREBLOCK)proc("Pumpkin_StartMemoryIgnoreBlock"); if (!Pumpkin_StartMemoryIgnoreBlock) return false;
   Pumpkin_EndMemoryIgnoreBlock = (FPPUMPKIN_ENDMEMORYIGNOREBLOCK)proc("Pumpkin_EndMemoryIgnoreBlock"); if (!Pumpkin_EndMemoryIgnoreBlock) return false;
+  Pumpkin_ExplodeAllObjects = (FPPUMPKIN_EXPLODEALLOBJECTS)proc("Pumpkin_ExplodeAllObjects"); if (!Pumpkin_ExplodeAllObjects) return false;
+  Pumpkin_CastRay = (FPPUMPKIN_CASTRAY)proc("Pumpkin_CastRay"); if (!Pumpkin_CastRay) return false;
+  Pumpkin_CastRayInto = (FPPUMPKIN_CASTRAYINTO)proc("Pumpkin_CastRayInto"); if (!Pumpkin_CastRayInto) return false;
+  Ray_At = (FPRAY_AT)proc("Ray_At"); if (!Ray_At) return false;
+  Interval_Size = (FPINTERVAL_SIZE)proc("Interval_Size"); if (!Interval_Size) return false;
+  Interval_Expand = (FPINTERVAL_EXPAND)proc("Interval_Expand"); if (!Interval_Expand) return false;
+  Interval_Contains = (FPINTERVAL_CONTAINS)proc("Interval_Contains"); if (!Interval_Contains) return false;
+  Interval_Clamp = (FPINTERVAL_CLAMP)proc("Interval_Clamp"); if (!Interval_Clamp) return false;
+  CollisionTemplatePlane_Construct = (FPCOLLISIONTEMPLATEPLANE_CONSTRUCT)proc("CollisionTemplatePlane_Construct"); if (!CollisionTemplatePlane_Construct) return false;
+  CollisionTemplatePlane_MoveIntoCoordinateSpace = (FPCOLLISIONTEMPLATEPLANE_MOVEINTOCOORDINATESPACE)proc("CollisionTemplatePlane_MoveIntoCoordinateSpace"); if (!CollisionTemplatePlane_MoveIntoCoordinateSpace) return false;
+  ExplodedObject_Delete = (FPEXPLODEDOBJECT_DELETE)proc("ExplodedObject_Delete"); if (!ExplodedObject_Delete) return false;
+  ExplodedObjectList_DeleteAll = (FPEXPLODEDOBJECTLIST_DELETEALL)proc("ExplodedObjectList_DeleteAll"); if (!ExplodedObjectList_DeleteAll) return false;
   Pumpkin_RegisterObject = (FPPUMPKIN_REGISTEROBJECT)proc("Pumpkin_RegisterObject"); if (!Pumpkin_RegisterObject) return false;
   Pumpkin_GetObject = (FPPUMPKIN_GETOBJECT)proc("Pumpkin_GetObject"); if (!Pumpkin_GetObject) return false;
   Pumpkin_DeleteObject = (FPPUMPKIN_DELETEOBJECT)proc("Pumpkin_DeleteObject"); if (!Pumpkin_DeleteObject) return false;
