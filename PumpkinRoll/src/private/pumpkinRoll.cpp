@@ -237,13 +237,13 @@ StartReturn Pumpkin_Init(StartSettings const& start, int argc, char** argv, void
 
   // Format
   FormatStartInfo formatCreateInfos[] = {
-    FormatStartInfo{},
-    FormatStartInfo{.size = 2},
-    FormatStartInfo{},
+    FormatStartInfo{.attributeName = AttributeName::POSITION},
+    FormatStartInfo{.size = 2, .attributeName = AttributeName::UV},
+    FormatStartInfo{.attributeName = AttributeName::NORMAL},
   };
 
-  GLuint format = Pumpkin_RegisterFormat("PumpkinRoll__DefaultFormat", formatCreateInfos, 2, true);
-  if (!format) {
+  Format format = Pumpkin_RegisterFormat("PumpkinRoll__DefaultFormat", formatCreateInfos, 3, true);
+  if (!format.id) {
     pError("Failed to create default format");
     return StartReturn::ERROR;
   }
@@ -405,7 +405,8 @@ void Pumpkin_End() {
     delete(mesh.second);
   }
   for (auto& format : pumpkinData->registeredFormats) {
-    glDeleteVertexArrays(1, &format.second);
+    delete[](format.second.info);
+    glDeleteVertexArrays(1, &format.second.id);
   }
 
   glDeleteBuffers(1, &pumpkinData->globalVBO);
@@ -719,7 +720,7 @@ Object* Object_Duplicate(Object* object, std::string const& name) {
 
 void Transform_GenerateModel(Transform transform, MatrixWrapper& store) {
   store = MatrixWrapper();
-  glm::highp_mat4* data = (glm::highp_mat4*)&store;
+  glm::mat4* data = (glm::mat4*)&store;
   *data = glm::translate(*data, glm::vec3(transform.position.x, transform.position.y, transform.position.z));
   *data = glm::scale(*data, glm::vec3(transform.scale.x, transform.scale.y, transform.scale.z));
   *data = glm::rotate(*data, glm::radians(transform.rotation.z), glm::vec3(0, 0, 1));
@@ -883,6 +884,111 @@ void Camera_LookAtTarget(Camera* camera, ::pPack::Vector3* target) {
 
 
 
+
+// Format
+// --------------------------------------------------
+// --------------------------------------------------
+
+Format Pumpkin_RegisterFormat(std::string const& name, FormatStartInfo* formatStartInfo, GLuint count, bool autoOffset) {
+  pPumpkinCheck(Format());
+
+#ifdef PUMPKIN_ROLL_DEV
+  if (pumpkinData->running) {
+    pError("Cannot register format while running");
+  }
+#endif
+
+  pNullCheck(formatStartInfo, Format());
+  pCheckIf(count, 0, Format());
+
+
+  auto ret = pumpkinData->registeredFormats.insert({_STRING_HASHER(name), Format()});
+  if (!ret.second) {
+    pWarn("Format already exists with same name");
+    return Format();
+  }
+  Format& format = ret.first->second;
+  format.info = new FormatStartInfo[count]; // Copy format start infos
+  format.infoCount = count;
+
+
+  // Create format
+  glGenVertexArrays(1, &format.id);
+  glBindVertexArray(format.id);
+  glVertexBindingDivisor(0, 0);
+
+  // Auto offset keeping counter
+  size_t rollingOffset = 0;
+  for (GLuint i = 0; i < count; i++) {
+    glEnableVertexAttribArray(i);
+    glVertexAttribBinding(i, 0);
+
+    format.info[i] = formatStartInfo[i];
+
+    if (autoOffset) format.info[i].relativeOffset = rollingOffset;
+
+    // Set format based on attribute type
+    if (formatStartInfo[i].attributeType == AttributeType::FLOAT)
+      glVertexAttribFormat
+      (
+      i,
+      formatStartInfo[i].size,
+      formatStartInfo[i].type,
+      formatStartInfo[i].normalized,
+      autoOffset ? rollingOffset : formatStartInfo[i].relativeOffset
+      );
+    else if (formatStartInfo[i].attributeType == AttributeType::INT)
+      glVertexAttribIFormat
+      (
+      i,
+      formatStartInfo[i].size,
+      formatStartInfo[i].type,
+      autoOffset ? rollingOffset : formatStartInfo[i].relativeOffset
+      );
+    else if (formatStartInfo[i].attributeType == AttributeType::LONG)
+      glVertexAttribLFormat
+      (
+      i,
+      formatStartInfo[i].size,
+      formatStartInfo[i].type,
+      autoOffset ? rollingOffset : formatStartInfo[i].relativeOffset
+      );
+
+    rollingOffset += formatStartInfo[i].size * sizeof(GLfloat);
+  }
+  format.vertexStride = rollingOffset;
+
+  glBindVertexArray(0);
+  return format;
+}
+
+
+
+Format Pumpkin_GetFormat(std::string const& name) {
+  pPumpkinCheck(Format());
+
+  auto ret = pumpkinData->registeredFormats.find(_STRING_HASHER(name));
+  return ret == pumpkinData->registeredFormats.end() ? Format() : ret->second;
+}
+
+
+
+FormatStartInfo const*const Format_GetAttributeOfName(Format const& format, AttributeName name) {
+  for (size_t i = 0; i < format.infoCount; i++) {
+    if (format.info[i].attributeName == name) return &format.info[i];
+  }
+
+  return nullptr;
+}
+
+// --------------------------------------------------
+// --------------------------------------------------
+// Format
+
+
+
+
+
 // Mesh
 // --------------------------------------------------
 // --------------------------------------------------
@@ -893,7 +999,7 @@ void Mesh::Delete() {
   }
   free(vertices);
 
-  format = 0;
+  format = Format();
   VBO = 0;
   vertices = 0;
   vertexCount = 0;
@@ -902,7 +1008,7 @@ void Mesh::Delete() {
 
 
 void Mesh::Setup() {
-  glBindVertexArray(format);
+  glBindVertexArray(format.id);
   glBindVertexBuffer(0, GetVBO(), offset, vertexSize);
 }
 
@@ -914,7 +1020,7 @@ void Mesh::Reload() const {
 
 
 
-Mesh* Pumpkin_RegisterMesh(std::string const& name, void* vertices, size_t size, size_t count, bool dynamic, GLuint format) {
+Mesh* Pumpkin_RegisterMesh(std::string const& name, void* vertices, size_t size, size_t count, bool dynamic, Format format) {
   pPumpkinCheck(nullptr);
 
 #ifdef PUMPKIN_ROLL_DEV
@@ -947,7 +1053,7 @@ Mesh* Pumpkin_RegisterMesh(std::string const& name, void* vertices, size_t size,
     pWarn("Data too large");
     return nullptr;
   }
-  if (format == 0) {
+  if (format.id == 0) {
     pWarn("format is invalid");
     return nullptr;
   }
@@ -1001,82 +1107,6 @@ Mesh* Pumpkin_GetMesh(std::string const& name) {
 
 
 
-GLuint Pumpkin_RegisterFormat(std::string const& name, FormatStartInfo const* const formatStartInfo, GLuint count, bool autoOffset) {
-  pPumpkinCheck(0);
-
-#ifdef PUMPKIN_ROLL_DEV
-  if (pumpkinData->running) {
-    pError("Cannot register format while running");
-  }
-#endif
-
-  pNullCheck(formatStartInfo, 0, 0);
-  pCheckIf(count, 0, 0);
-
-  auto ret = pumpkinData->registeredFormats.insert({_STRING_HASHER(name), 0});
-  if (!ret.second) {
-    pWarn("Format already exists with same name");
-    return 0;
-  }
-  GLuint& vao = ret.first->second;
-
-  // Create format
-  glGenVertexArrays(1, &vao);
-  glBindVertexArray(vao);
-  glVertexBindingDivisor(0, 0);
-
-  // Auto offset keeping counter
-  GLuint rollingOffset = 0;
-  for (GLuint i = 0; i < count; i++) {
-    glEnableVertexAttribArray(i);
-    glVertexAttribBinding(i, 0);
-
-    // Set format based on attribute type
-    if (formatStartInfo[i].attribType == AttributeType::FLOAT)
-      glVertexAttribFormat
-      (
-      i,
-      formatStartInfo[i].size,
-      formatStartInfo[i].type,
-      formatStartInfo[i].normalized,
-      autoOffset ? rollingOffset : formatStartInfo[i].relativeOffset
-      );
-    else if (formatStartInfo[i].attribType == AttributeType::INT)
-      glVertexAttribIFormat
-      (
-      i,
-      formatStartInfo[i].size,
-      formatStartInfo[i].type,
-      autoOffset ? rollingOffset : formatStartInfo[i].relativeOffset
-      );
-    else if (formatStartInfo[i].attribType == AttributeType::LONG)
-      glVertexAttribLFormat
-      (
-      i,
-      formatStartInfo[i].size,
-      formatStartInfo[i].type,
-      autoOffset ? rollingOffset : formatStartInfo[i].relativeOffset
-      );
-
-    rollingOffset += formatStartInfo[i].size * sizeof(GLfloat);
-  }
-
-  glBindVertexArray(0);
-  return vao;
-}
-
-
-
-GLuint Pumpkin_GetFormat(std::string const& name) {
-  pPumpkinCheck(0);
-
-  auto ret = pumpkinData->registeredFormats.find(_STRING_HASHER(name));
-  return ret == pumpkinData->registeredFormats.end() ? 0 : ret->second;
-
-}
-
-
-
 void Pumpkin_ApplyStaticBuffer() {
   pPumpkinCheck();
 
@@ -1117,7 +1147,7 @@ void Pumpkin_ApplyStaticBuffer() {
 
 
 
-MeshInfo Mesh_GetInfo(Mesh* mesh) {
+MeshInfo Mesh_GetInfo(Mesh const*const mesh) {
   pNullCheck(mesh, {});
 
   MeshInfo info;

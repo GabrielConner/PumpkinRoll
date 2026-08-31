@@ -1,7 +1,7 @@
 /*
 *
 * Function Declarations Source
-* Built 2026-08-12 02:41 AM
+* Built 2026-08-31 04:04 PM
 *
 */
 
@@ -22,14 +22,25 @@ FPPUMPKIN_ENDMEMORYIGNOREBLOCK Pumpkin_EndMemoryIgnoreBlock = NULL;
 FPPUMPKIN_EXPLODEALLOBJECTS Pumpkin_ExplodeAllObjects = NULL;
 FPPUMPKIN_CASTRAY Pumpkin_CastRay = NULL;
 FPPUMPKIN_CASTRAYINTO Pumpkin_CastRayInto = NULL;
+FPPUMPKIN_WRAPBVHNODESAROUND Pumpkin_WrapBVHNodesAround = NULL;
 FPRAY_AT Ray_At = NULL;
 FPINTERVAL_SIZE Interval_Size = NULL;
 FPINTERVAL_EXPAND Interval_Expand = NULL;
+FPINTERVAL_OFFSET Interval_Offset = NULL;
 FPINTERVAL_CONTAINS Interval_Contains = NULL;
 FPINTERVAL_CLAMP Interval_Clamp = NULL;
+FPINTERVAL_UNION Interval_Union = NULL;
+FPAABB_GENERATEFROMOBJECTS AABB_GenerateFromObjects = NULL;
+FPAABB_GENERATEFROMPOINTS AABB_GenerateFromPoints = NULL;
+FPAABB_PADTOMINIMUMS AABB_PadToMinimums = NULL;
+FPAABB_LONGESTAXIS AABB_LongestAxis = NULL;
+FPCONST&AABB_AXISINTERVAL const&AABB_AxisInterval = NULL;
+FPAABB_OFFSET AABB_Offset = NULL;
+FPAABB_COMBINE AABB_Combine = NULL;
+FPAABB_EXPAND AABB_Expand = NULL;
+FPAABB_COLLIDESWITH AABB_CollidesWith = NULL;
 FPCOLLISIONTEMPLATEPLANE_CONSTRUCT CollisionTemplatePlane_Construct = NULL;
 FPCOLLISIONTEMPLATEPLANE_MOVEINTOCOORDINATESPACE CollisionTemplatePlane_MoveIntoCoordinateSpace = NULL;
-FPEXPLODEDOBJECT_DELETE ExplodedObject_Delete = NULL;
 FPEXPLODEDOBJECTLIST_DELETEALL ExplodedObjectList_DeleteAll = NULL;
 FPPUMPKIN_REGISTEROBJECT Pumpkin_RegisterObject = NULL;
 FPPUMPKIN_GETOBJECT Pumpkin_GetObject = NULL;
@@ -57,10 +68,11 @@ FPCAMERA_GETANGLEBASED Camera_GetAngleBased = NULL;
 FPCAMERA_ANGLEBASED Camera_AngleBased = NULL;
 FPCAMERA_LOOKATTARGET Camera_LookAtTarget = NULL;
 FPCAMERA_GETLOOKATTARGET Camera_GetLookAtTarget = NULL;
-FPPUMPKIN_REGISTERMESH Pumpkin_RegisterMesh = NULL;
-FPPUMPKIN_GETMESH Pumpkin_GetMesh = NULL;
 FPPUMPKIN_REGISTERFORMAT Pumpkin_RegisterFormat = NULL;
 FPPUMPKIN_GETFORMAT Pumpkin_GetFormat = NULL;
+FPCONST*CONSTFORMAT_GETATTRIBUTEOFNAME const*constFormat_GetAttributeOfName = NULL;
+FPPUMPKIN_REGISTERMESH Pumpkin_RegisterMesh = NULL;
+FPPUMPKIN_GETMESH Pumpkin_GetMesh = NULL;
 FPPUMPKIN_APPLYSTATICBUFFER Pumpkin_ApplyStaticBuffer = NULL;
 FPMESH_GETINFO Mesh_GetInfo = NULL;
 FPMESH_RELOAD Mesh_Reload = NULL;
@@ -109,14 +121,25 @@ bool LoadFunctions(PROCADDRESSFUNC proc) {
   Pumpkin_ExplodeAllObjects = (FPPUMPKIN_EXPLODEALLOBJECTS)proc("Pumpkin_ExplodeAllObjects"); if (!Pumpkin_ExplodeAllObjects) return false;
   Pumpkin_CastRay = (FPPUMPKIN_CASTRAY)proc("Pumpkin_CastRay"); if (!Pumpkin_CastRay) return false;
   Pumpkin_CastRayInto = (FPPUMPKIN_CASTRAYINTO)proc("Pumpkin_CastRayInto"); if (!Pumpkin_CastRayInto) return false;
+  Pumpkin_WrapBVHNodesAround = (FPPUMPKIN_WRAPBVHNODESAROUND)proc("Pumpkin_WrapBVHNodesAround"); if (!Pumpkin_WrapBVHNodesAround) return false;
   Ray_At = (FPRAY_AT)proc("Ray_At"); if (!Ray_At) return false;
   Interval_Size = (FPINTERVAL_SIZE)proc("Interval_Size"); if (!Interval_Size) return false;
   Interval_Expand = (FPINTERVAL_EXPAND)proc("Interval_Expand"); if (!Interval_Expand) return false;
+  Interval_Offset = (FPINTERVAL_OFFSET)proc("Interval_Offset"); if (!Interval_Offset) return false;
   Interval_Contains = (FPINTERVAL_CONTAINS)proc("Interval_Contains"); if (!Interval_Contains) return false;
   Interval_Clamp = (FPINTERVAL_CLAMP)proc("Interval_Clamp"); if (!Interval_Clamp) return false;
+  Interval_Union = (FPINTERVAL_UNION)proc("Interval_Union"); if (!Interval_Union) return false;
+  AABB_GenerateFromObjects = (FPAABB_GENERATEFROMOBJECTS)proc("AABB_GenerateFromObjects"); if (!AABB_GenerateFromObjects) return false;
+  AABB_GenerateFromPoints = (FPAABB_GENERATEFROMPOINTS)proc("AABB_GenerateFromPoints"); if (!AABB_GenerateFromPoints) return false;
+  AABB_PadToMinimums = (FPAABB_PADTOMINIMUMS)proc("AABB_PadToMinimums"); if (!AABB_PadToMinimums) return false;
+  AABB_LongestAxis = (FPAABB_LONGESTAXIS)proc("AABB_LongestAxis"); if (!AABB_LongestAxis) return false;
+  const&AABB_AxisInterval = (FPCONST&AABB_AXISINTERVAL)proc("const&AABB_AxisInterval"); if (!const&AABB_AxisInterval) return false;
+  AABB_Offset = (FPAABB_OFFSET)proc("AABB_Offset"); if (!AABB_Offset) return false;
+  AABB_Combine = (FPAABB_COMBINE)proc("AABB_Combine"); if (!AABB_Combine) return false;
+  AABB_Expand = (FPAABB_EXPAND)proc("AABB_Expand"); if (!AABB_Expand) return false;
+  AABB_CollidesWith = (FPAABB_COLLIDESWITH)proc("AABB_CollidesWith"); if (!AABB_CollidesWith) return false;
   CollisionTemplatePlane_Construct = (FPCOLLISIONTEMPLATEPLANE_CONSTRUCT)proc("CollisionTemplatePlane_Construct"); if (!CollisionTemplatePlane_Construct) return false;
   CollisionTemplatePlane_MoveIntoCoordinateSpace = (FPCOLLISIONTEMPLATEPLANE_MOVEINTOCOORDINATESPACE)proc("CollisionTemplatePlane_MoveIntoCoordinateSpace"); if (!CollisionTemplatePlane_MoveIntoCoordinateSpace) return false;
-  ExplodedObject_Delete = (FPEXPLODEDOBJECT_DELETE)proc("ExplodedObject_Delete"); if (!ExplodedObject_Delete) return false;
   ExplodedObjectList_DeleteAll = (FPEXPLODEDOBJECTLIST_DELETEALL)proc("ExplodedObjectList_DeleteAll"); if (!ExplodedObjectList_DeleteAll) return false;
   Pumpkin_RegisterObject = (FPPUMPKIN_REGISTEROBJECT)proc("Pumpkin_RegisterObject"); if (!Pumpkin_RegisterObject) return false;
   Pumpkin_GetObject = (FPPUMPKIN_GETOBJECT)proc("Pumpkin_GetObject"); if (!Pumpkin_GetObject) return false;
@@ -144,10 +167,11 @@ bool LoadFunctions(PROCADDRESSFUNC proc) {
   Camera_AngleBased = (FPCAMERA_ANGLEBASED)proc("Camera_AngleBased"); if (!Camera_AngleBased) return false;
   Camera_LookAtTarget = (FPCAMERA_LOOKATTARGET)proc("Camera_LookAtTarget"); if (!Camera_LookAtTarget) return false;
   Camera_GetLookAtTarget = (FPCAMERA_GETLOOKATTARGET)proc("Camera_GetLookAtTarget"); if (!Camera_GetLookAtTarget) return false;
-  Pumpkin_RegisterMesh = (FPPUMPKIN_REGISTERMESH)proc("Pumpkin_RegisterMesh"); if (!Pumpkin_RegisterMesh) return false;
-  Pumpkin_GetMesh = (FPPUMPKIN_GETMESH)proc("Pumpkin_GetMesh"); if (!Pumpkin_GetMesh) return false;
   Pumpkin_RegisterFormat = (FPPUMPKIN_REGISTERFORMAT)proc("Pumpkin_RegisterFormat"); if (!Pumpkin_RegisterFormat) return false;
   Pumpkin_GetFormat = (FPPUMPKIN_GETFORMAT)proc("Pumpkin_GetFormat"); if (!Pumpkin_GetFormat) return false;
+  const*constFormat_GetAttributeOfName = (FPCONST*CONSTFORMAT_GETATTRIBUTEOFNAME)proc("const*constFormat_GetAttributeOfName"); if (!const*constFormat_GetAttributeOfName) return false;
+  Pumpkin_RegisterMesh = (FPPUMPKIN_REGISTERMESH)proc("Pumpkin_RegisterMesh"); if (!Pumpkin_RegisterMesh) return false;
+  Pumpkin_GetMesh = (FPPUMPKIN_GETMESH)proc("Pumpkin_GetMesh"); if (!Pumpkin_GetMesh) return false;
   Pumpkin_ApplyStaticBuffer = (FPPUMPKIN_APPLYSTATICBUFFER)proc("Pumpkin_ApplyStaticBuffer"); if (!Pumpkin_ApplyStaticBuffer) return false;
   Mesh_GetInfo = (FPMESH_GETINFO)proc("Mesh_GetInfo"); if (!Mesh_GetInfo) return false;
   Mesh_Reload = (FPMESH_RELOAD)proc("Mesh_Reload"); if (!Mesh_Reload) return false;

@@ -30,7 +30,7 @@ enum struct PrintLevel { DEBUG = 0, WARNING, ERROR, NOPRINT };
 enum struct StartReturn { FAILURE, ERROR, SUCCESS };
 enum struct AttributeType { FLOAT, INT, LONG };
 enum struct VariableType { UNKNOWN = -1, INT, FLOAT, MAT4, VECTOR2, VECTOR3, VECTOR4 };
-
+enum struct AttributeName { UNKNOWN = 0, POSITION, SCALE, ROTATION, UV, NORMAL, TANGENT, BITANGENT };
 
 
 
@@ -54,12 +54,10 @@ typedef Script* (*ScriptAllocateFunction)();
 typedef void* (*ProcAddressFunction(const char* name));
 typedef bool (*PumpkinRollLoadFunction)(ProcAddressFunction func);
 
-struct LoadedMeshVertex {
-  ::pPack::Vector3 position;
-  ::pPack::Vector3 normal;
-  ::pPack::Vector2 uv;
-  ::pPack::Vector4 color;
-  ::pPack::Vector3 tangent;
+
+struct ShaderInfo {
+  std::vector<std::string> shaders = std::vector<std::string>();
+  unsigned int type = 0;
 };
 
 
@@ -123,6 +121,88 @@ struct ScriptUpdateInfo {
 
 
 
+struct FormatStartInfo {
+  GLint size = 3;
+  GLenum type = GL_FLOAT;
+  GLboolean normalized = GL_FALSE;
+  GLuint relativeOffset = 0;
+  AttributeType attributeType = AttributeType::FLOAT;
+  AttributeName attributeName = AttributeName::UNKNOWN;
+};
+
+
+
+struct Format {
+  FormatStartInfo* info = 0;
+  size_t infoCount = 0;
+  size_t vertexStride = 0;
+  GLuint id = 0;
+};
+
+
+
+struct MeshInfo {
+  void* vertices = nullptr;
+  size_t vertexCount = 0;
+  size_t vertexSize = 0;
+  size_t bufferSize = 0;
+  Format format;
+  bool dynamic = false;
+};
+
+
+
+struct RayHitInfo {
+  Object* object; // If null access to other variables is UB
+  ::pPack::DVector3 position; // Always defined
+  ::pPack::DVector3 normal; // Always defined
+  double time;
+};
+
+
+
+/*************************************************************************/
+/*************************************************************************/
+/*                                                                       */
+/*                           C L A S S E S                               */
+/*                                                                       */
+/*************************************************************************/
+/*************************************************************************/
+
+
+struct Script;
+struct Object {
+  Line internal[6] = {0};
+
+  Transform transform = Transform();
+
+  virtual ~Object() {}
+};
+
+
+
+struct Camera : public Object {
+  Line camInternal[10] = {0};
+
+  MatrixWrapper view;
+  MatrixWrapper proj;
+
+  union {
+    float fov = 90.f;
+    float width;
+  };
+  union {
+    float aspect = 1.7777f;
+    float height;
+  };
+  float near = 0.01f;
+  float far = 100.f;
+
+  bool perspective = true;
+};
+
+
+
 struct ScriptPropertySaveData {
   size_t size = 0;
   void* data = 0;
@@ -166,84 +246,6 @@ private:
 
 
 
-struct MeshInfo {
-  void* vertices = nullptr;
-  size_t vertexCount = 0;
-  size_t vertexSize = 0;
-  size_t bufferSize = 0;
-  unsigned int format;
-  bool dynamic = false;
-};
-
-
-
-struct RayHitInfo {
-  Object* object; // If null access to other variables is UB
-  ::pPack::DVector3 position; // Always defined
-  ::pPack::DVector3 normal; // Always defined
-  double time;
-};
-
-
-/*************************************************************************/
-/*************************************************************************/
-/*                                                                       */
-/*                           C L A S S E S                               */
-/*                                                                       */
-/*************************************************************************/
-/*************************************************************************/
-
-
-struct ShaderInfo {
-  std::vector<std::string> shaders = std::vector<std::string>();
-  unsigned int type = 0;
-};
-
-
-
-struct Script;
-struct Object {
-  Line internal[6] = {0};
-
-  Transform transform = Transform();
-
-  virtual ~Object() {}
-};
-
-
-
-struct Camera : public Object {
-  Line camInternal[10] = {0};
-
-  MatrixWrapper view;
-  MatrixWrapper proj;
-
-  union {
-    float fov = 90.f;
-    float width;
-  };
-  union {
-    float aspect = 1.7777f;
-    float height;
-  };
-  float near = 0.01f;
-  float far = 100.f;
-
-  bool perspective = true;
-};
-
-
-
-struct FormatStartInfo {
-  GLint size = 3;
-  GLenum type = GL_FLOAT;
-  GLboolean normalized = GL_FALSE;
-  GLuint relativeOffset = 0;
-  AttributeType attribType = AttributeType::FLOAT;
-};
-
-
-
 struct Script {
   virtual void Start(Object* obj) {}
   virtual void Update(Object* obj, ScriptUpdateInfo const& info) {}
@@ -280,6 +282,9 @@ struct Ray {
 struct Interval {
   double min = 0;
   double max = 0;
+
+  Interval() = default;
+  constexpr Interval(double Min, double Max) : min(Min), max(Max) {}
 };
 
 
@@ -288,13 +293,18 @@ struct AABB {
   Interval x, y, z;
 
   AABB() = default;
+  constexpr AABB(Interval X, Interval Y, Interval Z) : x(X), y(Y), z(Z) {}
 };
 
 
 
 struct CollisionObject {
+  Object* object = 0;
+
   virtual bool Collide(Ray const& ray, Interval interval, RayHitInfo& hit) const { return false; }
-  virtual AABB GenerateAABB() { return AABB(); }
+  virtual AABB GenerateAABB() const { return AABB(); }
+
+  virtual void DeleteInternal() {}
 };
 
 
@@ -304,33 +314,50 @@ struct CollisionTemplatePlane : CollisionObject {
   ::pPack::DVector3 u = 0, v = 0, n = 0, w = 0;
   double D = 0;
 
+  AABB GenerateAABB() const override;
+
   CollisionTemplatePlane() = default;
 };
 
 
 
-struct ExplodedObject {
-  std::forward_list<CollisionObject*> mesh;
-  Object* object = 0;
+struct CollisionTriangle : ::pumpkin::CollisionTemplatePlane {
+  bool Collide(::pumpkin::Ray const& ray, ::pumpkin::Interval interval, ::pumpkin::RayHitInfo& hit) const override;
+};
 
-  ExplodedObject() = default;
+
+
+struct CollisionQuad : ::pumpkin::CollisionTemplatePlane {
+  bool Collide(::pumpkin::Ray const& ray, ::pumpkin::Interval interval, ::pumpkin::RayHitInfo& hit) const override;
+};
+
+
+
+struct CollisionSphere : ::pumpkin::CollisionObject {
+  ::pPack::DVector3 center;
+  double radius;
+
+  AABB GenerateAABB() const override;
+  bool Collide(::pumpkin::Ray const& ray, ::pumpkin::Interval interval, ::pumpkin::RayHitInfo& hit) const override;
 };
 
 
 
 struct ExplodedObjectList {
-  std::vector<ExplodedObject> list;
+  std::vector<CollisionObject*> list = std::vector<CollisionObject*>();
 
-  std::vector<ExplodedObject>::iterator begin() { return list.begin(); }
-  std::vector<ExplodedObject>::iterator end() { return list.end(); }
+  std::vector<CollisionObject*>::iterator begin() { return list.begin(); }
+  std::vector<CollisionObject*>::iterator end() { return list.end(); }
 
-  std::vector<ExplodedObject>::const_iterator begin() const { return list.begin(); }
-  std::vector<ExplodedObject>::const_iterator end() const { return list.end(); }
+  std::vector<CollisionObject*>::const_iterator begin() const { return list.begin(); }
+  std::vector<CollisionObject*>::const_iterator end() const { return list.end(); }
 
-  std::vector<ExplodedObject>::const_iterator cbegin() const { return list.cbegin(); }
-  std::vector<ExplodedObject>::const_iterator cend() const { return list.cend(); }
+  std::vector<CollisionObject*>::const_iterator cbegin() const { return list.cbegin(); }
+  std::vector<CollisionObject*>::const_iterator cend() const { return list.cend(); }
 
-  void push_back(ExplodedObject const& value) { list.push_back(value); }
+  void push_back(CollisionObject *const& value) { list.push_back(value); }
+
+  ExplodedObjectList() = default;
 };
 
 

@@ -23,16 +23,22 @@ namespace pPack {
 template <class T>
 struct Vector2_s {
   union {
-    T x;
-    T r;
-    T s;
-    T u;
-  };
-  union {
-    T y;
-    T g;
-    T t;
-    T v;
+    struct {
+      union {
+        T x;
+        T r;
+        T s;
+        T u;
+      };
+      union {
+        T y;
+        T g;
+        T t;
+        T v;
+      };
+    };
+
+    T data[2];
   };
 
 
@@ -124,6 +130,17 @@ struct Vector2_s {
 
 
 
+  T& operator[](unsigned int i) {
+    if (i > 1) return x;
+    return data[i];
+  }
+  T operator[](unsigned int i) const {
+    if (i > 1) return T(0);
+    return data[i];
+  }
+
+
+
   friend bool operator ==(const Vector2_s<T>& a, const Vector2_s<T>& b) {
     return a.x == b.x && a.y == b.y;
   }
@@ -189,9 +206,9 @@ struct Vector2_s {
     return (Vector2_s<T>::Dot(a, b) / Vector2_s<T>::Dot(b, b)) * b;
   }
 
-  constexpr Vector2_s() : x(T(0)), y(T(0)) {}
-  constexpr Vector2_s(T t) : x(t), y(t) {}
-  constexpr Vector2_s(T X, T Y) : x(X), y(Y) {}
+  constexpr Vector2_s() { x = T(); y = T(); }
+  constexpr Vector2_s(T t) { x = t; y = t; }
+  constexpr Vector2_s(T X, T Y) { x = X; y = Y; }
 };
 
 
@@ -203,19 +220,25 @@ struct Vector2_s {
 template <class T = float>
 struct Vector3_s {
   union {
-    T x;
-    T r;
-    T s;
-  };
-  union {
-    T y;
-    T g;
-    T t;
-  };
-  union {
-    T z;
-    T b;
-    T p;
+    struct {
+      union {
+        T x;
+        T r;
+        T s;
+      };
+      union {
+        T y;
+        T g;
+        T t;
+      };
+      union {
+        T z;
+        T b;
+        T p;
+      };
+    };
+
+    T data[3];
   };
 
   friend Vector3_s<T> operator +(Vector3_s<T> a, const Vector3_s<T>& b) {
@@ -314,6 +337,17 @@ struct Vector3_s {
 
 
 
+  T& operator[](unsigned int i) {
+    if (i > 2) return x;
+    return data[i];
+  }
+  T operator[](unsigned int i) const {
+    if (i > 2) return T(0);
+    return data[i];
+  }
+
+
+
   Vector3_s<T> operator -() const {
     return Vector3_s<T>(-x, -y, -z);
   }
@@ -388,10 +422,10 @@ struct Vector3_s {
   }
 
 
-  constexpr Vector3_s() : x(T(0)), y(T(0)), z(T(0)) {}
-  constexpr Vector3_s(T t) : x(t), y(t), z(t) {}
-  constexpr Vector3_s(T X, T Y, T Z) : x(X), y(Y), z(Z) {}
-  constexpr Vector3_s(const Vector2_s<T>& vec) : x(vec.x), y(vec.y), z(T(0)) {}
+  constexpr Vector3_s() { x = T(); y = T(); z = T(); }
+  constexpr Vector3_s(T t) { x = t; y = t; z = t; }
+  constexpr Vector3_s(T X, T Y, T Z) { x = X; y = Y; z = Z; }
+  constexpr Vector3_s(const Vector2_s<T>& vec) { x = T(vec.x); y = T(vec.y); z = T(); }
 };
 
 
@@ -403,24 +437,30 @@ struct Vector3_s {
 template <class T = float>
 struct Vector4_s {
   union {
-    T x;
-    T r;
-    T s;
-  };
-  union {
-    T y;
-    T g;
-    T t;
-  };
-  union {
-    T z;
-    T b;
-    T p;
-  };
-  union {
-    T w;
-    T a;
-    T q;
+    struct {
+      union {
+        T x;
+        T r;
+        T s;
+      };
+      union {
+        T y;
+        T g;
+        T t;
+      };
+      union {
+        T z;
+        T b;
+        T p;
+      };
+      union {
+        T w;
+        T a;
+        T q;
+      };
+    };
+
+    T data[4];
   };
 
 
@@ -535,6 +575,18 @@ struct Vector4_s {
   }
 
 
+
+  T& operator[](unsigned int i) {
+    if (i > 3) return x;
+    return data[i];
+  }
+  T const& operator[](unsigned int i) const {
+    if (i > 3) return x;
+    return data[i];
+  }
+
+
+
   friend bool operator ==(const Vector4_s<T>& a, const Vector4_s<T>& b) {
     return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
   }
@@ -603,11 +655,11 @@ struct Vector4_s {
   }
 
 
-  constexpr Vector4_s() : x(T(0)), y(T(0)), z(T(0)), w(T(0)) {}
-  constexpr Vector4_s(T t) : x(t), y(t), z(t), w(t) {}
-  constexpr Vector4_s(T X, T Y, T Z, T W) : x(X), y(Y), z(Z), w(W) {}
-  constexpr Vector4_s(Vector2_s<T> vec) : x(vec.x), y(vec.y), z(T(0)), w(T(0)) {}
-  constexpr Vector4_s(Vector3_s<T> vec) : x(vec.x), y(vec.y), z(vec.z), w(T(0)) {}
+  constexpr Vector4_s() { x = T(); y = T(); z = T(); w = T(); }
+  constexpr Vector4_s(T t) { x = t; y = t; z = t; w = t;}
+  constexpr Vector4_s(T X, T Y, T Z, T W) { x = X; y = Y; z = Z; w = W; }
+  constexpr Vector4_s(const Vector2_s<T>& vec) { x = T(vec.x); y = T(vec.y); z = T(); w = T(); }
+  constexpr Vector4_s(const Vector3_s<T>& vec) { x = T(vec.x); y = T(vec.y); z = T(vec.z); w = T(); }
 };
 
 

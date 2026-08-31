@@ -31,9 +31,11 @@ inline constexpr double _PR_INFINITY = std::numeric_limits<double>::infinity();
 
 inline constexpr char const* _DEV_SAVE_FILE = ".pmpknrl";
 
-inline constexpr ::pumpkin::Interval _PR_EMPTY_INTERVAL = {+_PR_INFINITY, -_PR_INFINITY};
-inline constexpr ::pumpkin::Interval _PR_UNIVERSE_INTERVAL = {-_PR_INFINITY, +_PR_INFINITY};
+inline constexpr ::pumpkin::Interval _PR_INTERVAL_EMPTY = ::pumpkin::Interval(+_PR_INFINITY, -_PR_INFINITY);
+inline constexpr ::pumpkin::Interval _PR_INTERVAL_UNIVERSE = ::pumpkin::Interval(-_PR_INFINITY, +_PR_INFINITY);
 
+inline constexpr ::pumpkin::AABB _PR_AABB_EMPTY = ::pumpkin::AABB(_PR_INTERVAL_EMPTY, _PR_INTERVAL_EMPTY, _PR_INTERVAL_EMPTY);
+inline constexpr ::pumpkin::AABB _PR_AABB_UNIVERSE = ::pumpkin::AABB(_PR_INTERVAL_UNIVERSE, _PR_INTERVAL_UNIVERSE, _PR_INTERVAL_UNIVERSE);
 
 }; // namespace pumpkin
 

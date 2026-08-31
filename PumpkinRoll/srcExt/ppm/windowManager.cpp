@@ -350,12 +350,7 @@ double Window::GetMouseScrollX() const { return mouseScrollX; }
 double Window::GetMouseScrollY() const { return mouseScrollY; }
 
 
-#ifndef _PPM_VECTOR
-IVector2
-#else
-::pPack::IVector2
-#endif
-Window::GetSize() const { return { width, height }; }
+::pPack::IVector2 Window::GetSize() const { return { width, height }; }
 
 double Window::GetAspectRatio() const { return aspectRatio; }
 std::string Window::GetTitle() const { return title; }
@@ -363,36 +358,9 @@ bool Window::GetMaximized() const { return maximized; }
 bool Window::GetVisible() const { return visible; }
 bool Window::GetValidity() const { return valid; }
 
-#ifndef _PPM_VECTOR
-DVector2
-#else
-::pPack::DVector2
-#endif
-Window::GetMousePosition() const { return { mouseX, mouseY }; }
-
-
-#ifndef _PPM_VECTOR
-DVector2
-#else
-::pPack::DVector2
-#endif
-Window::GetDeltaMousePosition() const { return {mouseX - oldMouseX, mouseY - oldMouseY}; }
-
-
-#ifndef _PPM_VECTOR
-DVector2
-#else
-::pPack::DVector2
-#endif
-Window::GetRealMousePosition() const { return { realMouseX, realMouseY }; }
-
-
-#ifndef _PPM_VECTOR
-DVector2
-#else
-::pPack::DVector2
-#endif
-Window::GetDeltaRealMousePosition() const { return {realMouseY - oldRealMouseY, realMouseX - oldRealMouseX}; }
+::pPack::DVector2 Window::GetDeltaMousePosition() const { return {mouseX - oldMouseX, mouseY - oldMouseY}; }
+::pPack::DVector2 Window::GetRealMousePosition() const { return { realMouseX, realMouseY }; }
+::pPack::DVector2 Window::GetDeltaRealMousePosition() const { return {realMouseY - oldRealMouseY, realMouseX - oldRealMouseX}; }
 
 
 
@@ -568,11 +536,9 @@ void Window::SetAsContext() {
 
 
 //--------------------
-#ifdef _PPM_GLAD
 void Window::SetViewport() {
   glViewport(0, 0, width, height);
 }
-#endif
 
 
 

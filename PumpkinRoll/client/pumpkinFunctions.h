@@ -1,7 +1,7 @@
 /*
 *
 * Function Declarations Header
-* Built 2026-08-12 02:41 AM
+* Built 2026-08-31 04:04 PM
 *
 */
 
@@ -30,14 +30,25 @@ typedef void (APIENTRYP FPPUMPKIN_ENDMEMORYIGNOREBLOCK)();
 typedef ExplodedObjectList (APIENTRYP FPPUMPKIN_EXPLODEALLOBJECTS)();
 typedef bool (APIENTRYP FPPUMPKIN_CASTRAY)(Ray const& ray, RayHitInfo& hit);
 typedef bool (APIENTRYP FPPUMPKIN_CASTRAYINTO)(Ray const& ray, RayHitInfo& hit, ExplodedObjectList const& list);
+typedef ExplodedObjectList (APIENTRYP FPPUMPKIN_WRAPBVHNODESAROUND)(ExplodedObjectList const& list);
 typedef ::pPack::DVector3 (APIENTRYP FPRAY_AT)(Ray const& ray, double time);
 typedef double (APIENTRYP FPINTERVAL_SIZE)(Interval const& interval);
-typedef Interval (APIENTRYP FPINTERVAL_EXPAND)(Interval const& interval, double delta);
+typedef void (APIENTRYP FPINTERVAL_EXPAND)(Interval& interval, double delta);
+typedef void (APIENTRYP FPINTERVAL_OFFSET)(Interval& interval, double offset);
 typedef bool (APIENTRYP FPINTERVAL_CONTAINS)(Interval const& interval, double value);
 typedef double (APIENTRYP FPINTERVAL_CLAMP)(Interval const& interval, double value);
+typedef Interval (APIENTRYP FPINTERVAL_UNION)(Interval const& a, Interval const& b);
+typedef AABB (APIENTRYP FPAABB_GENERATEFROMOBJECTS)(std::vector<CollisionObject*> const& objects, size_t start, size_t end);
+typedef AABB (APIENTRYP FPAABB_GENERATEFROMPOINTS)(::pPack::DVector3 const& a, ::pPack::DVector3 const& b);
+typedef void (APIENTRYP FPAABB_PADTOMINIMUMS)(AABB& aabb);
+typedef int (APIENTRYP FPAABB_LONGESTAXIS)(AABB const& aabb);
+typedef Interval (APIENTRYP FPCONST&AABB_AXISINTERVAL)(AABB const& aabb, int axis);
+typedef void (APIENTRYP FPAABB_OFFSET)(AABB& aabb, ::pPack::DVector3 offset);
+typedef AABB (APIENTRYP FPAABB_COMBINE)(AABB const& a, AABB const& b);
+typedef void (APIENTRYP FPAABB_EXPAND)(AABB& aabb, double delta);
+typedef bool (APIENTRYP FPAABB_COLLIDESWITH)(AABB const& aabb, Ray const& ray, Interval interval);
 typedef void (APIENTRYP FPCOLLISIONTEMPLATEPLANE_CONSTRUCT)(CollisionTemplatePlane& plane);
 typedef void (APIENTRYP FPCOLLISIONTEMPLATEPLANE_MOVEINTOCOORDINATESPACE)(CollisionTemplatePlane const& plane, ::pPack::DVector3 point, ::pPack::DVector2& out);
-typedef void (APIENTRYP FPEXPLODEDOBJECT_DELETE)(ExplodedObject& object);
 typedef void (APIENTRYP FPEXPLODEDOBJECTLIST_DELETEALL)(ExplodedObjectList& list);
 typedef Object* (APIENTRYP FPPUMPKIN_REGISTEROBJECT)(std::string const& name);
 typedef Object* (APIENTRYP FPPUMPKIN_GETOBJECT)(std::string const& name);
@@ -65,12 +76,13 @@ typedef bool (APIENTRYP FPCAMERA_GETANGLEBASED)(Camera* camera);
 typedef void (APIENTRYP FPCAMERA_ANGLEBASED)(Camera* camera, bool b);
 typedef void (APIENTRYP FPCAMERA_LOOKATTARGET)(Camera* camera, ::pPack::Vector3* target);
 typedef ::pPack::Vector3* (APIENTRYP FPCAMERA_GETLOOKATTARGET)(Camera* camera);
-typedef Mesh* (APIENTRYP FPPUMPKIN_REGISTERMESH)(std::string const& name, void* vertices, size_t size, size_t count, bool dynamic, GLuint format);
+typedef Format (APIENTRYP FPPUMPKIN_REGISTERFORMAT)(std::string const& name, FormatStartInfo* formatStartInfo, GLuint count, bool autoOffset);
+typedef Format (APIENTRYP FPPUMPKIN_GETFORMAT)(std::string const& name);
+typedef FormatStartInfo (APIENTRYP FPCONST*CONSTFORMAT_GETATTRIBUTEOFNAME)(Format const& format, AttributeName name);
+typedef Mesh* (APIENTRYP FPPUMPKIN_REGISTERMESH)(std::string const& name, void* vertices, size_t size, size_t count, bool dynamic, Format format);
 typedef Mesh* (APIENTRYP FPPUMPKIN_GETMESH)(std::string const& name);
-typedef GLuint (APIENTRYP FPPUMPKIN_REGISTERFORMAT)(std::string const& name, FormatStartInfo const* const formatStartInfo, GLuint count, bool autoOffset);
-typedef GLuint (APIENTRYP FPPUMPKIN_GETFORMAT)(std::string const& name);
 typedef void (APIENTRYP FPPUMPKIN_APPLYSTATICBUFFER)();
-typedef MeshInfo (APIENTRYP FPMESH_GETINFO)(Mesh* mesh);
+typedef MeshInfo (APIENTRYP FPMESH_GETINFO)(Mesh const*const mesh);
 typedef void (APIENTRYP FPMESH_RELOAD)(Mesh* mesh);
 typedef std::string (APIENTRYP FPMESH_GETNAME)(Mesh* mesh);
 typedef Mesh* (APIENTRYP FPMESH_DUPLICATEASDYNAMIC)(Mesh* mesh, std::string const& name);
@@ -117,14 +129,25 @@ APIGET FPPUMPKIN_ENDMEMORYIGNOREBLOCK Pumpkin_EndMemoryIgnoreBlock;
 APIGET FPPUMPKIN_EXPLODEALLOBJECTS Pumpkin_ExplodeAllObjects;
 APIGET FPPUMPKIN_CASTRAY Pumpkin_CastRay;
 APIGET FPPUMPKIN_CASTRAYINTO Pumpkin_CastRayInto;
+APIGET FPPUMPKIN_WRAPBVHNODESAROUND Pumpkin_WrapBVHNodesAround;
 APIGET FPRAY_AT Ray_At;
 APIGET FPINTERVAL_SIZE Interval_Size;
 APIGET FPINTERVAL_EXPAND Interval_Expand;
+APIGET FPINTERVAL_OFFSET Interval_Offset;
 APIGET FPINTERVAL_CONTAINS Interval_Contains;
 APIGET FPINTERVAL_CLAMP Interval_Clamp;
+APIGET FPINTERVAL_UNION Interval_Union;
+APIGET FPAABB_GENERATEFROMOBJECTS AABB_GenerateFromObjects;
+APIGET FPAABB_GENERATEFROMPOINTS AABB_GenerateFromPoints;
+APIGET FPAABB_PADTOMINIMUMS AABB_PadToMinimums;
+APIGET FPAABB_LONGESTAXIS AABB_LongestAxis;
+APIGET FPCONST&AABB_AXISINTERVAL const&AABB_AxisInterval;
+APIGET FPAABB_OFFSET AABB_Offset;
+APIGET FPAABB_COMBINE AABB_Combine;
+APIGET FPAABB_EXPAND AABB_Expand;
+APIGET FPAABB_COLLIDESWITH AABB_CollidesWith;
 APIGET FPCOLLISIONTEMPLATEPLANE_CONSTRUCT CollisionTemplatePlane_Construct;
 APIGET FPCOLLISIONTEMPLATEPLANE_MOVEINTOCOORDINATESPACE CollisionTemplatePlane_MoveIntoCoordinateSpace;
-APIGET FPEXPLODEDOBJECT_DELETE ExplodedObject_Delete;
 APIGET FPEXPLODEDOBJECTLIST_DELETEALL ExplodedObjectList_DeleteAll;
 APIGET FPPUMPKIN_REGISTEROBJECT Pumpkin_RegisterObject;
 APIGET FPPUMPKIN_GETOBJECT Pumpkin_GetObject;
@@ -152,10 +175,11 @@ APIGET FPCAMERA_GETANGLEBASED Camera_GetAngleBased;
 APIGET FPCAMERA_ANGLEBASED Camera_AngleBased;
 APIGET FPCAMERA_LOOKATTARGET Camera_LookAtTarget;
 APIGET FPCAMERA_GETLOOKATTARGET Camera_GetLookAtTarget;
-APIGET FPPUMPKIN_REGISTERMESH Pumpkin_RegisterMesh;
-APIGET FPPUMPKIN_GETMESH Pumpkin_GetMesh;
 APIGET FPPUMPKIN_REGISTERFORMAT Pumpkin_RegisterFormat;
 APIGET FPPUMPKIN_GETFORMAT Pumpkin_GetFormat;
+APIGET FPCONST*CONSTFORMAT_GETATTRIBUTEOFNAME const*constFormat_GetAttributeOfName;
+APIGET FPPUMPKIN_REGISTERMESH Pumpkin_RegisterMesh;
+APIGET FPPUMPKIN_GETMESH Pumpkin_GetMesh;
 APIGET FPPUMPKIN_APPLYSTATICBUFFER Pumpkin_ApplyStaticBuffer;
 APIGET FPMESH_GETINFO Mesh_GetInfo;
 APIGET FPMESH_RELOAD Mesh_Reload;

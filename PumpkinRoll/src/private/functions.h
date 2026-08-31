@@ -1,5 +1,5 @@
-#ifndef PUMPKIN_ROLL_SRC_PUMPKIN_FUNCTIONS_H
-#define PUMPKIN_ROLL_SRC_PUMPKIN_FUNCTIONS_H
+#ifndef PUMPKIN_ROLL_SRC_PRIVATE_FUNCTIONS_H
+#define PUMPKIN_ROLL_SRC_PRIVATE_FUNCTIONS_H
 
 #include "pumpkin/types.h"
 
@@ -35,6 +35,7 @@ API ExplodedObjectList Pumpkin_ExplodeAllObjects();
 API bool Pumpkin_CastRay(Ray const& ray, RayHitInfo& hit);
 API bool Pumpkin_CastRayInto(Ray const& ray, RayHitInfo& hit, ExplodedObjectList const& list);
 
+API ExplodedObjectList Pumpkin_WrapBVHNodesAround(ExplodedObjectList const& list);
 
 
 // Ray
@@ -56,10 +57,12 @@ API ::pPack::DVector3 Ray_At(Ray const& ray, double time);
 API double Interval_Size(Interval const& interval);
 API void Interval_Expand(Interval& interval, double delta);
 
+API void Interval_Offset(Interval& interval, double offset);
+
 API bool Interval_Contains(Interval const& interval, double value);
 API double Interval_Clamp(Interval const& interval, double value);
 
-API Interval Interval_Combine(Interval const& a, Interval const& b);
+API Interval Interval_Union(Interval const& a, Interval const& b);
 
 // --------------------------------------------------
 // --------------------------------------------------
@@ -71,19 +74,21 @@ API Interval Interval_Combine(Interval const& a, Interval const& b);
 // --------------------------------------------------
 // --------------------------------------------------
 
-API AABB AABB_GenerateFromObjects(std::vector<CollisionObject> const& objects);
-API AABB AABB_GenerateFromIntervals(Interval const& X, Interval const& Y, Interval const& Z);
+API AABB AABB_GenerateFromObjects(std::vector<CollisionObject*> const& objects, size_t start, size_t end);
+API AABB AABB_GenerateFromPoints(::pPack::DVector3 const& a, ::pPack::DVector3 const& b);
+
+API void AABB_PadToMinimums(AABB& aabb);
+
+API int AABB_LongestAxis(AABB const& aabb);
+API Interval const& AABB_AxisInterval(AABB const& aabb, int axis);
+API void AABB_Offset(AABB& aabb, ::pPack::DVector3 offset);
 API AABB AABB_Combine(AABB const& a, AABB const& b);
-
-API void AABB_Offset(AABB const& aabb, ::pPack::DVector3 offset);
-
 API void AABB_Expand(AABB& aabb, double delta);
-API bool AABB_CollidesWith(AABB const& aabb, Ray const& ray, Interval const& interval);
+API bool AABB_CollidesWith(AABB const& aabb, Ray const& ray, Interval interval);
 
 // --------------------------------------------------
 // --------------------------------------------------
 // AABB
-
 
 
 
@@ -100,18 +105,6 @@ API void CollisionTemplatePlane_MoveIntoCoordinateSpace(CollisionTemplatePlane c
 
 
 
-// ExplodedObject
-// --------------------------------------------------
-// --------------------------------------------------
-
-API void ExplodedObject_Delete(ExplodedObject& object);
-
-// --------------------------------------------------
-// --------------------------------------------------
-// ExplodedObject
-
-
-
 // ExplodedObjectList
 // --------------------------------------------------
 // --------------------------------------------------
@@ -120,7 +113,7 @@ API void ExplodedObjectList_DeleteAll(ExplodedObjectList& list);
 
 // --------------------------------------------------
 // --------------------------------------------------
-// ExplodedObject
+// ExplodedObjectList
 
 
 
@@ -191,20 +184,31 @@ API ::pPack::Vector3* Camera_GetLookAtTarget(Camera* camera);
 
 
 
+// Format
+// --------------------------------------------------
+// --------------------------------------------------
+
+API Format Pumpkin_RegisterFormat(std::string const& name, FormatStartInfo* formatStartInfo, GLuint count, bool autoOffset);
+API Format Pumpkin_GetFormat(std::string const& name);
+
+API FormatStartInfo const*const Format_GetAttributeOfName(Format const& format, AttributeName name);
+
+// --------------------------------------------------
+// --------------------------------------------------
+// Format
+
+
 
 // Mesh
 // --------------------------------------------------
 // --------------------------------------------------
 
-API Mesh* Pumpkin_RegisterMesh(std::string const& name, void* vertices, size_t size, size_t count, bool dynamic, GLuint format);
+API Mesh* Pumpkin_RegisterMesh(std::string const& name, void* vertices, size_t size, size_t count, bool dynamic, Format format);
 API Mesh* Pumpkin_GetMesh(std::string const& name);
-
-API GLuint Pumpkin_RegisterFormat(std::string const& name, FormatStartInfo const* const formatStartInfo, GLuint count, bool autoOffset);
-API GLuint Pumpkin_GetFormat(std::string const& name);
 
 API void Pumpkin_ApplyStaticBuffer();
 
-API MeshInfo Mesh_GetInfo(Mesh* mesh);
+API MeshInfo Mesh_GetInfo(Mesh const*const mesh);
 API void Mesh_Reload(Mesh* mesh);
 
 API std::string Mesh_GetName(Mesh* mesh);

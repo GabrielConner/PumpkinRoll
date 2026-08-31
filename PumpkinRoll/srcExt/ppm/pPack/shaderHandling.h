@@ -6,8 +6,10 @@
 #include "pPack/vector.h"
 #include "pPack/fileInterface.h"
 
-#ifdef PUMPKIN_ROLL_PROD
+#ifdef PUMPKIN_ROLL_LIB
 #define API __declspec(dllexport)
+#elif defined(PUMPKIN_ROLL_PROD)
+#define API
 #else
 #define API __declspec(dllimport)
 #endif

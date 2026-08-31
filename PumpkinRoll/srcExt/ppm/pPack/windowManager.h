@@ -3,6 +3,7 @@
 #define GLFW_INCLUDE_NONE
 
 #include "GLFW\glfw3.h"
+#include "pPack/vector.h"
 #include <string>
 #include <map>
 
@@ -126,14 +127,7 @@ public:
   API double GetMouseScrollX() const;
   API double GetMouseScrollY() const;
 
-
-#ifndef _PPM_VECTOR
-  IVector2
-#else
-  ::pPack::IVector2
-#endif 
-    API GetSize() const;
-
+  API ::pPack::IVector2 GetSize() const;
 
   API double GetAspectRatio() const;
 
@@ -143,36 +137,10 @@ public:
   API bool GetValidity() const;
 
 
-#ifndef _PPM_VECTOR
-  DVector2
-#else
-  ::pPack::DVector2
-#endif  
-    API GetMousePosition() const;
-
-
-#ifndef _PPM_VECTOR
-  DVector2
-#else
-  ::pPack::DVector2
-#endif  
-    API GetDeltaMousePosition() const;
-
-
-#ifndef _PPM_VECTOR
-  DVector2
-#else
-  ::pPack::DVector2
-#endif  
-    API GetRealMousePosition() const;
-
-
-#ifndef _PPM_VECTOR
-  DVector2
-#else
-  ::pPack::DVector2
-#endif  
-    API GetDeltaRealMousePosition() const;
+  API ::pPack::DVector2 GetMousePosition() const;
+  API ::pPack::DVector2 GetDeltaMousePosition() const;
+  API ::pPack::DVector2 GetRealMousePosition() const;
+  API ::pPack::DVector2 GetDeltaRealMousePosition() const;
 
 
   API void Open(int Width, int Height, std::string Title, WindowCreateHint* Hints, int HintCount);
@@ -200,9 +168,7 @@ public:
   API void SetAsContext();
 
 
-#ifdef _PPM_GLAD
   API void SetViewport();
-#endif
 
 
   API Window();

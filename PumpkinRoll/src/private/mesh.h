@@ -8,7 +8,8 @@
 namespace pumpkin {
 
 struct Mesh {
-  GLuint format = 0, VBO = 0, *pVBO = nullptr;
+  ::pumpkin::Format format = Format();
+  GLuint VBO = 0, *pVBO = nullptr;
   void* vertices = nullptr;
   size_t vertexCount = 0;
   size_t vertexSize = 0;
