@@ -32,10 +32,22 @@ API void Pumpkin_EndMemoryIgnoreBlock();
 
 
 API ExplodedObjectList Pumpkin_ExplodeAllObjects();
+API void Pumpkin_ExplodeObjectIntoList(Object* object, Object* connectedObject, std::vector<CollisionObject*>& list);
 API bool Pumpkin_CastRay(Ray const& ray, RayHitInfo& hit);
 API bool Pumpkin_CastRayInto(Ray const& ray, RayHitInfo& hit, ExplodedObjectList const& list);
 
 API ExplodedObjectList Pumpkin_WrapBVHNodesAround(ExplodedObjectList const& list);
+
+
+API float Pumpkin_RandomFloat();
+API float Pumpkin_RandomFloatInRange(float min, float max);
+API double Pumpkin_RandomDouble();
+API double Pumpkin_RandomDoubleInRange(double min, double max);
+API ::pPack::Vector3 Pumpkin_RandomVector3();
+API ::pPack::DVector3 Pumpkin_RandomDVector3();
+
+
+API void RayHitInfo_SetFaceNormal(::pumpkin::RayHitInfo& info, ::pumpkin::Ray const& ray, ::pPack::DVector3 outwardNormal);
 
 
 // Ray
@@ -172,11 +184,20 @@ API void Camera_GenerateProjection(Camera* camera);
 API ::pPack::Vector3* Camera_Forward(Camera* camera);
 API ::pPack::Vector3* Camera_Right(Camera* camera);
 
+API void Camera_Start(Camera* camera);
+API void Camera_Update(Camera* camera);
+
 API bool Camera_GetAngleBased(Camera* camera);
 API void Camera_AngleBased(Camera* camera, bool b);
 
 API void Camera_LookAtTarget(Camera* camera, ::pPack::Vector3* target);
 API ::pPack::Vector3* Camera_GetLookAtTarget(Camera* camera);
+
+API void Camera_LookAt(Camera* camera, ::pPack::Vector3 target);
+API void Camera_LookAtConstant(Camera* camera, bool value);
+API bool Camera_GetLookAtConstant(Camera* camera);
+
+API bool Camera_GetLookAt(Camera* camera, ::pPack::Vector3& ouot);
 
 // --------------------------------------------------
 // --------------------------------------------------

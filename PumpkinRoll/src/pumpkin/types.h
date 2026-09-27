@@ -156,7 +156,8 @@ struct RayHitInfo {
   Object* object; // If null access to other variables is UB
   ::pPack::DVector3 position; // Always defined
   ::pPack::DVector3 normal; // Always defined
-  double time;
+  double time; // Used internally
+  bool frontFace = true;
 };
 
 
@@ -343,6 +344,20 @@ struct CollisionSphere : ::pumpkin::CollisionObject {
 
 
 
+struct CollisionList : ::pumpkin::CollisionObject {
+  std::vector<CollisionObject*> list = std::vector<CollisionObject*>();
+  AABB bbox;
+
+  void Add(CollisionObject* obj);
+  void RegenerateAABB();
+
+  bool Collide(Ray const& ray, Interval interval, RayHitInfo& hit) const override;
+  AABB GenerateAABB() const override;
+  void DeleteInternal() override;
+};
+
+
+
 struct ExplodedObjectList {
   std::vector<CollisionObject*> list = std::vector<CollisionObject*>();
 
@@ -356,6 +371,9 @@ struct ExplodedObjectList {
   std::vector<CollisionObject*>::const_iterator cend() const { return list.cend(); }
 
   void push_back(CollisionObject *const& value) { list.push_back(value); }
+
+  template<typename R>
+  constexpr void append_range(R&& rg) { list.append_range(rg); }
 
   ExplodedObjectList() = default;
 };

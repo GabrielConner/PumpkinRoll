@@ -11,6 +11,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <random>
 
 
 namespace pumpkin_private {
@@ -25,6 +26,12 @@ struct Pumpkin {
   std::unordered_map<size_t, ::pumpkin::Format> registeredFormats = std::unordered_map<size_t, ::pumpkin::Format>();
   std::unordered_map<size_t, ScriptInfoPair> registeredScripts = std::unordered_map<size_t, ScriptInfoPair>();
 
+  std::uniform_real_distribution<float> floatDistribution;
+  std::uniform_real_distribution<double> doubleDistribution;
+  std::mt19937_64 mt;
+  std::random_device gen;
+
+
   ::pPack::Window* primaryWindow = nullptr;
   ::pumpkin::Camera* primaryCamera = nullptr;
   std::string exePath = "";
@@ -36,6 +43,13 @@ struct Pumpkin {
   bool running = false;
 
   ::pumpkin::RuntimeSettings runtime = ::pumpkin::RuntimeSettings();
+
+
+  Pumpkin() {
+    mt = std::mt19937_64(gen());
+    floatDistribution = std::uniform_real_distribution<float>(0.0f, 1.0f);
+    doubleDistribution = std::uniform_real_distribution<double>(0.0, 1.0);
+  }
 };
 
 

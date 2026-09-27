@@ -7,15 +7,16 @@
 
 namespace pumpkin {
 
-inline constexpr std::hash<std::string> _STRING_HASHER = std::hash<std::string>();
+inline constexpr std::hash<std::string> _PR_STRING_HASHER = std::hash<std::string>();
 
-inline constexpr double _PI = 3.1415926535897932384626433832795;
-inline constexpr double _DEG_TO_RAD = _PI / 180.0;
-inline constexpr double _RAD_TO_DEG = 180.0 / _PI;
+inline constexpr double _PR_PI = 3.1415926535897932384626433832795;
+inline constexpr double _PR_DEG_TO_RAD = _PR_PI / 180.0;
+inline constexpr double _PR_RAD_TO_DEG = 180.0 / _PR_PI;
 
 inline constexpr double _PR_DELTA = 1e-8;
 
-inline constexpr ::pPack::Vector3 _UP = {0, 1, 0};
+inline constexpr ::pPack::Vector3 _PR_UP = {0, 1, 0};
+inline constexpr ::pPack::DVector3 _PR_DUP = {0, 1, 0};
 
 inline constexpr char _PR_BACKSPACE = 0x08;
 inline constexpr char _PR_ESCAPE = 0x1B;

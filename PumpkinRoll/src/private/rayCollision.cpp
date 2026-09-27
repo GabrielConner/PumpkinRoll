@@ -45,24 +45,24 @@ ExplodedObjectList Pumpkin_ExplodeAllObjects() {
     Transform_GenerateModel(obj->transform, *(MatrixWrapper*)(&model));
 
 
-    for (size_t index = 0; index < mesh->vertexCount; index+=3) {
+    for (size_t index = 0; index < mesh->vertexCount; index += 3) {
       CollisionTriangle* triangle = new CollisionTriangle();
-      Vector3* vertexOrigin = (Vector3*)((char*)mesh->vertices + position->relativeOffset + (index * format.vertexStride));
-      Vector3* u = (Vector3*)((char*)mesh->vertices + position->relativeOffset + ((index + 1) * format.vertexStride));
-      Vector3* v = (Vector3*)((char*)mesh->vertices + position->relativeOffset + ((index + 2) * format.vertexStride));
+      Vector3 vertexOrigin = *(Vector3*)((char*)mesh->vertices + position->relativeOffset + (index * format.vertexStride));
+      Vector3 u = *(Vector3*)((char*)mesh->vertices + position->relativeOffset + ((index + 1) * format.vertexStride));
+      Vector3 v = *(Vector3*)((char*)mesh->vertices + position->relativeOffset + ((index + 2) * format.vertexStride));
 
-      glm::vec4 moveVertexOrigin = model * glm::vec4(vertexOrigin->x, vertexOrigin->y, vertexOrigin->z, 1);
-      glm::vec4 moveU = model * glm::vec4(u->x, u->y, u->z, 1);
-      glm::vec4 moveV = model * glm::vec4(v->x, v->y, v->z, 1);
+      glm::vec4 moveVertexOrigin = model * glm::vec4(vertexOrigin.x, vertexOrigin.y, vertexOrigin.z, 1);
+      glm::vec4 moveU = model * glm::vec4(u.x, u.y, u.z, 1);
+      glm::vec4 moveV = model * glm::vec4(v.x, v.y, v.z, 1);
 
-      *vertexOrigin = *(Vector3*)&moveVertexOrigin;
-      *u = (*(Vector3*)&moveU) - *vertexOrigin;
-      *v = (*(Vector3*)&moveV) - *vertexOrigin;
+      vertexOrigin = *(Vector3*)&moveVertexOrigin;
+      u = (*(Vector3*)&moveU) - vertexOrigin;
+      v = (*(Vector3*)&moveV) - vertexOrigin;
 
 
-      triangle->origin = vertexOrigin->ConvertTo<double>();
-      triangle->u = u->ConvertTo<double>();
-      triangle->v = v->ConvertTo<double>();
+      triangle->origin = vertexOrigin.ConvertTo<double>();
+      triangle->u = u.ConvertTo<double>();
+      triangle->v = v.ConvertTo<double>();
       triangle->object = obj;
 
       CollisionTemplatePlane_Construct(*triangle);
@@ -75,10 +75,56 @@ ExplodedObjectList Pumpkin_ExplodeAllObjects() {
 
 
 
+void Pumpkin_ExplodeObjectIntoList(Object* object, Object* connectedObject, std::vector<CollisionObject*>& list) {
+  Object* collisionObject = connectedObject ? connectedObject : object;
+
+  pObjDefInt(object, i);
+
+  if (i->model == nullptr) return;
+
+  Mesh const* const mesh = i->model->mesh;
+  if (mesh == nullptr) return;
+
+  if ((mesh->vertexCount % 3) != 0) return; // Assumes triangles, still make sure has triangle number of vertices
+
+  Format format = Mesh_GetInfo(mesh).format;
+  FormatStartInfo const*const position = Format_GetAttributeOfName(format, AttributeName::POSITION);
+  if (position == nullptr) return;
+
+
+  glm::mat4 model = glm::mat4(1);
+  Transform_GenerateModel(object->transform, *(MatrixWrapper*)(&model));
+
+  for (size_t index = 0; index < mesh->vertexCount; index += 3) {
+    CollisionTriangle* triangle = new CollisionTriangle();
+    Vector3 vertexOrigin = *(Vector3*)((char*)mesh->vertices + position->relativeOffset + (index * format.vertexStride));
+    Vector3 u = *(Vector3*)((char*)mesh->vertices + position->relativeOffset + ((index + 1) * format.vertexStride));
+    Vector3 v = *(Vector3*)((char*)mesh->vertices + position->relativeOffset + ((index + 2) * format.vertexStride));
+
+    glm::vec4 moveVertexOrigin = model * glm::vec4(vertexOrigin.x, vertexOrigin.y, vertexOrigin.z, 1);
+    glm::vec4 moveU = model * glm::vec4(u.x, u.y, u.z, 1);
+    glm::vec4 moveV = model * glm::vec4(v.x, v.y, v.z, 1);
+
+    vertexOrigin = *(Vector3*)&moveVertexOrigin;
+    u = (*(Vector3*)&moveU) - vertexOrigin;
+    v = (*(Vector3*)&moveV) - vertexOrigin;
+
+
+    triangle->origin = vertexOrigin.ConvertTo<double>();
+    triangle->u = u.ConvertTo<double>();
+    triangle->v = v.ConvertTo<double>();
+    triangle->object = collisionObject;
+
+    CollisionTemplatePlane_Construct(*triangle);
+    list.push_back(triangle);
+  }
+}
+
+
+
 bool Pumpkin_CastRay(Ray const& ray, RayHitInfo& hit) {
   ExplodedObjectList list = Pumpkin_WrapBVHNodesAround(Pumpkin_ExplodeAllObjects());
   bool ret = Pumpkin_CastRayInto(ray, hit, list);
-  ExplodedObjectList_DeleteAll(list);
   return ret;
 }
 
@@ -113,6 +159,11 @@ ExplodedObjectList Pumpkin_WrapBVHNodesAround(ExplodedObjectList const& list) {
 }
 
 
+
+void RayHitInfo_SetFaceNormal(::pumpkin::RayHitInfo& info, ::pumpkin::Ray const& ray, ::pPack::DVector3 outwardNormal) {
+  info.frontFace = DVector3::Dot(ray.direction, outwardNormal) < 0;
+  info.normal = info.frontFace ? outwardNormal : -outwardNormal;
+}
 
 
 
@@ -166,8 +217,8 @@ bool Interval_Contains(Interval const& interval, double value) {
 
 
 double Interval_Clamp(Interval const& interval, double value) {
-  if (interval.min < value) return interval.min;
-  if (interval.max > value) return interval.max;
+  if (interval.min > value) return interval.min;
+  if (interval.max < value) return interval.max;
   return value;
 }
 

@@ -31,10 +31,12 @@ struct ObjectInternal {
 };
 
 struct CameraInternal {
-  ::pPack::Vector3* lookAt;
+  ::pPack::Vector3* lookAtTarget;
+  ::pPack::Vector3 lookAt;
   ::pPack::Vector3 forward;
   ::pPack::Vector3 right;
   bool angleBased = false;
+  bool lookAtConstant = false;
 };
 
 

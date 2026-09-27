@@ -3,6 +3,7 @@
 main.cpp
 *.zip
 pumpkinBuild/
+libraryBuild/
 
 library/
 assimp-vc143-mt.dll

@@ -75,7 +75,7 @@ void SaveData::Pull(Pumpkin* pumpkin, std::unordered_map<size_t, Object*> const&
     CopyPropertyHolder(shader->properties, save.properties);
     save.name = shader->name;
 
-    shaderSaves.insert({_STRING_HASHER(save.name), save});
+    shaderSaves.insert({_PR_STRING_HASHER(save.name), save});
   }
 
 
@@ -88,7 +88,7 @@ void SaveData::Pull(Pumpkin* pumpkin, std::unordered_map<size_t, Object*> const&
     save.mesh = model->mesh->name;
     save.name = model->name;
 
-    modelSaves.insert({_STRING_HASHER(save.name), save});
+    modelSaves.insert({_PR_STRING_HASHER(save.name), save});
   }
 
 
@@ -105,7 +105,7 @@ void SaveData::Pull(Pumpkin* pumpkin, std::unordered_map<size_t, Object*> const&
 
     CopyObjectToSave(camera, save.objectInfo);
 
-    cameraSaves.insert({_STRING_HASHER(save.objectInfo.name), save});
+    cameraSaves.insert({_PR_STRING_HASHER(save.objectInfo.name), save});
   }
   Camera* pCam = Pumpkin_GetPrimaryCamera();
   if (pCam) {
@@ -122,13 +122,13 @@ void SaveData::Pull(Pumpkin* pumpkin, std::unordered_map<size_t, Object*> const&
 
     ObjectSaveData save;
     CopyObjectToSave(object, save);
-    if (runtimeObjects.contains(_STRING_HASHER(save.name))) {
+    if (runtimeObjects.contains(_PR_STRING_HASHER(save.name))) {
       save.runtime = true;
     } else {
       save.runtime = false;
     }
 
-    objectSaves.insert({_STRING_HASHER(save.name), save});
+    objectSaves.insert({_PR_STRING_HASHER(save.name), save});
   }
 }
 
@@ -226,7 +226,7 @@ void SaveData::Push(Pumpkin* pumpkin, std::unordered_map<size_t, Object*>& runti
     }
     object->transform = save.transform;
     if (save.runtime) {
-      runtimeObjects.insert({_STRING_HASHER(save.name), object});
+      runtimeObjects.insert({_PR_STRING_HASHER(save.name), object});
     }
   }
 }
@@ -346,7 +346,7 @@ bool SaveData::Load(std::string const& name) {
     save.name = ReadString(stream); // Name of shader
     if (!ReadProperties(stream, save.properties)) continue;
 
-    shaderSaves.insert({_STRING_HASHER(save.name), save});
+    shaderSaves.insert({_PR_STRING_HASHER(save.name), save});
   };
 
 
@@ -359,7 +359,7 @@ bool SaveData::Load(std::string const& name) {
     save.mesh = ReadString(stream); // LoadedModelMesh name
     if (!ReadProperties(stream, save.properties)) continue;
 
-    modelSaves.insert({_STRING_HASHER(save.name), save});
+    modelSaves.insert({_PR_STRING_HASHER(save.name), save});
   }
 
 
@@ -379,7 +379,7 @@ bool SaveData::Load(std::string const& name) {
     ObjectSaveData& object = save.objectInfo;
     if (!ReadObject(stream, object)) continue;
 
-    cameraSaves.insert({_STRING_HASHER(save.objectInfo.name), save});
+    cameraSaves.insert({_PR_STRING_HASHER(save.objectInfo.name), save});
   }
 
 
@@ -391,7 +391,7 @@ bool SaveData::Load(std::string const& name) {
     object.name = ReadString(stream); // Name of object
     if (!ReadObject(stream, object)) continue;
 
-    objectSaves.insert({_STRING_HASHER(object.name), object});
+    objectSaves.insert({_PR_STRING_HASHER(object.name), object});
   }
 
 
@@ -609,7 +609,7 @@ bool SaveData::ReadProperties(std::istream& stream, PropertyHolder& properties) 
 
     property.typeSize = size;
     ReadStream(stream, property.prop, size); // Property data
-    properties.properties.insert({_STRING_HASHER(property.name), property});
+    properties.properties.insert({_PR_STRING_HASHER(property.name), property});
   }
 
   return true;
@@ -1004,7 +1004,7 @@ void CopyObjectToSave(Object* obj, ObjectSaveData& data) {
       scriptSave.properties.push_back(propSave);
     }
 
-    data.scripts.insert({_STRING_HASHER(script.name), scriptSave});
+    data.scripts.insert({_PR_STRING_HASHER(script.name), scriptSave});
   }
 }
 
@@ -1024,7 +1024,7 @@ void CopyPropertyHolder(PropertyHolder& from, PropertyHolder& to) {
     }
     memcpy(data, prop.prop, prop.typeSize);
 
-    to.properties.insert({_STRING_HASHER(prop.name), Property(prop.name, data, prop.type)});
+    to.properties.insert({_PR_STRING_HASHER(prop.name), Property(prop.name, data, prop.type)});
   }
 }
 

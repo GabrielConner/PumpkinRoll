@@ -1,7 +1,7 @@
 /*
 *
 * Function Declarations Source
-* Built 2026-08-31 04:04 PM
+* Built 2026-09-22 11:00 AM
 *
 */
 
@@ -20,9 +20,17 @@ FPPUMPKIN_TOTALTIME Pumpkin_TotalTime = NULL;
 FPPUMPKIN_STARTMEMORYIGNOREBLOCK Pumpkin_StartMemoryIgnoreBlock = NULL;
 FPPUMPKIN_ENDMEMORYIGNOREBLOCK Pumpkin_EndMemoryIgnoreBlock = NULL;
 FPPUMPKIN_EXPLODEALLOBJECTS Pumpkin_ExplodeAllObjects = NULL;
+FPPUMPKIN_EXPLODEOBJECTINTOLIST Pumpkin_ExplodeObjectIntoList = NULL;
 FPPUMPKIN_CASTRAY Pumpkin_CastRay = NULL;
 FPPUMPKIN_CASTRAYINTO Pumpkin_CastRayInto = NULL;
 FPPUMPKIN_WRAPBVHNODESAROUND Pumpkin_WrapBVHNodesAround = NULL;
+FPPUMPKIN_RANDOMFLOAT Pumpkin_RandomFloat = NULL;
+FPPUMPKIN_RANDOMFLOATINRANGE Pumpkin_RandomFloatInRange = NULL;
+FPPUMPKIN_RANDOMDOUBLE Pumpkin_RandomDouble = NULL;
+FPPUMPKIN_RANDOMDOUBLEINRANGE Pumpkin_RandomDoubleInRange = NULL;
+FPPUMPKIN_RANDOMVECTOR3 Pumpkin_RandomVector3 = NULL;
+FPPUMPKIN_RANDOMDVECTOR3 Pumpkin_RandomDVector3 = NULL;
+FPRAYHITINFO_SETFACENORMAL RayHitInfo_SetFaceNormal = NULL;
 FPRAY_AT Ray_At = NULL;
 FPINTERVAL_SIZE Interval_Size = NULL;
 FPINTERVAL_EXPAND Interval_Expand = NULL;
@@ -34,7 +42,7 @@ FPAABB_GENERATEFROMOBJECTS AABB_GenerateFromObjects = NULL;
 FPAABB_GENERATEFROMPOINTS AABB_GenerateFromPoints = NULL;
 FPAABB_PADTOMINIMUMS AABB_PadToMinimums = NULL;
 FPAABB_LONGESTAXIS AABB_LongestAxis = NULL;
-FPCONST&AABB_AXISINTERVAL const&AABB_AxisInterval = NULL;
+FPAABB_AXISINTERVAL AABB_AxisInterval = NULL;
 FPAABB_OFFSET AABB_Offset = NULL;
 FPAABB_COMBINE AABB_Combine = NULL;
 FPAABB_EXPAND AABB_Expand = NULL;
@@ -64,13 +72,19 @@ FPCAMERA_GENERATEVIEW Camera_GenerateView = NULL;
 FPCAMERA_GENERATEPROJECTION Camera_GenerateProjection = NULL;
 FPCAMERA_FORWARD Camera_Forward = NULL;
 FPCAMERA_RIGHT Camera_Right = NULL;
+FPCAMERA_START Camera_Start = NULL;
+FPCAMERA_UPDATE Camera_Update = NULL;
 FPCAMERA_GETANGLEBASED Camera_GetAngleBased = NULL;
 FPCAMERA_ANGLEBASED Camera_AngleBased = NULL;
 FPCAMERA_LOOKATTARGET Camera_LookAtTarget = NULL;
 FPCAMERA_GETLOOKATTARGET Camera_GetLookAtTarget = NULL;
+FPCAMERA_LOOKAT Camera_LookAt = NULL;
+FPCAMERA_LOOKATCONSTANT Camera_LookAtConstant = NULL;
+FPCAMERA_GETLOOKATCONSTANT Camera_GetLookAtConstant = NULL;
+FPCAMERA_GETLOOKAT Camera_GetLookAt = NULL;
 FPPUMPKIN_REGISTERFORMAT Pumpkin_RegisterFormat = NULL;
 FPPUMPKIN_GETFORMAT Pumpkin_GetFormat = NULL;
-FPCONST*CONSTFORMAT_GETATTRIBUTEOFNAME const*constFormat_GetAttributeOfName = NULL;
+FPFORMAT_GETATTRIBUTEOFNAME Format_GetAttributeOfName = NULL;
 FPPUMPKIN_REGISTERMESH Pumpkin_RegisterMesh = NULL;
 FPPUMPKIN_GETMESH Pumpkin_GetMesh = NULL;
 FPPUMPKIN_APPLYSTATICBUFFER Pumpkin_ApplyStaticBuffer = NULL;
@@ -119,9 +133,17 @@ bool LoadFunctions(PROCADDRESSFUNC proc) {
   Pumpkin_StartMemoryIgnoreBlock = (FPPUMPKIN_STARTMEMORYIGNOREBLOCK)proc("Pumpkin_StartMemoryIgnoreBlock"); if (!Pumpkin_StartMemoryIgnoreBlock) return false;
   Pumpkin_EndMemoryIgnoreBlock = (FPPUMPKIN_ENDMEMORYIGNOREBLOCK)proc("Pumpkin_EndMemoryIgnoreBlock"); if (!Pumpkin_EndMemoryIgnoreBlock) return false;
   Pumpkin_ExplodeAllObjects = (FPPUMPKIN_EXPLODEALLOBJECTS)proc("Pumpkin_ExplodeAllObjects"); if (!Pumpkin_ExplodeAllObjects) return false;
+  Pumpkin_ExplodeObjectIntoList = (FPPUMPKIN_EXPLODEOBJECTINTOLIST)proc("Pumpkin_ExplodeObjectIntoList"); if (!Pumpkin_ExplodeObjectIntoList) return false;
   Pumpkin_CastRay = (FPPUMPKIN_CASTRAY)proc("Pumpkin_CastRay"); if (!Pumpkin_CastRay) return false;
   Pumpkin_CastRayInto = (FPPUMPKIN_CASTRAYINTO)proc("Pumpkin_CastRayInto"); if (!Pumpkin_CastRayInto) return false;
   Pumpkin_WrapBVHNodesAround = (FPPUMPKIN_WRAPBVHNODESAROUND)proc("Pumpkin_WrapBVHNodesAround"); if (!Pumpkin_WrapBVHNodesAround) return false;
+  Pumpkin_RandomFloat = (FPPUMPKIN_RANDOMFLOAT)proc("Pumpkin_RandomFloat"); if (!Pumpkin_RandomFloat) return false;
+  Pumpkin_RandomFloatInRange = (FPPUMPKIN_RANDOMFLOATINRANGE)proc("Pumpkin_RandomFloatInRange"); if (!Pumpkin_RandomFloatInRange) return false;
+  Pumpkin_RandomDouble = (FPPUMPKIN_RANDOMDOUBLE)proc("Pumpkin_RandomDouble"); if (!Pumpkin_RandomDouble) return false;
+  Pumpkin_RandomDoubleInRange = (FPPUMPKIN_RANDOMDOUBLEINRANGE)proc("Pumpkin_RandomDoubleInRange"); if (!Pumpkin_RandomDoubleInRange) return false;
+  Pumpkin_RandomVector3 = (FPPUMPKIN_RANDOMVECTOR3)proc("Pumpkin_RandomVector3"); if (!Pumpkin_RandomVector3) return false;
+  Pumpkin_RandomDVector3 = (FPPUMPKIN_RANDOMDVECTOR3)proc("Pumpkin_RandomDVector3"); if (!Pumpkin_RandomDVector3) return false;
+  RayHitInfo_SetFaceNormal = (FPRAYHITINFO_SETFACENORMAL)proc("RayHitInfo_SetFaceNormal"); if (!RayHitInfo_SetFaceNormal) return false;
   Ray_At = (FPRAY_AT)proc("Ray_At"); if (!Ray_At) return false;
   Interval_Size = (FPINTERVAL_SIZE)proc("Interval_Size"); if (!Interval_Size) return false;
   Interval_Expand = (FPINTERVAL_EXPAND)proc("Interval_Expand"); if (!Interval_Expand) return false;
@@ -133,7 +155,7 @@ bool LoadFunctions(PROCADDRESSFUNC proc) {
   AABB_GenerateFromPoints = (FPAABB_GENERATEFROMPOINTS)proc("AABB_GenerateFromPoints"); if (!AABB_GenerateFromPoints) return false;
   AABB_PadToMinimums = (FPAABB_PADTOMINIMUMS)proc("AABB_PadToMinimums"); if (!AABB_PadToMinimums) return false;
   AABB_LongestAxis = (FPAABB_LONGESTAXIS)proc("AABB_LongestAxis"); if (!AABB_LongestAxis) return false;
-  const&AABB_AxisInterval = (FPCONST&AABB_AXISINTERVAL)proc("const&AABB_AxisInterval"); if (!const&AABB_AxisInterval) return false;
+  AABB_AxisInterval = (FPAABB_AXISINTERVAL)proc("AABB_AxisInterval"); if (!AABB_AxisInterval) return false;
   AABB_Offset = (FPAABB_OFFSET)proc("AABB_Offset"); if (!AABB_Offset) return false;
   AABB_Combine = (FPAABB_COMBINE)proc("AABB_Combine"); if (!AABB_Combine) return false;
   AABB_Expand = (FPAABB_EXPAND)proc("AABB_Expand"); if (!AABB_Expand) return false;
@@ -163,13 +185,19 @@ bool LoadFunctions(PROCADDRESSFUNC proc) {
   Camera_GenerateProjection = (FPCAMERA_GENERATEPROJECTION)proc("Camera_GenerateProjection"); if (!Camera_GenerateProjection) return false;
   Camera_Forward = (FPCAMERA_FORWARD)proc("Camera_Forward"); if (!Camera_Forward) return false;
   Camera_Right = (FPCAMERA_RIGHT)proc("Camera_Right"); if (!Camera_Right) return false;
+  Camera_Start = (FPCAMERA_START)proc("Camera_Start"); if (!Camera_Start) return false;
+  Camera_Update = (FPCAMERA_UPDATE)proc("Camera_Update"); if (!Camera_Update) return false;
   Camera_GetAngleBased = (FPCAMERA_GETANGLEBASED)proc("Camera_GetAngleBased"); if (!Camera_GetAngleBased) return false;
   Camera_AngleBased = (FPCAMERA_ANGLEBASED)proc("Camera_AngleBased"); if (!Camera_AngleBased) return false;
   Camera_LookAtTarget = (FPCAMERA_LOOKATTARGET)proc("Camera_LookAtTarget"); if (!Camera_LookAtTarget) return false;
   Camera_GetLookAtTarget = (FPCAMERA_GETLOOKATTARGET)proc("Camera_GetLookAtTarget"); if (!Camera_GetLookAtTarget) return false;
+  Camera_LookAt = (FPCAMERA_LOOKAT)proc("Camera_LookAt"); if (!Camera_LookAt) return false;
+  Camera_LookAtConstant = (FPCAMERA_LOOKATCONSTANT)proc("Camera_LookAtConstant"); if (!Camera_LookAtConstant) return false;
+  Camera_GetLookAtConstant = (FPCAMERA_GETLOOKATCONSTANT)proc("Camera_GetLookAtConstant"); if (!Camera_GetLookAtConstant) return false;
+  Camera_GetLookAt = (FPCAMERA_GETLOOKAT)proc("Camera_GetLookAt"); if (!Camera_GetLookAt) return false;
   Pumpkin_RegisterFormat = (FPPUMPKIN_REGISTERFORMAT)proc("Pumpkin_RegisterFormat"); if (!Pumpkin_RegisterFormat) return false;
   Pumpkin_GetFormat = (FPPUMPKIN_GETFORMAT)proc("Pumpkin_GetFormat"); if (!Pumpkin_GetFormat) return false;
-  const*constFormat_GetAttributeOfName = (FPCONST*CONSTFORMAT_GETATTRIBUTEOFNAME)proc("const*constFormat_GetAttributeOfName"); if (!const*constFormat_GetAttributeOfName) return false;
+  Format_GetAttributeOfName = (FPFORMAT_GETATTRIBUTEOFNAME)proc("Format_GetAttributeOfName"); if (!Format_GetAttributeOfName) return false;
   Pumpkin_RegisterMesh = (FPPUMPKIN_REGISTERMESH)proc("Pumpkin_RegisterMesh"); if (!Pumpkin_RegisterMesh) return false;
   Pumpkin_GetMesh = (FPPUMPKIN_GETMESH)proc("Pumpkin_GetMesh"); if (!Pumpkin_GetMesh) return false;
   Pumpkin_ApplyStaticBuffer = (FPPUMPKIN_APPLYSTATICBUFFER)proc("Pumpkin_ApplyStaticBuffer"); if (!Pumpkin_ApplyStaticBuffer) return false;

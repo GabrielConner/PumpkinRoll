@@ -7,7 +7,6 @@
 #include "private/model.h"
 #include "private/shader.h"
 #include "private/pumpkinRoll.h"
-#include "private/camera.h"
 #include "private/devSaveData.h"
 #include "private/fileManager.h"
 
@@ -540,7 +539,7 @@ void StartDevelopment() {
   data->pumpkin = GetPumpkin();
   data->ask = &data->mainMenu;
 
-  StartCamera(&data->devCamera);
+  Camera_Start(&data->devCamera);
 
   data->devCamera.transform.position.z = 5;
 
@@ -624,7 +623,7 @@ void UpdateDevelopment(ScriptUpdateInfo const& info) {
 
 
   data->inDevCamera = Pumpkin_GetPrimaryCamera() == &data->devCamera;
-  UpdateCamera(&data->devCamera);
+  Camera_Update(&data->devCamera);
 
 
   if (info.window && info.window->GetInput(GLFW_KEY_B).pressed) { // Can be used by prompts for special stuff, just a hack for now
@@ -646,12 +645,12 @@ void UpdateDevelopment(ScriptUpdateInfo const& info) {
 
         // So no referencing a deleted object stuff happens
         Object_AddDeleteCallback(data->lookAtObject, LookAtObjectDelete, 0);
-        pCamInt((&data->devCamera))->lookAt = &data->holdingObject->transform.position;
+        pCamInt((&data->devCamera))->lookAtTarget = &data->holdingObject->transform.position;
 
         // Move to object
         data->devCamera.transform.position = (data->devCamera.transform.position - data->holdingObject->transform.position).Normal() * 5 + data->holdingObject->transform.position;
       } else {
-        pCamInt((&data->devCamera))->lookAt = nullptr;
+        pCamInt((&data->devCamera))->lookAtTarget = nullptr;
       }
     }
 
@@ -694,10 +693,10 @@ void UpdateDevelopment(ScriptUpdateInfo const& info) {
         data->devCamera.transform.position += camRight * data->pumpkin->deltaTime * data->moveSpeed;
       }
       if (info.window->GetInput(GLFW_KEY_Q).held) {
-        data->devCamera.transform.position -= _UP * data->pumpkin->deltaTime * data->moveSpeed;
+        data->devCamera.transform.position -= _PR_UP * data->pumpkin->deltaTime * data->moveSpeed;
       }
       if (info.window->GetInput(GLFW_KEY_E).held) {
-        data->devCamera.transform.position += _UP * data->pumpkin->deltaTime * data->moveSpeed;
+        data->devCamera.transform.position += _PR_UP * data->pumpkin->deltaTime * data->moveSpeed;
       }
 
 
@@ -904,8 +903,14 @@ void RenderDevelopment() {
 
   glm::mat4 view = glm::mat4(1);
   pCamDefInt(cam, i);
-  Vector3 forward = i->lookAt ? *i->lookAt - cam->transform.position : i->forward;
-  view = glm::lookAt(glm::vec3(0, cam->transform.position.y,0), glm::vec3(forward.x, forward.y + cam->transform.position.y, forward.z), glm::vec3(_UP.x, _UP.y, _UP.z));
+  Vector3 lookAt;
+  Vector3 forward;
+  if (Camera_GetLookAt(cam, lookAt)) {
+    forward = lookAt - cam->transform.position;
+  } else {
+    forward = i->forward;
+  }
+  view = glm::lookAt(glm::vec3(0, cam->transform.position.y,0), glm::vec3(forward.x, forward.y + cam->transform.position.y, forward.z), glm::vec3(_PR_UP.x, _PR_UP.y, _PR_UP.z));
 
 
   ShaderHandler::SetMat4("proj", (float*)&cam->proj);
@@ -1173,7 +1178,7 @@ void CreateObject::Prompt(int i, std::string const& line) {
       return;
     }
 
-    data->runtimeObjects.insert({_STRING_HASHER(line), render});
+    data->runtimeObjects.insert({_PR_STRING_HASHER(line), render});
 
     // Isn't part of the selecting cycle stuff so can be direct
     data->holdingObject = render;
@@ -1890,7 +1895,7 @@ void SelectProperty::Prompt(int i, std::string const& line) {
       return;
     }
 
-    auto find = data->holdingPropertyHolder->properties.find(_STRING_HASHER(str));
+    auto find = data->holdingPropertyHolder->properties.find(_PR_STRING_HASHER(str));
     if (find == data->holdingPropertyHolder->properties.end()) {
       AddError("Failed to find property");
       data->SetAsk(&data->selectProperty, false);
@@ -2444,7 +2449,7 @@ void LookAtObjectDelete(Object* obj, int id) {
   assert(data);
 
   data->lookAtObject = nullptr;
-  pCamInt((&data->devCamera))->lookAt = nullptr;
+  pCamInt((&data->devCamera))->lookAtTarget = nullptr;
 }
 
 

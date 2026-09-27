@@ -3,7 +3,6 @@
 #include "private/pumpkinRoll.h"
 #include "private/fileManager.h"
 #include "private/shader.h"
-#include "private/camera.h"
 #include "private/mesh.h"
 #include "private/model.h"
 #include "private/propertyHolder.h"
@@ -28,6 +27,7 @@
 #include <vector>
 #include <filesystem>
 #include <assert.h>
+#include <random>
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -324,10 +324,6 @@ void Pumpkin_Update() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glFinish();
 
-    for (auto& cam : pumpkinData->registeredCameras) {
-      UpdateCamera(cam.second);
-    }
-
     ScriptUpdateInfo scriptUpdateInfo;
     scriptUpdateInfo.deltaTime = pumpkinData->deltaTime;
     scriptUpdateInfo.totalTime = pumpkinData->totalTime;
@@ -498,6 +494,47 @@ void Pumpkin_EndMemoryIgnoreBlock() {
 
 
 
+float Pumpkin_RandomFloat() {
+  pPumpkinCheck(0);
+  return pumpkinData->floatDistribution(pumpkinData->mt);
+}
+
+
+
+float Pumpkin_RandomFloatInRange(float min, float max) {
+  pPumpkinCheck(0);
+  return min + (max - min) * pumpkinData->floatDistribution(pumpkinData->mt);
+}
+
+
+
+double Pumpkin_RandomDouble() {
+  pPumpkinCheck(0);
+  return pumpkinData->doubleDistribution(pumpkinData->mt);
+}
+
+
+
+double Pumpkin_RandomDoubleInRange(double min, double max) {
+  pPumpkinCheck(0);
+  return min + (max - min) * pumpkinData->doubleDistribution(pumpkinData->mt);
+}
+
+
+
+::pPack::Vector3 Pumpkin_RandomVector3() {
+  return Vector3(pumpkinData->floatDistribution(pumpkinData->mt), pumpkinData->floatDistribution(pumpkinData->mt), pumpkinData->floatDistribution(pumpkinData->mt));
+}
+
+
+
+::pPack::DVector3 Pumpkin_RandomDVector3() {
+  return DVector3(pumpkinData->doubleDistribution(pumpkinData->mt), pumpkinData->doubleDistribution(pumpkinData->mt), pumpkinData->doubleDistribution(pumpkinData->mt));
+}
+
+
+
+
 
 // Object
 // --------------------------------------------------
@@ -511,7 +548,7 @@ Object* Pumpkin_RegisterObject(std::string const& name) {
     return nullptr;
   }
 
-  auto ret = pumpkinData->registeredObjects.insert({_STRING_HASHER(name), nullptr});
+  auto ret = pumpkinData->registeredObjects.insert({_PR_STRING_HASHER(name), nullptr});
   if (!ret.second) {
     pWarn("Object already exists with same name");
     return nullptr;
@@ -536,7 +573,7 @@ Object* Pumpkin_RegisterObject(std::string const& name) {
 Object* Pumpkin_GetObject(std::string const& name) {
   pPumpkinCheck(nullptr);
 
-  auto ret = pumpkinData->registeredObjects.find(_STRING_HASHER(name));
+  auto ret = pumpkinData->registeredObjects.find(_PR_STRING_HASHER(name));
   return ret == pumpkinData->registeredObjects.end() ? nullptr : ret->second;
 }
 
@@ -545,7 +582,7 @@ Object* Pumpkin_GetObject(std::string const& name) {
 bool Pumpkin_DeleteObject(std::string const& name) {
   pPumpkinCheck(false);
 
-  auto ret = pumpkinData->registeredObjects.find(_STRING_HASHER(name));
+  auto ret = pumpkinData->registeredObjects.find(_PR_STRING_HASHER(name));
   if (ret == pumpkinData->registeredObjects.end()) {
     pWarn("Object does not exist with name");
     return false;
@@ -603,7 +640,7 @@ Script* Object_AddScript(Object* object, std::string const& name) {
     return nullptr;
   }
 
-  auto ret = pObjExt(object)->scripts.insert({_STRING_HASHER(name), ScriptAddPair(script, name)});
+  auto ret = pObjExt(object)->scripts.insert({_PR_STRING_HASHER(name), ScriptAddPair(script, name)});
   if (!ret.second) {
     delete(script);
     pWarn("Script already exists on object");
@@ -625,7 +662,7 @@ Script* Object_GetScript(Object* object, std::string const& name) {
 
   pObjDefExt(object, ext);
   
-  auto find = ext->scripts.find(_STRING_HASHER(name));
+  auto find = ext->scripts.find(_PR_STRING_HASHER(name));
   if (find == ext->scripts.end()) { 
     pWarn("Script does not exist with name on object");
     return nullptr;
@@ -641,7 +678,7 @@ bool Object_RemoveScript(Object* object, std::string const& name) {
 
   pObjDefExt(object, ext);
 
-  auto find = ext->scripts.find(_STRING_HASHER(name));
+  auto find = ext->scripts.find(_PR_STRING_HASHER(name));
   if (find == ext->scripts.end()) {
     pWarn("Script does not exist with name on object");
     return false;
@@ -750,12 +787,12 @@ Camera* Pumpkin_RegisterCamera(std::string const& name) {
 
   // prtodo deleting a camera does not remove from registeredCameras within Pumpkin_DeleteObject
 
-  auto ret = pumpkinData->registeredCameras.insert({_STRING_HASHER(name), nullptr});
+  auto ret = pumpkinData->registeredCameras.insert({_PR_STRING_HASHER(name), nullptr});
   if (!ret.second) {
     pWarn("Camera already exists with same name");
     return nullptr;
   };
-  auto objRet = pumpkinData->registeredObjects.insert({_STRING_HASHER(name), nullptr});
+  auto objRet = pumpkinData->registeredObjects.insert({_PR_STRING_HASHER(name), nullptr});
   if (!objRet.second) {
     pWarn("Object already exists with same name");
     return nullptr;
@@ -764,8 +801,6 @@ Camera* Pumpkin_RegisterCamera(std::string const& name) {
   Camera* cam = new Camera();
   ret.first->second = cam;
   objRet.first->second = cam;
-
-  StartCamera(cam);
 
   pObjDefInt(ret.first->second, i);
 
@@ -783,7 +818,7 @@ Camera* Pumpkin_RegisterCamera(std::string const& name) {
 Camera* Pumpkin_GetCamera(std::string const& name) {
   pPumpkinCheck(nullptr);
 
-  auto ret = pumpkinData->registeredCameras.find(_STRING_HASHER(name));
+  auto ret = pumpkinData->registeredCameras.find(_PR_STRING_HASHER(name));
   return ret == pumpkinData->registeredCameras.end() ? nullptr : ret->second;
 }
 
@@ -810,14 +845,14 @@ void Camera_GenerateView(Camera* camera) {
   pNullCheck(camera);
 
   pCamDefInt(camera, i);
-  Vector3 lookAt = i->lookAt ? *i->lookAt : camera->transform.position + i->forward;
+  Vector3 lookAt = (i->lookAtConstant) ? i->lookAt : i->lookAtTarget ? *i->lookAtTarget : camera->transform.position + i->forward;
 
   camera->view = MatrixWrapper();
   glm::highp_mat4* data = (glm::highp_mat4*)&camera->view;
 
 
   // Easier than trying to fix 'rotate'
-  *data = glm::lookAt(glm::vec3(camera->transform.position.x, camera->transform.position.y, camera->transform.position.z), glm::vec3(lookAt.x, lookAt.y, lookAt.z), glm::vec3(_UP.x, _UP.y, _UP.z));
+  *data = glm::lookAt(glm::vec3(camera->transform.position.x, camera->transform.position.y, camera->transform.position.z), glm::vec3(lookAt.x, lookAt.y, lookAt.z), glm::vec3(_PR_UP.x, _PR_UP.y, _PR_UP.z));
 /*
   *data = glm::rotate(*data, glm::radians(-camera->transform.rotation.z), glm::vec3(0, 0, 1));
   *data = glm::rotate(*data, glm::radians(-camera->transform.rotation.y), glm::vec3(0, 1, 0));
@@ -851,6 +886,42 @@ Vector3* Camera_Right(Camera* camera) {
 }
 
 
+
+void Camera_Start(Camera* camera) {
+  assert(camera != nullptr);
+
+  pCamDefInt(camera, i);
+  i->forward = Vector3(0, 0, -1);
+  i->angleBased = true;
+  i->lookAtConstant = false;
+  i->lookAtTarget = nullptr;
+  i->lookAt = Vector3(0);
+  i->right = Vector3(1, 0, 0);
+}
+
+
+
+void Camera_Update(Camera* camera) {
+  assert(camera != nullptr);
+
+  pCamDefInt(camera, i);
+
+  Vector3 lookAt;
+  if (Camera_GetLookAt(camera, lookAt)) {
+    i->forward = (lookAt - camera->transform.position).Normal();
+  }
+  else if (i->angleBased) {
+    Vector3 r = camera->transform.rotation * _PR_DEG_TO_RAD;
+
+    i->forward.x = -cos(r.x) * sin(r.y);
+    i->forward.y = sin(r.x);
+    i->forward.z = -cos(r.x) * cos(r.y);
+  }
+
+  i->right = Vector3::Cross(i->forward, _PR_UP).Normal();
+}
+
+
 bool Camera_GetAngleBased(Camera* camera) {
   pNullCheck(camera, false);
   return pCamInt(camera)->angleBased;
@@ -867,14 +938,49 @@ void Camera_AngleBased(Camera* camera, bool b) {
 
 void Camera_LookAtTarget(Camera* camera, ::pPack::Vector3* target) {
   pNullCheck(camera);
-  pCamInt(camera)->lookAt = target;
+  pCamInt(camera)->lookAtTarget = target;
 }
 
 
 
 ::pPack::Vector3* Camera_GetLookAtTarget(Camera* camera) {
   pNullCheck(camera, nullptr);
-  return pCamInt(camera)->lookAt;
+  return pCamInt(camera)->lookAtTarget;
+}
+
+
+
+void Camera_LookAt(Camera* camera, ::pPack::Vector3 target) {
+  pCamInt(camera)->lookAt = target;
+}
+
+
+
+void Camera_LookAtConstant(Camera* camera, bool value) {
+  pCamInt(camera)->lookAtConstant = value;
+}
+
+
+
+bool Camera_GetLookAtConstant(Camera* camera) {
+  return pCamInt(camera)->lookAtConstant;
+}
+
+
+
+bool Camera_GetLookAt(Camera* camera, Vector3& out) {
+  pCamDefInt(camera, i);
+
+  if (i->lookAtConstant) {
+    out = i->lookAt;
+    return true;
+  }
+  if (i->lookAtTarget) {
+    out = *i->lookAtTarget;
+    return true;
+  }
+
+  return false;
 }
 
 // --------------------------------------------------
@@ -902,7 +1008,7 @@ Format Pumpkin_RegisterFormat(std::string const& name, FormatStartInfo* formatSt
   pCheckIf(count, 0, Format());
 
 
-  auto ret = pumpkinData->registeredFormats.insert({_STRING_HASHER(name), Format()});
+  auto ret = pumpkinData->registeredFormats.insert({_PR_STRING_HASHER(name), Format()});
   if (!ret.second) {
     pWarn("Format already exists with same name");
     return Format();
@@ -967,7 +1073,7 @@ Format Pumpkin_RegisterFormat(std::string const& name, FormatStartInfo* formatSt
 Format Pumpkin_GetFormat(std::string const& name) {
   pPumpkinCheck(Format());
 
-  auto ret = pumpkinData->registeredFormats.find(_STRING_HASHER(name));
+  auto ret = pumpkinData->registeredFormats.find(_PR_STRING_HASHER(name));
   return ret == pumpkinData->registeredFormats.end() ? Format() : ret->second;
 }
 
@@ -1059,7 +1165,7 @@ Mesh* Pumpkin_RegisterMesh(std::string const& name, void* vertices, size_t size,
   }
 
 
-  auto ret = pumpkinData->registeredMeshes.insert({_STRING_HASHER(name), nullptr});
+  auto ret = pumpkinData->registeredMeshes.insert({_PR_STRING_HASHER(name), nullptr});
   if (!ret.second) {
     pWarn("Mesh already exists with same name");
     return nullptr;
@@ -1101,7 +1207,7 @@ Mesh* Pumpkin_RegisterMesh(std::string const& name, void* vertices, size_t size,
 Mesh* Pumpkin_GetMesh(std::string const& name) {
   pPumpkinCheck(nullptr);
 
-  auto ret = pumpkinData->registeredMeshes.find(_STRING_HASHER(name));
+  auto ret = pumpkinData->registeredMeshes.find(_PR_STRING_HASHER(name));
   return ret == pumpkinData->registeredMeshes.end() ? nullptr : ret->second;
 }
 
@@ -1214,7 +1320,7 @@ Model* Pumpkin_RegisterModel(std::string const& name, void(*setup)()) {
     return nullptr;
   }
 
-  auto ret = pumpkinData->registeredModels.insert({_STRING_HASHER(name), 0});
+  auto ret = pumpkinData->registeredModels.insert({_PR_STRING_HASHER(name), 0});
   if (!ret.second) {
     pWarn("Model already exists with same name");
     return nullptr;
@@ -1233,7 +1339,7 @@ Model* Pumpkin_RegisterModel(std::string const& name, void(*setup)()) {
 Model* Pumpkin_GetModel(std::string const& name) {
   pPumpkinCheck(nullptr);
 
-  auto ret = pumpkinData->registeredModels.find(_STRING_HASHER(name));
+  auto ret = pumpkinData->registeredModels.find(_PR_STRING_HASHER(name));
   return ret == pumpkinData->registeredModels.end() ? nullptr : ret->second;
 }
 
@@ -1321,7 +1427,7 @@ Shader* Pumpkin_RegisterShader(std::string const& name, ShaderInfo* startInfos, 
 
 
   // Attempt insertion
-  auto ret = pumpkinData->registeredShaders.insert({_STRING_HASHER(name), nullptr});
+  auto ret = pumpkinData->registeredShaders.insert({_PR_STRING_HASHER(name), nullptr});
   if (!ret.second) {
     pWarn("Shader already exists with same name");
     return nullptr;
@@ -1344,7 +1450,7 @@ Shader* Pumpkin_RegisterShader(std::string const& name, ShaderInfo* startInfos, 
 Shader* Pumpkin_GetShader(std::string const& name) {
   pPumpkinCheck(nullptr);
 
-  auto ret = pumpkinData->registeredShaders.find(_STRING_HASHER(name));
+  auto ret = pumpkinData->registeredShaders.find(_PR_STRING_HASHER(name));
   return ret == pumpkinData->registeredShaders.end() ? nullptr : ret->second;
 }
 
@@ -1388,7 +1494,7 @@ bool Pumpkin_RegisterScriptRaw(ScriptAllocateFunction scriptAllocate, std::strin
     return false;
   }
 
-  return pumpkinData->registeredScripts.insert({_STRING_HASHER(name), ScriptInfoPair(scriptAllocate, name, size)}).second;
+  return pumpkinData->registeredScripts.insert({_PR_STRING_HASHER(name), ScriptInfoPair(scriptAllocate, name, size)}).second;
 }
 
 
@@ -1396,7 +1502,7 @@ bool Pumpkin_RegisterScriptRaw(ScriptAllocateFunction scriptAllocate, std::strin
 Script* Pumpkin_CreateScript(std::string const& name) {
   pPumpkinCheck(nullptr);
   
-  auto find = pumpkinData->registeredScripts.find(_STRING_HASHER(name));
+  auto find = pumpkinData->registeredScripts.find(_PR_STRING_HASHER(name));
   if (find == pumpkinData->registeredScripts.end()) {
     pWarn("Script with name not found");
     return nullptr;
@@ -1473,10 +1579,10 @@ void PumpkinRoll__CameraFreeMovement::Update(Object* obj, ScriptUpdateInfo const
       obj->transform.position += camRight * info.deltaTime * moveSpeed;
     }
     if (info.window->GetInput(GLFW_KEY_Q).held) {
-      obj->transform.position -= _UP * info.deltaTime * moveSpeed;
+      obj->transform.position -= _PR_UP * info.deltaTime * moveSpeed;
     }
     if (info.window->GetInput(GLFW_KEY_E).held) {
-      obj->transform.position += _UP * info.deltaTime * moveSpeed;
+      obj->transform.position += _PR_UP * info.deltaTime * moveSpeed;
     }
 
 
@@ -1573,14 +1679,14 @@ bool RegisterWindow(std::string const& name, ::pPack::Window* data) {
   assert(pumpkinData != nullptr);
 
   if (data == nullptr) return false;
-  return pumpkinData->registeredWindows.insert(std::pair<size_t, Window*>(_STRING_HASHER(name), data)).second;
+  return pumpkinData->registeredWindows.insert(std::pair<size_t, Window*>(_PR_STRING_HASHER(name), data)).second;
 }
 
 
 ::pPack::Window* GetWindow(std::string const& name) {
   assert(pumpkinData != nullptr);
 
-  auto ret = pumpkinData->registeredWindows.find(_STRING_HASHER(name));
+  auto ret = pumpkinData->registeredWindows.find(_PR_STRING_HASHER(name));
   return ret == pumpkinData->registeredWindows.end() ? nullptr : ret->second;
 }
 

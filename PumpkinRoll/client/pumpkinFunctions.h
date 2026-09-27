@@ -1,7 +1,7 @@
 /*
 *
 * Function Declarations Header
-* Built 2026-08-31 04:04 PM
+* Built 2026-09-22 11:00 AM
 *
 */
 
@@ -28,9 +28,17 @@ typedef double* (APIENTRYP FPPUMPKIN_TOTALTIME)();
 typedef void (APIENTRYP FPPUMPKIN_STARTMEMORYIGNOREBLOCK)();
 typedef void (APIENTRYP FPPUMPKIN_ENDMEMORYIGNOREBLOCK)();
 typedef ExplodedObjectList (APIENTRYP FPPUMPKIN_EXPLODEALLOBJECTS)();
+typedef void (APIENTRYP FPPUMPKIN_EXPLODEOBJECTINTOLIST)(Object* object, Object* connectedObject, std::vector<CollisionObject*> list);
 typedef bool (APIENTRYP FPPUMPKIN_CASTRAY)(Ray const& ray, RayHitInfo& hit);
 typedef bool (APIENTRYP FPPUMPKIN_CASTRAYINTO)(Ray const& ray, RayHitInfo& hit, ExplodedObjectList const& list);
 typedef ExplodedObjectList (APIENTRYP FPPUMPKIN_WRAPBVHNODESAROUND)(ExplodedObjectList const& list);
+typedef float (APIENTRYP FPPUMPKIN_RANDOMFLOAT)();
+typedef float (APIENTRYP FPPUMPKIN_RANDOMFLOATINRANGE)(float min, float max);
+typedef double (APIENTRYP FPPUMPKIN_RANDOMDOUBLE)();
+typedef double (APIENTRYP FPPUMPKIN_RANDOMDOUBLEINRANGE)(double min, double max);
+typedef ::pPack::Vector3 (APIENTRYP FPPUMPKIN_RANDOMVECTOR3)();
+typedef ::pPack::DVector3 (APIENTRYP FPPUMPKIN_RANDOMDVECTOR3)();
+typedef void (APIENTRYP FPRAYHITINFO_SETFACENORMAL)(::pumpkin::RayHitInfo& info, ::pumpkin::Ray const& ray, ::pPack::DVector3 outwardNormal);
 typedef ::pPack::DVector3 (APIENTRYP FPRAY_AT)(Ray const& ray, double time);
 typedef double (APIENTRYP FPINTERVAL_SIZE)(Interval const& interval);
 typedef void (APIENTRYP FPINTERVAL_EXPAND)(Interval& interval, double delta);
@@ -42,7 +50,7 @@ typedef AABB (APIENTRYP FPAABB_GENERATEFROMOBJECTS)(std::vector<CollisionObject*
 typedef AABB (APIENTRYP FPAABB_GENERATEFROMPOINTS)(::pPack::DVector3 const& a, ::pPack::DVector3 const& b);
 typedef void (APIENTRYP FPAABB_PADTOMINIMUMS)(AABB& aabb);
 typedef int (APIENTRYP FPAABB_LONGESTAXIS)(AABB const& aabb);
-typedef Interval (APIENTRYP FPCONST&AABB_AXISINTERVAL)(AABB const& aabb, int axis);
+typedef Interval const& (APIENTRYP FPAABB_AXISINTERVAL)(AABB const& aabb, int axis);
 typedef void (APIENTRYP FPAABB_OFFSET)(AABB& aabb, ::pPack::DVector3 offset);
 typedef AABB (APIENTRYP FPAABB_COMBINE)(AABB const& a, AABB const& b);
 typedef void (APIENTRYP FPAABB_EXPAND)(AABB& aabb, double delta);
@@ -72,13 +80,19 @@ typedef void (APIENTRYP FPCAMERA_GENERATEVIEW)(Camera* camera);
 typedef void (APIENTRYP FPCAMERA_GENERATEPROJECTION)(Camera* camera);
 typedef ::pPack::Vector3* (APIENTRYP FPCAMERA_FORWARD)(Camera* camera);
 typedef ::pPack::Vector3* (APIENTRYP FPCAMERA_RIGHT)(Camera* camera);
+typedef void (APIENTRYP FPCAMERA_START)(Camera* camera);
+typedef void (APIENTRYP FPCAMERA_UPDATE)(Camera* camera);
 typedef bool (APIENTRYP FPCAMERA_GETANGLEBASED)(Camera* camera);
 typedef void (APIENTRYP FPCAMERA_ANGLEBASED)(Camera* camera, bool b);
 typedef void (APIENTRYP FPCAMERA_LOOKATTARGET)(Camera* camera, ::pPack::Vector3* target);
 typedef ::pPack::Vector3* (APIENTRYP FPCAMERA_GETLOOKATTARGET)(Camera* camera);
+typedef void (APIENTRYP FPCAMERA_LOOKAT)(Camera* camera, ::pPack::Vector3 target);
+typedef void (APIENTRYP FPCAMERA_LOOKATCONSTANT)(Camera* camera, bool value);
+typedef bool (APIENTRYP FPCAMERA_GETLOOKATCONSTANT)(Camera* camera);
+typedef bool (APIENTRYP FPCAMERA_GETLOOKAT)(Camera* camera, ::pPack::Vector3& ouot);
 typedef Format (APIENTRYP FPPUMPKIN_REGISTERFORMAT)(std::string const& name, FormatStartInfo* formatStartInfo, GLuint count, bool autoOffset);
 typedef Format (APIENTRYP FPPUMPKIN_GETFORMAT)(std::string const& name);
-typedef FormatStartInfo (APIENTRYP FPCONST*CONSTFORMAT_GETATTRIBUTEOFNAME)(Format const& format, AttributeName name);
+typedef FormatStartInfo const*const (APIENTRYP FPFORMAT_GETATTRIBUTEOFNAME)(Format const& format, AttributeName name);
 typedef Mesh* (APIENTRYP FPPUMPKIN_REGISTERMESH)(std::string const& name, void* vertices, size_t size, size_t count, bool dynamic, Format format);
 typedef Mesh* (APIENTRYP FPPUMPKIN_GETMESH)(std::string const& name);
 typedef void (APIENTRYP FPPUMPKIN_APPLYSTATICBUFFER)();
@@ -127,9 +141,17 @@ APIGET FPPUMPKIN_TOTALTIME Pumpkin_TotalTime;
 APIGET FPPUMPKIN_STARTMEMORYIGNOREBLOCK Pumpkin_StartMemoryIgnoreBlock;
 APIGET FPPUMPKIN_ENDMEMORYIGNOREBLOCK Pumpkin_EndMemoryIgnoreBlock;
 APIGET FPPUMPKIN_EXPLODEALLOBJECTS Pumpkin_ExplodeAllObjects;
+APIGET FPPUMPKIN_EXPLODEOBJECTINTOLIST Pumpkin_ExplodeObjectIntoList;
 APIGET FPPUMPKIN_CASTRAY Pumpkin_CastRay;
 APIGET FPPUMPKIN_CASTRAYINTO Pumpkin_CastRayInto;
 APIGET FPPUMPKIN_WRAPBVHNODESAROUND Pumpkin_WrapBVHNodesAround;
+APIGET FPPUMPKIN_RANDOMFLOAT Pumpkin_RandomFloat;
+APIGET FPPUMPKIN_RANDOMFLOATINRANGE Pumpkin_RandomFloatInRange;
+APIGET FPPUMPKIN_RANDOMDOUBLE Pumpkin_RandomDouble;
+APIGET FPPUMPKIN_RANDOMDOUBLEINRANGE Pumpkin_RandomDoubleInRange;
+APIGET FPPUMPKIN_RANDOMVECTOR3 Pumpkin_RandomVector3;
+APIGET FPPUMPKIN_RANDOMDVECTOR3 Pumpkin_RandomDVector3;
+APIGET FPRAYHITINFO_SETFACENORMAL RayHitInfo_SetFaceNormal;
 APIGET FPRAY_AT Ray_At;
 APIGET FPINTERVAL_SIZE Interval_Size;
 APIGET FPINTERVAL_EXPAND Interval_Expand;
@@ -141,7 +163,7 @@ APIGET FPAABB_GENERATEFROMOBJECTS AABB_GenerateFromObjects;
 APIGET FPAABB_GENERATEFROMPOINTS AABB_GenerateFromPoints;
 APIGET FPAABB_PADTOMINIMUMS AABB_PadToMinimums;
 APIGET FPAABB_LONGESTAXIS AABB_LongestAxis;
-APIGET FPCONST&AABB_AXISINTERVAL const&AABB_AxisInterval;
+APIGET FPAABB_AXISINTERVAL AABB_AxisInterval;
 APIGET FPAABB_OFFSET AABB_Offset;
 APIGET FPAABB_COMBINE AABB_Combine;
 APIGET FPAABB_EXPAND AABB_Expand;
@@ -171,13 +193,19 @@ APIGET FPCAMERA_GENERATEVIEW Camera_GenerateView;
 APIGET FPCAMERA_GENERATEPROJECTION Camera_GenerateProjection;
 APIGET FPCAMERA_FORWARD Camera_Forward;
 APIGET FPCAMERA_RIGHT Camera_Right;
+APIGET FPCAMERA_START Camera_Start;
+APIGET FPCAMERA_UPDATE Camera_Update;
 APIGET FPCAMERA_GETANGLEBASED Camera_GetAngleBased;
 APIGET FPCAMERA_ANGLEBASED Camera_AngleBased;
 APIGET FPCAMERA_LOOKATTARGET Camera_LookAtTarget;
 APIGET FPCAMERA_GETLOOKATTARGET Camera_GetLookAtTarget;
+APIGET FPCAMERA_LOOKAT Camera_LookAt;
+APIGET FPCAMERA_LOOKATCONSTANT Camera_LookAtConstant;
+APIGET FPCAMERA_GETLOOKATCONSTANT Camera_GetLookAtConstant;
+APIGET FPCAMERA_GETLOOKAT Camera_GetLookAt;
 APIGET FPPUMPKIN_REGISTERFORMAT Pumpkin_RegisterFormat;
 APIGET FPPUMPKIN_GETFORMAT Pumpkin_GetFormat;
-APIGET FPCONST*CONSTFORMAT_GETATTRIBUTEOFNAME const*constFormat_GetAttributeOfName;
+APIGET FPFORMAT_GETATTRIBUTEOFNAME Format_GetAttributeOfName;
 APIGET FPPUMPKIN_REGISTERMESH Pumpkin_RegisterMesh;
 APIGET FPPUMPKIN_GETMESH Pumpkin_GetMesh;
 APIGET FPPUMPKIN_APPLYSTATICBUFFER Pumpkin_ApplyStaticBuffer;

@@ -47,7 +47,7 @@ int Pumpkin_LoadFile(std::string filePath, bool pack, bool cache, bool relative,
   }
 
   // Can't load an already loaded file
-  if (files->loadedFiles.contains(_STRING_HASHER(filePath))) {
+  if (files->loadedFiles.contains(_PR_STRING_HASHER(filePath))) {
     pWarn(("File '"s + filePath + "' already loaded").c_str());
     return 2;
   }
@@ -101,7 +101,7 @@ int Pumpkin_LoadFile(std::string filePath, bool pack, bool cache, bool relative,
   }
 
   // Add to list of loaded files
-  files->loadedFiles.insert({_STRING_HASHER(filePath), file});
+  files->loadedFiles.insert({_PR_STRING_HASHER(filePath), file});
 
   return 0;
 }
@@ -114,13 +114,13 @@ void Pumpkin_ForgetFile(std::string const& path) {
     return;
   }
 
-  auto find = files->loadedFiles.find(_STRING_HASHER(path));
+  auto find = files->loadedFiles.find(_PR_STRING_HASHER(path));
   if (find == files->loadedFiles.end()) return;
   if (find->second.cache) {
     find->second.data.Delete();
   }
 
-  files->loadedFiles.erase(_STRING_HASHER(path));
+  files->loadedFiles.erase(_PR_STRING_HASHER(path));
 }
 
 
@@ -131,7 +131,7 @@ FileData Pumpkin_ReadFile(std::string const& path, bool binary) {
     return {};
   }
 
-  auto find = files->loadedFiles.find(_STRING_HASHER(path));
+  auto find = files->loadedFiles.find(_PR_STRING_HASHER(path));
   if (find == files->loadedFiles.end()) {
     pWarn(("File '"s + path + "' not loaded").c_str());
     return {};
@@ -193,7 +193,7 @@ std::string Pumpkin_ToRelativePath(std::string const& path) {
 
 bool Pumpkin_OpenFileFunc(std::string const& location, bool relative, bool binary, ::pPack::FileHandle& handle) {
 
-  if (!files->loadedFiles.contains(_STRING_HASHER(location))) {
+  if (!files->loadedFiles.contains(_PR_STRING_HASHER(location))) {
     if (Pumpkin_LoadFile(location, true, false, relative, binary)) {
       return false;
     }
@@ -214,7 +214,7 @@ bool Pumpkin_OpenFileFunc(std::string const& location, bool relative, bool binar
 
 
 void Pumpkin_CloseFileFunc(::pPack::FileHandle& handle) {
-  auto file = files->loadedFiles.find(_STRING_HASHER(handle.location));
+  auto file = files->loadedFiles.find(_PR_STRING_HASHER(handle.location));
   if (file == files->loadedFiles.end()) return;
   free(handle.data);
   handle = FileHandle();

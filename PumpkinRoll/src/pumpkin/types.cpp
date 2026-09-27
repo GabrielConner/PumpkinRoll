@@ -46,8 +46,8 @@ bool CollisionTriangle::Collide(::pumpkin::Ray const& ray, ::pumpkin::Interval i
   if (uv.x >= 0 && uv.y >= 0 && (uv.x + uv.y) <= 1) {
     hit.time = t;
     hit.position = point;
-    hit.normal = n;
     hit.object = object;
+    RayHitInfo_SetFaceNormal(hit, ray, n);
     return true;
   }
   return false;
@@ -76,11 +76,14 @@ bool CollisionQuad::Collide(Ray const& ray, Interval interval, RayHitInfo& hit) 
   DVector2 uv;
   CollisionTemplatePlane_MoveIntoCoordinateSpace(*this, point, uv);
 
-  hit.time = t;
-  hit.position = point;
-  hit.normal = n;
-
-  return uv.x >= 0 && uv.x <= 1 && uv.y >= 0 && uv.y <= 1;
+  if (uv.x >= 0 && uv.y >= 0 && uv.x <= 1 && uv.y <= 1) {
+    hit.time = t;
+    hit.position = point;
+    hit.object = object;
+    RayHitInfo_SetFaceNormal(hit, ray, n);
+    return true;
+  }
+  return false;
 }
 
 // --------------------------------------------------
@@ -121,7 +124,9 @@ bool CollisionSphere::Collide(::pumpkin::Ray const& ray, ::pumpkin::Interval int
 
   hit.time = ans;
   hit.position = Ray_At(ray, hit.time);
-  hit.normal = (hit.position - center).Normal();
+  hit.object = object;
+  DVector3 outwardNormal = (hit.position - center) / radius;
+  RayHitInfo_SetFaceNormal(hit, ray, outwardNormal);
 
   return true;
 }
@@ -129,5 +134,64 @@ bool CollisionSphere::Collide(::pumpkin::Ray const& ray, ::pumpkin::Interval int
 // --------------------------------------------------
 // --------------------------------------------------
 // CollisionSphere
+
+
+
+// CollisionList
+// --------------------------------------------------
+// --------------------------------------------------
+
+void CollisionList::Add(CollisionObject* obj) {
+  list.push_back(obj);
+  bbox = AABB_Combine(bbox, obj->GenerateAABB());
+}
+
+
+
+void CollisionList::RegenerateAABB() {
+  bbox = AABB();
+  for (CollisionObject* obj : list) {
+    bbox = AABB_Combine(bbox, obj->GenerateAABB());
+  }
+}
+
+
+
+bool CollisionList::Collide(Ray const& ray, Interval interval, RayHitInfo& hit) const {
+  bool hitAny = false;
+  RayHitInfo inHit;
+
+  for (CollisionObject* obj : list) {
+    if (obj->Collide(ray, interval, inHit)) {
+      hitAny = true;
+      interval.max = inHit.time;
+    }
+  }
+
+  if (hitAny)
+    hit = inHit;
+  return hitAny;
+}
+
+
+
+AABB CollisionList::GenerateAABB() const {
+  return bbox;
+}
+
+
+
+void CollisionList::DeleteInternal() {
+  for (CollisionObject* obj : list) {
+    obj->DeleteInternal();
+    delete(obj);
+  }
+  list.clear();
+}
+
+// --------------------------------------------------
+// --------------------------------------------------
+// CollisionList
+
 
 }; // namespace pumpkin

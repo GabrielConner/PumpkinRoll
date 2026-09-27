@@ -24,7 +24,7 @@ bool PropertyHolder_AddProperty(PropertyHolder* holder, std::string const& name,
 
   size_t typeSize = SizeOfType(type);
 
-  auto ret = holder->properties.insert({_STRING_HASHER(name), Property(name, nullptr, type)});
+  auto ret = holder->properties.insert({_PR_STRING_HASHER(name), Property(name, nullptr, type)});
   if (!ret.second) return false;
 
   ret.first->second.prop = calloc(1, typeSize);
@@ -44,7 +44,7 @@ bool PropertyHolder_SetProperty(PropertyHolder* holder, std::string const& name,
   pNullCheck(holder, false);
   pNullCheck(value, false);
 
-  auto find = holder->properties.find(_STRING_HASHER(name));
+  auto find = holder->properties.find(_PR_STRING_HASHER(name));
   if (find == holder->properties.end()) {
     pWarn("Not a valid property name");
     return false;
@@ -62,7 +62,7 @@ bool PropertyHolder_SetOrAddProperty(PropertyHolder* holder, std::string const& 
 
   // Combination of both Set and Add
 
-  auto find = holder->properties.find(_STRING_HASHER(name));
+  auto find = holder->properties.find(_PR_STRING_HASHER(name));
   if (find == holder->properties.end()) {
     if (type == VariableType::UNKNOWN) {
       pWarn("Invalid variable type");
@@ -71,7 +71,7 @@ bool PropertyHolder_SetOrAddProperty(PropertyHolder* holder, std::string const& 
 
     size_t typeSize = SizeOfType(type);
 
-    auto ret = holder->properties.insert({_STRING_HASHER(name), Property(name, nullptr, type)});
+    auto ret = holder->properties.insert({_PR_STRING_HASHER(name), Property(name, nullptr, type)});
     if (!ret.second) return false;
 
     ret.first->second.prop = calloc(1, typeSize);
@@ -106,7 +106,7 @@ void PropertyHolder_DeleteProperty(PropertyHolder* holder, std::string const& na
 void* PropertyHolder_GetProperty(PropertyHolder* holder, std::string const& name) {
   pNullCheck(holder, nullptr);
 
-  auto find = holder->properties.find(_STRING_HASHER(name));
+  auto find = holder->properties.find(_PR_STRING_HASHER(name));
   if (find == holder->properties.end()) return nullptr;
   return find->second.prop;
 }
@@ -158,7 +158,7 @@ void PropertyHolder::PrintAll() const {
 
 
 void PropertyHolder::DeleteProperty(std::string const& name) {
-  auto find = properties.find(_STRING_HASHER(name));
+  auto find = properties.find(_PR_STRING_HASHER(name));
   if (find == properties.end()) return;
   find->second.Delete();
   properties.erase(find);
